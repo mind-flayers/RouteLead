@@ -15,6 +15,11 @@
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
+    "@supabase/realtime-js": "^2.11.8-next.1",
+    "@supabase/supabase-js": "^2.49.5-next.1",
+    "browserify-zlib": "^0.2.0",
+    "buffer": "^6.0.3",
+    "events": "^3.3.0",
     "expo": "~53.0.9",
     "expo-blur": "~14.1.4",
     "expo-constants": "~17.1.6",
@@ -28,6 +33,9 @@
     "expo-symbols": "~0.4.4",
     "expo-system-ui": "~5.0.7",
     "expo-web-browser": "~14.1.6",
+    "https-browserify": "^1.0.0",
+    "path-browserify": "^1.0.1",
+    "process": "^0.11.10",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.2",
@@ -35,8 +43,14 @@
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.10.0",
+    "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "~0.20.0",
-    "react-native-webview": "13.13.5"
+    "react-native-websocket": "^1.0.2",
+    "react-native-webview": "13.13.5",
+    "readable-stream": "^4.7.0",
+    "stream-http": "^3.2.0",
+    "url": "^0.11.4",
+    "util": "^0.12.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -46,6 +60,9 @@
     "nativewind": "^2.0.11",
     "tailwindcss": "^3.3.2",
     "typescript": "~5.8.3"
+  },
+  "resolutions": {
+    "ws": "npm:react-native-websocket@^1.0.2"
   },
   "private": true
 }

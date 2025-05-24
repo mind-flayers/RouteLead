@@ -8,16 +8,45 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    // Hey there login logic
-    router.replace('/(tabs)');
+  const handleLogin = async () => {
+    if (loading) return;
+    
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data?.user) {
+        Alert.alert(
+          'Success',
+          'Successfully signed in!',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/(tabs)')
+            }
+          ]
+        );
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -76,9 +105,12 @@ export default function LoginScreen() {
           <TouchableOpacity 
             className="bg-primary rounded-xl p-4 items-center mb-6"
             onPress={handleLogin}
-            style={{ pointerEvents: 'auto' }}
+            disabled={loading}
+            style={{ pointerEvents: 'auto', opacity: loading ? 0.7 : 1 }}
           >
-            <Text className="text-white text-lg font-bold">Sign In</Text>
+            <Text className="text-white text-lg font-bold">
+              {loading ? 'Signing In...' : 'Sign In'}
+            </Text>
           </TouchableOpacity>
 
           <View className="flex-row justify-center items-center">
