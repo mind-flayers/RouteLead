@@ -2,9 +2,15 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import { User, UserRole, AuthState } from './types';
 
+interface SignUpData {
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+}
+
 interface AuthContextType extends AuthState {
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, role: UserRole) => Promise<void>;
+  signUp: (email: string, password: string, role: UserRole, data: SignUpData) => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: () => boolean;
   isDriver: () => boolean;
@@ -70,42 +76,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
   };
 
-  const signUp = async (email: string, password: string, role: UserRole) => {
+  const signUp = async (email: string, password: string, role: UserRole, data: SignUpData) => {
     console.log('Starting signup process with role:', role);
-    const { error: signUpError, data } = await supabase.auth.signUp({ 
+    const { error: signUpError, data: authData } = await supabase.auth.signUp({ 
       email, 
       password,
       options: {
         data: {
-          role: role
+          role: role,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          phone_number: data.phoneNumber
         },
         emailRedirectTo: `${window.location.origin}/auth/callback`
       }
     });
     if (signUpError) throw signUpError;
 
-    if (data.user) {
+    if (authData.user) {
       console.log('User created successfully, updating profile...');
       try {
         // Wait a short moment for the trigger to create the profile
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // Update the profile with the correct role
+        // Update the profile with the correct role and user data
         const { error: updateError } = await supabase
           .from('profiles')
-          .update({ role: role })
-          .eq('id', data.user.id);
+          .update({ 
+            role: role,
+            first_name: data.firstName,
+            last_name: data.lastName,
+            phone_number: data.phoneNumber
+          })
+          .eq('id', authData.user.id);
 
         if (updateError) {
-          console.error('Failed to update profile role:', updateError);
+          console.error('Failed to update profile:', updateError);
           throw updateError;
         }
 
-        // Verify the role was updated
+        // Verify the profile was updated
         const { data: profile, error: fetchError } = await supabase
           .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
+          .select('*')
+          .eq('id', authData.user.id)
           .single();
 
         if (fetchError) {
@@ -113,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           throw fetchError;
         }
 
-        console.log('Profile role successfully set to:', profile.role);
+        console.log('Profile successfully updated:', profile);
       } catch (error: any) {
         console.error('Error during profile update:', error);
         throw error;

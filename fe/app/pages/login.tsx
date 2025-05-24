@@ -8,15 +8,21 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import CustomAlert from '../../components/CustomAlert';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info' as 'success' | 'error' | 'info'
+  });
 
   const handleLogin = async () => {
     if (loading) return;
@@ -31,21 +37,29 @@ export default function LoginScreen() {
       if (error) throw error;
 
       if (data?.user) {
-        Alert.alert(
-          'Success',
-          'Successfully signed in!',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/(tabs)')
-            }
-          ]
-        );
+        setAlert({
+          visible: true,
+          title: 'Success!',
+          message: 'You have successfully signed in to RouteLead.',
+          type: 'success'
+        });
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message);
+      setAlert({
+        visible: true,
+        title: 'Error',
+        message: error.message || 'Failed to sign in. Please try again.',
+        type: 'error'
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAlertDismiss = () => {
+    setAlert(prev => ({ ...prev, visible: false }));
+    if (alert.type === 'success') {
+      router.replace('/pages/welcome');
     }
   };
 
@@ -124,6 +138,14 @@ export default function LoginScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <CustomAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        type={alert.type}
+        onDismiss={handleAlertDismiss}
+      />
     </KeyboardAvoidingView>
   );
 } 

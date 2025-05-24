@@ -8,41 +8,73 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '../../lib/auth';
 import { UserRole } from '../../lib/types';
+import CustomAlert from '../../components/CustomAlert';
 
 export default function SignupScreen() {
   const { signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UserRole>(UserRole.CUSTOMER);
+  const [alert, setAlert] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info' as 'success' | 'error' | 'info'
+  });
 
   const handleSignup = async () => {
     if (loading) return;
     
+    // Validate required fields
+    if (!email || !password || !firstName || !lastName || !phoneNumber) {
+      setAlert({
+        visible: true,
+        title: 'Missing Information',
+        message: 'Please fill in all required fields marked with *',
+        type: 'error'
+      });
+      return;
+    }
+    
     try {
       setLoading(true);
-      console.log('Selected role before signup:', selectedRole);
-      await signUp(email, password, selectedRole);
-      Alert.alert(
-        'Success',
-        'Your account has been created successfully! Please check your email to verify your account.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/pages/login')
-          }
-        ]
-      );
+      console.log('Starting signup process with role:', selectedRole);
+      await signUp(email, password, selectedRole, {
+        firstName,
+        lastName,
+        phoneNumber
+      });
+      setAlert({
+        visible: true,
+        title: 'Success!',
+        message: 'Your account has been created successfully! Please check your email to verify your account.',
+        type: 'success'
+      });
     } catch (error: any) {
       console.error('Signup error:', error);
-      Alert.alert('Error', error.message || 'Failed to create account. Please try again.');
+      setAlert({
+        visible: true,
+        title: 'Error',
+        message: error.message || 'Failed to create account. Please try again.',
+        type: 'error'
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAlertDismiss = () => {
+    setAlert(prev => ({ ...prev, visible: false }));
+    if (alert.type === 'success') {
+      router.replace('/pages/welcome');
     }
   };
 
@@ -92,7 +124,29 @@ export default function SignupScreen() {
           <View className="mb-4">
             <TextInput
               className="bg-gray-100 rounded-xl p-4 text-base border border-border"
-              placeholder="Email"
+              placeholder="First Name *"
+              value={firstName}
+              onChangeText={setFirstName}
+              autoCapitalize="words"
+              style={{ boxShadow: 'none' }}
+            />
+          </View>
+
+          <View className="mb-4">
+            <TextInput
+              className="bg-gray-100 rounded-xl p-4 text-base border border-border"
+              placeholder="Last Name *"
+              value={lastName}
+              onChangeText={setLastName}
+              autoCapitalize="words"
+              style={{ boxShadow: 'none' }}
+            />
+          </View>
+
+          <View className="mb-4">
+            <TextInput
+              className="bg-gray-100 rounded-xl p-4 text-base border border-border"
+              placeholder="Email *"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -104,7 +158,18 @@ export default function SignupScreen() {
           <View className="mb-4">
             <TextInput
               className="bg-gray-100 rounded-xl p-4 text-base border border-border"
-              placeholder="Password"
+              placeholder="Phone Number *"
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              keyboardType="phone-pad"
+              style={{ boxShadow: 'none' }}
+            />
+          </View>
+
+          <View className="mb-4">
+            <TextInput
+              className="bg-gray-100 rounded-xl p-4 text-base border border-border"
+              placeholder="Password *"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -113,7 +178,7 @@ export default function SignupScreen() {
           </View>
 
           <View className="mb-6">
-            <Text className="text-base text-text-light mb-2">Select your role:</Text>
+            <Text className="text-base text-text-light mb-2">Select your role: *</Text>
             <View className="flex-row">
               <RoleButton role={UserRole.CUSTOMER} label="Customer" />
               <RoleButton role={UserRole.DRIVER} label="Driver" />
@@ -142,6 +207,14 @@ export default function SignupScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <CustomAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        type={alert.type}
+        onDismiss={handleAlertDismiss}
+      />
     </KeyboardAvoidingView>
   );
 } 
