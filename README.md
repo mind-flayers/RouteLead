@@ -79,6 +79,18 @@ Create a `.env` file in `fe/` with any environment variables (e.g., API endpoint
 API_URL=http://localhost:8080
 ```
 
+### 4. Supabase Integration
+
+The frontend connects to Supabase for authentication and data management. Ensure your Supabase project URL and Anon Key are configured as environment variables in `fe/.env.local`:
+
+```
+EXPO_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_URL
+EXPO_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+```
+
+The Supabase client is initialized in `fe/lib/supabase.ts` using these environment variables.
+```
+
 ---
 
 ## 🖥️ Backend (be)
