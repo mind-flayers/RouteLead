@@ -12,6 +12,7 @@ import {
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import CustomAlert from '../../components/CustomAlert';
+import { useAuth } from '../../lib/auth';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -23,6 +24,8 @@ export default function LoginScreen() {
     message: '',
     type: 'info' as 'success' | 'error' | 'info'
   });
+
+  const { user } = useAuth();
 
   const handleLogin = async () => {
     if (loading) return;
@@ -59,7 +62,11 @@ export default function LoginScreen() {
   const handleAlertDismiss = () => {
     setAlert(prev => ({ ...prev, visible: false }));
     if (alert.type === 'success') {
-      router.replace('/pages/welcome');
+      if (user?.role === 'CUSTOMER') {
+        router.replace('/pages/customer/Dashboard');
+      } else {
+        router.replace('/pages/welcome');
+      }
     }
   };
 
