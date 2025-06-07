@@ -2,12 +2,14 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { FontAwesome, MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../lib/auth'; // adjust if needed
+import { router } from 'expo-router'; // Add router import
 
 const actions = [
   {
     label: 'Find a Route',
     icon: <FontAwesome name="search" size={32} color="#fff" />,
     active: true,
+    route: '/pages/customer/FindRoute', // Add route for navigation
   },
   {
     label: 'Place Bids',
@@ -77,7 +79,10 @@ export default function CustomerDashboard() {
               elevation: 3,
             }}
             onPress={() => {
-              // handle tile press (e.g. navigate)
+              if (action.label === 'Find a Route') {
+                router.push('/pages/customer/FindRoute');
+              }
+              // Add navigation for other tiles if needed
             }}
           >
             {/* Icon */}
