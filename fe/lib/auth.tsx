@@ -78,6 +78,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, role: UserRole, data: SignUpData) => {
     console.log('Starting signup process with role:', role);
+    console.log('Signup data being sent to Supabase:', {
+      email,
+      password: '***', // masked for security
+      options: {
+        data: {
+          role: role,
+          first_name: data.firstName,
+          last_name: data.lastName,
+          phone_number: data.phoneNumber
+        },
+        emailRedirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
+
     const { error: signUpError, data: authData } = await supabase.auth.signUp({ 
       email, 
       password,
@@ -91,48 +105,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailRedirectTo: `${window.location.origin}/auth/callback`
       }
     });
-    if (signUpError) throw signUpError;
 
-    if (authData.user) {
-      console.log('User created successfully, updating profile...');
-      try {
-        // Wait a short moment for the trigger to create the profile
-        await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log('Full Supabase Auth Raw Response:', authData);
 
-        // Update the profile with the correct role and user data
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ 
-            role: role,
-            first_name: data.firstName,
-            last_name: data.lastName,
-            phone_number: data.phoneNumber
-          })
-          .eq('id', authData.user.id);
-
-        if (updateError) {
-          console.error('Failed to update profile:', updateError);
-          throw updateError;
-        }
-
-        // Verify the profile was updated
-        const { data: profile, error: fetchError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authData.user.id)
-          .single();
-
-        if (fetchError) {
-          console.error('Failed to verify profile update:', fetchError);
-          throw fetchError;
-        }
-
-        console.log('Profile successfully updated:', profile);
-      } catch (error: any) {
-        console.error('Error during profile update:', error);
-        throw error;
-      }
+    if (signUpError) {
+      console.error('Supabase signup error details:', {
+        message: signUpError.message,
+        status: signUpError.status,
+        name: signUpError.name
+      });
+      throw signUpError;
     }
+
+    console.log('Auth response from Supabase:', {
+      user: authData.user ? {
+        id: authData.user.id,
+        email: authData.user.email,
+        metadata: authData.user.user_metadata
+      } : null,
+      session: authData.session ? 'Session created' : 'No session'
+    });
+
+    // Removed immediate profile verification. The handle_new_user trigger in the database is responsible for creating the profile.
+    // The frontend should only attempt to fetch the profile after the user has successfully authenticated (e.g., after email confirmation and login).
   };
 
   const signOut = async () => {
