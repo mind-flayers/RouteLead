@@ -2,8 +2,11 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useAuth } from '../../lib/auth';
 
 export default function ProfilePage() {
+    const { user } = useAuth();
+
   return (
     <ScrollView
       className="flex-1 bg-white"
@@ -20,8 +23,9 @@ export default function ProfilePage() {
       {/* Avatar & Name */}
       <View className="items-center mb-8">
         <View className="w-24 h-24 rounded-full bg-orange-200 mb-4" />
-        <Text className="text-xl font-semibold text-black">Sophia Carter</Text>
-        <Text className="text-sm text-gray-500">Member since 2021</Text>
+        <Text className="text-xl font-semibold text-black">
+  {user?.firstName} {user?.lastName}
+</Text>
       </View>
 
       {/* Section: Account */}
