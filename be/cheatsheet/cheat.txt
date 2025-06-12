@@ -1,0 +1,3 @@
+netstat -aon | findstr :<PORT_NUMBER>
+taskkill /PID <PID> /F
+gh auth login
