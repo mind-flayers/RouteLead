@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useAuth } from '../../lib/auth';
+import { useAuth } from '../../../lib/auth';
 
 export default function ProfilePage() {
     const { user } = useAuth();
@@ -82,6 +82,10 @@ function ProfileRow({ icon, label, value }: ProfileRowProps) {
   );
 }
 
-function SectionHeader({ title }) {
+type SectionHeaderProps = {
+  title: string;
+};
+
+function SectionHeader({ title }: SectionHeaderProps) {
   return <Text className="text-sm text-gray-500 mb-2">{title}</Text>;
 }

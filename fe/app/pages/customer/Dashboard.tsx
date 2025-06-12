@@ -14,7 +14,8 @@ const actions = [
   {
     label: 'Place Bids',
     icon: <FontAwesome name="dollar" size={32} color="#fff" />,
-    active: false,
+     active: true,
+  route: '/pages/customer/PlaceBid', 
   },
   {
     label: 'Track Deliveries',
@@ -50,7 +51,7 @@ export default function CustomerDashboard() {
             color="#222"
             style={{ marginRight: 16 }}
           />
-          <TouchableOpacity onPress={() => router.push('/pages/Profile')}>
+          <TouchableOpacity onPress={() => router.push('/pages/customer/Profile')}>
             <Ionicons name="person-circle-outline" size={28} color="#222" />
           </TouchableOpacity>
         </View>
@@ -84,7 +85,7 @@ export default function CustomerDashboard() {
             }}
             onPress={() => {
               if (action.route) {
-                router.push(action.route);
+                router.push(action.route as any);
               }
             }}
           >
