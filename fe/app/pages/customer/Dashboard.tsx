@@ -1,15 +1,15 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { FontAwesome, MaterialIcons, Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../../lib/auth'; // adjust if needed
-import { router } from 'expo-router'; // Add router import
+import { useAuth } from '../../../lib/auth';
+import { router } from 'expo-router';
 
 const actions = [
   {
     label: 'Find a Route',
     icon: <FontAwesome name="search" size={32} color="#fff" />,
     active: true,
-    route: '/pages/customer/FindRoute', // Add route for navigation
+    route: '/pages/customer/FindRoute',
   },
   {
     label: 'Place Bids',
@@ -32,20 +32,28 @@ export default function CustomerDashboard() {
   const { user } = useAuth();
   const userName = user?.firstName || 'Customer';
 
-  // Calculate tile width for a 2-column layout with some margin
   const tileMargin = 12;
   const numColumns = 2;
   const screenWidth = Dimensions.get('window').width;
   const tileSize =
-    (screenWidth - tileMargin * (numColumns + 1) - 32 /* container padding */) /
-    numColumns;
+    (screenWidth - tileMargin * (numColumns + 1) - 32) / numColumns;
 
   return (
     <View className="flex-1 bg-white">
       {/* Header */}
       <View className="flex-row justify-between items-center px-6 pt-12 pb-4">
         <Text className="text-xl font-bold tracking-wide">RouteLead</Text>
-        <Ionicons name="notifications-outline" size={22} color="#222" />
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Ionicons
+            name="notifications-outline"
+            size={22}
+            color="#222"
+            style={{ marginRight: 16 }}
+          />
+          <TouchableOpacity onPress={() => router.push('/pages/Profile')}>
+            <Ionicons name="person-circle-outline" size={28} color="#222" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Welcome */}
@@ -54,10 +62,7 @@ export default function CustomerDashboard() {
       </Text>
 
       {/* Action Tiles */}
-      <View
-        className="flex-row flex-wrap px-6"
-        style={{ marginBottom: 24 }}
-      >
+      <View className="flex-row flex-wrap px-6" style={{ marginBottom: 24 }}>
         {actions.map((action, idx) => (
           <TouchableOpacity
             key={action.label}
@@ -67,11 +72,10 @@ export default function CustomerDashboard() {
               width: tileSize,
               height: tileSize,
               marginLeft: idx % numColumns === 0 ? 0 : tileMargin,
-              backgroundColor: action.active ? '#FF6600' : '#F3F4F6',
+              backgroundColor: '#000080',
               justifyContent: 'center',
               alignItems: 'center',
               borderRadius: 12,
-              // Add a subtle shadow (iOS & Android)
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.15,
@@ -79,10 +83,9 @@ export default function CustomerDashboard() {
               elevation: 3,
             }}
             onPress={() => {
-              if (action.label === 'Find a Route') {
-                router.push('/pages/customer/FindRoute');
+              if (action.route) {
+                router.push(action.route);
               }
-              // Add navigation for other tiles if needed
             }}
           >
             {/* Icon */}
@@ -91,7 +94,7 @@ export default function CustomerDashboard() {
                 width: 60,
                 height: 60,
                 borderRadius: 30,
-                backgroundColor: action.active ? '#FF7F11' : '#E5E7EB',
+                backgroundColor: '#FFA500',
                 justifyContent: 'center',
                 alignItems: 'center',
                 marginBottom: 12,
@@ -101,14 +104,10 @@ export default function CustomerDashboard() {
             </View>
 
             {/* Label */}
-            <Text
-              className={`text-sm font-medium ${
-                action.active ? 'text-white' : 'text-gray-800'
-              }`}
-              style={{ textAlign: 'center' }}
-            >
-              {action.label}
-            </Text>
+            <Text className="text-sm font-medium text-white" style={{ textAlign: 'center' }}>
+  {action.label}
+</Text>
+
           </TouchableOpacity>
         ))}
       </View>
