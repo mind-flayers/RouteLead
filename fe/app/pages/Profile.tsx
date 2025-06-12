@@ -28,14 +28,14 @@ export default function ProfilePage() {
 </Text>
       </View>
 
-      {/* Section: Account */}
+      
       <SectionHeader title="Account" />
       <View className="mb-6">
         <ProfileRow icon="mail-outline" label="Email" value="sophia.carter@email.com" />
         <ProfileRow icon="call-outline" label="Phone" value="+1 (555) 123–4567" />
       </View>
 
-      {/* Section: Payment */}
+  
       <SectionHeader title="Payment" />
       <View className="mb-6">
         <ProfileRow icon="card-outline" label="Payment Method" value="Visa •••• 1234" />
