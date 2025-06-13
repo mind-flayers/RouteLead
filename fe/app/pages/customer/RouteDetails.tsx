@@ -27,7 +27,7 @@ export default function RouteDetails() {
       </View>
 
       {/* Route Overview */}
-      <View className="bg-gray-100 p-4 rounded-lg mb-4">
+      <View className="bg-gray-100 p-4 rounded-lg mb-3">
         <Text className="text-base font-semibold mb-2">Route Overview</Text>
         <View className="mb-2">
           <Text className="text-gray-700 font-semibold">Origin</Text>
@@ -57,7 +57,7 @@ export default function RouteDetails() {
       </View>
 
       {/* Driver Info */}
-      <View className="bg-gray-100 p-4 rounded-lg mb-6">
+      <View className="bg-gray-100 p-2 rounded-lg mb-4">
         <View className="items-center mb-2">
           <View className="w-16 h-16 bg-blue-500 rounded-full justify-center items-center">
             <Text className="text-white font-bold text-xl">JD</Text>
@@ -75,7 +75,7 @@ export default function RouteDetails() {
 
       {/* Place Your Bid Button */}
       <TouchableOpacity
-        className="bg-[#0D47A1] py-4 rounded-md mb-10"
+        className="bg-[#0D47A1] py-2 rounded-md mb-10"
         onPress={() => router.push('/pages/customer/PlaceBid')}
       >
         <Text className="text-white font-semibold text-center text-base">Place Your Bid</Text>

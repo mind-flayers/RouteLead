@@ -7,12 +7,12 @@ export default function BidConfirmation() {
 
   return (
     <View className="flex-1 bg-white px-6 py-8">
-      <Text className="text-xl font-bold mb-2 text-center">Bid Placed Successfully</Text>
+      <Text className="text-xl font-bold mb-2 text-center text-[#0D47A1]">Bid Placed Successfully</Text>
       <Text className="text-gray-600 mb-6 text-center">
         Your bid has been successfully placed. You will be notified if your bid is accepted.
       </Text>
 
-      <View className="mb-8">
+      <View className="mb-8 bg-[#F6F6FA] rounded-xl p-4 border border-[#FF8C00]">
         <Text className="font-semibold mb-2">Bid Details</Text>
         <View className="flex-row justify-between mb-1">
           <Text className="text-gray-500">Bid Amount</Text>
@@ -28,18 +28,18 @@ export default function BidConfirmation() {
         </View>
       </View>
 
-      <Text className="font-semibold mb-3">Next Steps</Text>
+      <Text className="font-semibold mb-3 text-[#0D47A1]">Next Steps</Text>
       <TouchableOpacity
-        className="bg-black py-4 rounded-md mb-3"
+        className="bg-[#0D47A1] py-4 rounded-md mb-3"
         onPress={() => router.push('/pages/customer/MyBids')}
       >
         <Text className="text-white text-center font-semibold">View Bid Status</Text>
       </TouchableOpacity>
       <TouchableOpacity
-        className="bg-gray-200 py-4 rounded-md"
+        className="bg-[#0D47A1] py-4 rounded-md"
         onPress={() => {/* Add manage bid logic here */}}
       >
-        <Text className="text-black text-center font-semibold">Manage Bid</Text>
+        <Text className="text-white text-center font-semibold">Manage Bid</Text>
       </TouchableOpacity>
     </View>
   );
