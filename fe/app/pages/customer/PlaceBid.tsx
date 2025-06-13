@@ -1,87 +1,65 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router'; // Add this impor
 
 export default function PlaceBid() {
-  const router = useRouter();
-  const [amount, setAmount] = useState('');
-  const [preferredTime, setPreferredTime] = useState('');
-  const [notes, setNotes] = useState('');
+  const router = useRouter(); // Add this line
 
   const handlePlaceBid = () => {
-    router.push({
-      pathname: '/pages/customer/BidConfirmation',
-      params: {
-        amount,
-        route: 'New York to Boston',
-      },
-    });
+    // You can pass bid details as params if needed
+    router.push('/pages/customer/BidConfirmation');
   };
 
+  const [bid, setBid] = useState('');
+  const [weight, setWeight] = useState('');
+  const [dimensions, setDimensions] = useState('');
+  const [type, setType] = useState('Small Package');
+
   return (
-    <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 50 }}>
-      <TouchableOpacity onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={24} color="black" />
-      </TouchableOpacity>
+    <ScrollView className="flex-1 bg-white px-6 py-6">
+      {/* Bid Details */}
+      <Text className="text-lg font-semibold mb-4">Place Your Bid</Text>
 
-      <Text style={{ fontSize: 18, fontWeight: '600', marginTop: 20 }}>Route Details</Text>
-      <Text style={{ marginVertical: 4 }}>123 Main St, Anytown to 456 Oak Ave, Anytown</Text>
-      <Text>Distance: 100 miles</Text>
-      <Text>Vehicle Type: Car</Text>
+      <View className="bg-gray-100 p-4 rounded-lg mb-6">
+        <Text className="text-sm font-medium text-gray-700 mb-2">Bid Amount</Text>
+        <TextInput
+          value={bid}
+          onChangeText={setBid}
+          keyboardType="numeric"
+          placeholder="e.g., 500.00"
+          className="bg-white border border-gray-300 rounded-md px-4 py-2 mb-2"
+        />
+      </View>
 
-      <Text style={{ fontSize: 16, fontWeight: '600', marginTop: 20 }}>Bid Details</Text>
-      <TextInput
-        placeholder="Enter bid amount"
-        value={amount}
-        onChangeText={setAmount}
-        keyboardType="numeric"
-        style={{
-          marginVertical: 10,
-          padding: 12,
-          backgroundColor: '#f1f1f1',
-          borderRadius: 8,
-        }}
-      />
-      <TextInput
-        placeholder="Preferred delivery date/time"
-        value={preferredTime}
-        onChangeText={setPreferredTime}
-        style={{
-          marginVertical: 10,
-          padding: 12,
-          backgroundColor: '#f1f1f1',
-          borderRadius: 8,
-        }}
-      />
-      <TextInput
-        placeholder="Additional notes"
-        multiline
-        value={notes}
-        onChangeText={setNotes}
-        style={{
-          height: 100,
-          padding: 12,
-          backgroundColor: '#f1f1f1',
-          borderRadius: 8,
-          textAlignVertical: 'top',
-          marginVertical: 10,
-        }}
-      />
+      {/* Parcel Details */}
+      <View className="bg-gray-100 p-4 rounded-lg mb-6">
+        <Text className="text-sm font-medium text-gray-700 mb-2">Weight (kg)</Text>
+        <TextInput
+          value={weight}
+          onChangeText={setWeight}
+          keyboardType="numeric"
+          placeholder="e.g., 5"
+          className="bg-white border border-gray-300 rounded-md px-4 py-2 mb-4"
+        />
+        <Text className="text-sm font-medium text-gray-700 mb-2">Dimensions (cm)</Text>
+        <TextInput
+          value={dimensions}
+          onChangeText={setDimensions}
+          placeholder="e.g., 30×20×15"
+          className="bg-white border border-gray-300 rounded-md px-4 py-2 mb-4"
+        />
+        <Text className="text-sm font-medium text-gray-700 mb-2">Parcel Type</Text>
+        <TextInput
+          value={type}
+          onChangeText={setType}
+          placeholder="e.g., Small Package"
+          className="bg-white border border-gray-300 rounded-md px-4 py-2"
+        />
+      </View>
 
-      <TouchableOpacity
-        onPress={handlePlaceBid}
-        style={{
-          marginTop: 20,
-          padding: 16,
-          backgroundColor: 'black',
-          borderRadius: 8,
-        }}
-      >
-        <Text style={{ color: 'white', textAlign: 'center', fontWeight: '600' }}>
-          Place Bid
-        </Text>
-      </TouchableOpacity>
-    </ScrollView>
+      {/* Submit Button */}
+      <TouchableOpacity className="bg-[#0D47A1] py-4 rounded-md" onPress={handlePlaceBid}>
+        <Text className="text-white font-semibold text-center text-base">Place Your Bid</Text>
+      </TouchableOpacity>  </ScrollView>
   );
 }

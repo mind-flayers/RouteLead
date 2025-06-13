@@ -12,20 +12,22 @@ const actions = [
     route: '/pages/customer/FindRoute',
   },
   {
-    label: 'Place Bids',
+    label: 'My Bids',
     icon: <FontAwesome name="dollar" size={32} color="#fff" />,
      active: true,
-  route: '/pages/customer/PlaceBid', 
+  route: '/pages/customer/MyBids', 
   },
   {
     label: 'Track Deliveries',
     icon: <MaterialIcons name="local-shipping" size={32} color="#fff" />,
-    active: false,
+    active: true,
+    route: '/pages/customer/TrackingDelivery', 
   },
   {
     label: 'View Past Deliveries',
     icon: <Ionicons name="time-outline" size={32} color="#fff" />,
-    active: false,
+    active: true, 
+    route: '/pages/customer/PastDeliveries', 
   },
 ];
 
@@ -130,10 +132,7 @@ export default function CustomerDashboard() {
           <Ionicons name="chatbubble-ellipses-outline" size={22} color="#888" />
           <Text className="text-xs mt-1 text-gray-500">Messages</Text>
         </View>
-        <View className="items-center">
-          <Ionicons name="person-outline" size={22} color="#888" />
-          <Text className="text-xs mt-1 text-gray-500">Profile</Text>
-        </View>
+      
       </View>
     </View>
   );

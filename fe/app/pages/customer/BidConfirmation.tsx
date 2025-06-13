@@ -1,61 +1,46 @@
-import { View, Text, TouchableOpacity } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 
 export default function BidConfirmation() {
   const router = useRouter();
-  const { amount, route } = useLocalSearchParams();
 
   return (
-    <View style={{ flex: 1, padding: 20, paddingTop: 50 }}>
-      <TouchableOpacity onPress={() => router.back()}>
-        <Ionicons name="arrow-back" size={24} color="black" />
-      </TouchableOpacity>
-
-      <Text style={{ fontSize: 20, fontWeight: '700', marginVertical: 20 }}>
-        Bid Placed Successfully
-      </Text>
-      <Text style={{ marginBottom: 20 }}>
+    <View className="flex-1 bg-white px-6 py-8">
+      <Text className="text-xl font-bold mb-2 text-center">Bid Placed Successfully</Text>
+      <Text className="text-gray-600 mb-6 text-center">
         Your bid has been successfully placed. You will be notified if your bid is accepted.
       </Text>
 
-      <Text style={{ fontWeight: '600' }}>Bid Details</Text>
-      <View
-        style={{
-          borderWidth: 1,
-          borderColor: '#ccc',
-          padding: 12,
-          borderRadius: 8,
-          marginTop: 10,
-        }}
-      >
-        <Text>Bid Amount: ${amount}</Text>
-        <Text>Route: {route}</Text>
-        <Text>Reference Number: REF-{Math.floor(1000 + Math.random() * 9000)}</Text>
+      <View className="mb-8">
+        <Text className="font-semibold mb-2">Bid Details</Text>
+        <View className="flex-row justify-between mb-1">
+          <Text className="text-gray-500">Bid Amount</Text>
+          <Text className="font-semibold">$150</Text>
+        </View>
+        <View className="flex-row justify-between mb-1">
+          <Text className="text-gray-500">Route</Text>
+          <Text className="font-semibold">New York to Boston</Text>
+        </View>
+        <View className="flex-row justify-between mb-1">
+          <Text className="text-gray-500">Reference</Text>
+          <Text className="font-semibold">REF-12345</Text>
+        </View>
       </View>
 
-      <View style={{ marginTop: 40 }}>
-        <TouchableOpacity
-          style={{
-            backgroundColor: 'black',
-            padding: 16,
-            borderRadius: 8,
-            marginBottom: 12,
-          }}
-        >
-          <Text style={{ color: 'white', textAlign: 'center' }}>View Bid Status</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={{
-            backgroundColor: '#ccc',
-            padding: 16,
-            borderRadius: 8,
-          }}
-        >
-          <Text style={{ textAlign: 'center' }}>Manage Bid</Text>
-        </TouchableOpacity>
-      </View>
+      <Text className="font-semibold mb-3">Next Steps</Text>
+      <TouchableOpacity
+        className="bg-black py-4 rounded-md mb-3"
+        onPress={() => router.push('/pages/customer/MyBids')}
+      >
+        <Text className="text-white text-center font-semibold">View Bid Status</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        className="bg-gray-200 py-4 rounded-md"
+        onPress={() => {/* Add manage bid logic here */}}
+      >
+        <Text className="text-black text-center font-semibold">Manage Bid</Text>
+      </TouchableOpacity>
     </View>
   );
 }

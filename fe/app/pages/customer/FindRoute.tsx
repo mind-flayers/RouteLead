@@ -1,86 +1,111 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Platform } from 'react-native';
-import Slider from '@react-native-community/slider';
+import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-export default function FindRoute() {
+
+export default function FindRouteScreen() {
+  const [step, setStep] = useState(1);
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
-  const [date, setDate] = useState('');
-  const [price, setPrice] = useState(50);
-  const [vehicleType, setVehicleType] = useState('All');
 
-  const vehicleTypes = ['All Vehicle Types', 'Truck', 'Van'];
+  const renderHeader = () => {
+    const title = step === 1 ? 'Set Pickup' : step === 2 ? 'Set Drop-off' : 'Available Routes';
+    return (
+      <View className="flex-row items-center px-4 py-4 border-b border-gray-200 bg-white">
+        {step > 1 && (
+          <TouchableOpacity onPress={() => setStep(prev => prev - 1)}>
+            <Ionicons name="arrow-back" size={24} color="#000" />
+          </TouchableOpacity>
+        )}
+        <Text className="text-lg font-semibold ml-3">{title}</Text>
+      </View>
+    );
+  };
+
+  const renderStep = () => {
+    if (step === 1) {
+      return (
+        <>
+          <TextInput
+            placeholder="Pickup location"
+            value={pickup}
+            onChangeText={setPickup}
+            className="bg-gray-100 rounded-md px-4 py-3 mx-6 mt-6"
+          />
+          <View className="bg-gray-200 mx-6 mt-6 h-48 rounded-md justify-center items-center">
+            <Text className="text-gray-500">Map Preview</Text>
+          </View>
+          <Text className="text-center text-gray-500 my-4">1 of 3</Text>
+          <TouchableOpacity
+            onPress={() => setStep(2)}
+            className="bg-blue-900 rounded-md mx-6 py-3"
+          >
+            <Text className="text-white text-center font-semibold">Set pickup</Text>
+          </TouchableOpacity>
+        </>
+      );
+    }
+
+    if (step === 2) {
+      return (
+        <>
+          <TextInput
+            placeholder="Drop-off location"
+            value={dropoff}
+            onChangeText={setDropoff}
+            className="bg-gray-100 rounded-md px-4 py-3 mx-6 mt-6"
+          />
+          <View className="bg-gray-200 mx-6 mt-6 h-48 rounded-md justify-center items-center">
+            <Text className="text-gray-500">Map Preview</Text>
+          </View>
+          <Text className="text-center text-gray-500 my-4">2 of 3</Text>
+          <TouchableOpacity
+            onPress={() => setStep(3)}
+            className="bg-blue-900 rounded-md mx-6 py-3"
+          >
+            <Text className="text-white text-center font-semibold">Set drop-off</Text>
+          </TouchableOpacity>
+        </>
+      );
+    }
+
+    // Step 3: Display Routes
+    return (
+      <ScrollView className="px-4 pt-4">
+        <Text className="text-sm text-gray-500 mb-3">
+          Showing routes from <Text className="font-semibold">{pickup}</Text> to{' '}
+          <Text className="font-semibold">{dropoff}</Text>
+        </Text>
+
+        {[
+          { from: 'Colombo', to: 'Kandy', price: 'Rs 1200', distance: '115 km', time: '3h 15m', size: 'Small Box' },
+          { from: 'Galle', to: 'Matara', price: 'Rs 900', distance: '65 km', time: '1h 30m', size: 'Medium Crate' },
+        ].map((route, index) => (
+          <View key={index} className="bg-white p-4 rounded-lg mb-4 shadow border border-gray-200">
+            <View className="flex-row justify-between items-center mb-1">
+              <Text className="font-semibold text-base">{route.from} ➜ {route.to}</Text>
+              <Text className="text-orange-500 font-bold">{route.price}</Text>
+            </View>
+            <Text className="text-sm text-gray-600 mb-1">{route.distance} • {route.time}</Text>
+            <Text className="text-xs text-gray-500 mb-2">{route.size}</Text>
+            <TouchableOpacity
+  onPress={() => router.push('/pages/customer/RouteDetails')}
+  className="bg-orange-500 py-2 rounded-md mt-2"
+>
+  <Text className="text-white text-center font-medium">View Details</Text>
+</TouchableOpacity>
+
+          </View>
+        ))}
+      </ScrollView>
+    );
+  };
 
   return (
-    <View className="flex-1 bg-white px-5 pt-12">
-      {/* Header */}
-      <View className="flex-row items-center mb-6">
-        <TouchableOpacity onPress={() => router.back()} className="mr-2">
-          <Ionicons name="arrow-back" size={24} color="#222" />
-        </TouchableOpacity>
-        <Text className="text-xl font-bold flex-1 text-center mr-8">Find a Route</Text>
-      </View>
-
-      {/* Input Fields */}
-      <View className="mb-4">
-        <TextInput
-          className="bg-gray-100 rounded-xl p-4 text-base mb-3"
-          placeholder="Pickup Address"
-          value={pickup}
-          onChangeText={setPickup}
-        />
-        <TextInput
-          className="bg-gray-100 rounded-xl p-4 text-base mb-3"
-          placeholder="Drop-off Address"
-          value={dropoff}
-          onChangeText={setDropoff}
-        />
-        <TextInput
-          className="bg-gray-100 rounded-xl p-4 text-base"
-          placeholder="Date"
-          value={date}
-          onChangeText={setDate}
-        />
-      </View>
-
-      {/* Filters */}
-      <Text className="text-lg font-bold mb-2">Filters</Text>
-      <Text className="text-base mb-1">Price Range</Text>
-      <View className="mb-4">
-        <Slider
-          style={{ width: '100%', height: 40 }}
-          minimumValue={0}
-          maximumValue={100}
-          value={price}
-          onValueChange={setPrice}
-          minimumTrackTintColor="#222"
-          maximumTrackTintColor="#E5E7EB"
-          thumbTintColor={Platform.OS === 'android' ? '#222' : undefined}
-        />
-      </View>
-
-      {/* Vehicle Type Buttons */}
-      <View className="flex-row mb-8">
-        {vehicleTypes.map((type) => (
-          <TouchableOpacity
-            key={type}
-            className={`px-4 py-2 rounded-lg mr-3 ${vehicleType === type ? 'bg-black' : 'bg-gray-100'}`}
-            onPress={() => setVehicleType(type)}
-          >
-            <Text className={`${vehicleType === type ? 'text-white' : 'text-gray-800'} font-medium`}>{type}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Spacer */}
-      <View style={{ flex: 1 }} />
-
-      {/* Search Button */}
-      <TouchableOpacity className="bg-black rounded-xl p-4 mb-8" onPress={() => {}}>
-        <Text className="text-white text-lg font-bold text-center">Search</Text>
-      </TouchableOpacity>
+    <View className="flex-1 bg-white">
+      {renderHeader()}
+      {renderStep()}
     </View>
   );
 }
