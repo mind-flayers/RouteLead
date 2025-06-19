@@ -64,6 +64,8 @@ export default function LoginScreen() {
     if (alert.type === 'success') {
       if (user?.role === 'CUSTOMER') {
         router.replace('/pages/customer/Dashboard');
+      } else if (user?.role === 'DRIVER') {
+        router.replace('/pages/driver/Dashboard');
       } else {
         router.replace('/pages/welcome');
       }
