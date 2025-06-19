@@ -5,8 +5,14 @@ const Navbar: React.FC = () => {
   return (
     <header style={styles.header}>
       <div style={styles.left}>
-        <span style={styles.flagIcon}>🏴</span>
-        <span style={styles.title}>Swift Logistics</span>
+        <img
+          src="/images/logo.png"
+          alt="RouteLead Logo"
+          style={styles.logoImg}
+          width={36}
+          height={36}
+        />
+        <span style={styles.title}>RouteLead</span>
       </div>
       <div style={styles.center}>
         <input
@@ -29,20 +35,18 @@ const Navbar: React.FC = () => {
 
 const styles: { [key: string]: React.CSSProperties } = {
   header: {
-    width: '100%',
+    width: '100vw',
+    left: 0,
+    top: 0,
     height: 64,
     background: '#fff',
-    borderRadius: 20,
     boxShadow: '0 2px 16px #0001',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '0 2.5rem',
-    margin: 12,
-    marginLeft: 272, // sidebar width + margin
+    margin: 0,
     position: 'fixed',
-    top: 0,
-    left: 0,
     zIndex: 100,
   },
   left: {
@@ -50,8 +54,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: 12,
   },
-  flagIcon: {
-    fontSize: 24,
+  logoImg: {
+    width: 36,
+    height: 36,
+    objectFit: 'contain',
+    display: 'block',
   },
   title: {
     fontWeight: 700,
@@ -81,7 +88,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   bell: {
     fontSize: 22,
-    color: '#6B7280',
+    color: '#FF8C00', // Royal orange, or use '#1A237E' for navy blue
     cursor: 'pointer',
   },
   avatar: {

@@ -1,10 +1,9 @@
-// Sidebar.tsx
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import React from 'react';
 
 const navLinks = [
-  { href: '/', label: 'Dashboard', icon: <svg width="20" height="20" fill="none"><rect x="3" y="3" width="14" height="14" rx="4" stroke="currentColor" strokeWidth="2"/></svg> },
+  { href: '/dashboard', label: 'Dashboard', icon: <svg width="20" height="20" fill="none"><rect x="3" y="3" width="14" height="14" rx="4" stroke="currentColor" strokeWidth="2"/></svg> },
   { href: '/users', label: 'Users', icon: <svg width="20" height="20" fill="none"><circle cx="10" cy="7" r="4" stroke="currentColor" strokeWidth="2"/><path d="M3 17c0-2.21 3.134-4 7-4s7 1.79 7 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg> },
   { href: '/routes', label: 'Routes', icon: <svg width="20" height="20" fill="none"><path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="2"/></svg> },
   { href: '/disputes', label: 'Disputes', icon: <svg width="20" height="20" fill="none"><rect x="4" y="4" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="2"/></svg> },
@@ -12,14 +11,13 @@ const navLinks = [
   { href: '/settings', label: 'Settings', icon: <svg width="20" height="20" fill="none"><circle cx="10" cy="10" r="3" stroke="currentColor" strokeWidth="2"/><path d="M10 2v2M10 16v2M2 10h2M16 10h2" stroke="currentColor" strokeWidth="2"/></svg> },
 ];
 
+const NAVBAR_HEIGHT = 64;
+const ROYAL_ORANGE = '#FF8C00';
+
 const Sidebar: React.FC = () => {
   const router = useRouter();
   return (
     <aside style={styles.sidebar}>
-      <div style={styles.logoSection}>
-        <div style={styles.logoCircle}>SL</div>
-        <span style={styles.logoText}>Swift Logistics</span>
-      </div>
       <nav style={{ flex: 1 }}>
         <ul style={styles.navList}>
           {navLinks.map(link => {
@@ -32,12 +30,12 @@ const Sidebar: React.FC = () => {
                 }}>
                   <span style={{
                     ...styles.icon,
-                    color: isActive ? '#222' : '#6B7280'
+                    color: isActive ? ROYAL_ORANGE : '#6B7280'
                   }}>{link.icon}</span>
                   <span style={{
                     ...styles.label,
                     fontWeight: isActive ? 700 : 500,
-                    color: isActive ? '#222' : '#6B7280'
+                    color: isActive ? ROYAL_ORANGE : '#6B7280'
                   }}>{link.label}</span>
                 </Link>
               </li>
@@ -62,43 +60,16 @@ const styles: { [key: string]: React.CSSProperties } = {
   sidebar: {
     width: 260,
     background: '#fff',
-    height: '100vh',
-    borderRadius: 20,
-    boxShadow: '0 2px 16px #0001',
+    height: `calc(100vh - 64px)`, // leave space for navbar
     display: 'flex',
     flexDirection: 'column',
     padding: '2rem 0 1.5rem 0',
-    margin: 12,
+    margin: 0,
     position: 'fixed',
     left: 0,
-    top: 0,
+    top: 64, // push below navbar
     zIndex: 101,
-  },
-  logoSection: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    paddingLeft: 32,
-    marginBottom: 32,
-  },
-  logoCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: '50%',
-    background: '#183D2B',
-    color: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 700,
-    fontSize: 18,
-    letterSpacing: 1,
-  },
-  logoText: {
-    fontWeight: 700,
-    fontSize: 18,
-    color: '#222',
-    fontFamily: 'Montserrat, sans-serif',
+    borderRadius: 0, // remove curves
   },
   navList: {
     listStyle: 'none',
@@ -120,7 +91,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   activeLink: {
     background: '#F3EDE7',
-    color: '#222',
+    color: ROYAL_ORANGE,
     fontWeight: 700,
   },
   icon: {
