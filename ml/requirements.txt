@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+pydantic
+joblib
+scikit-learn       # if you need transformers or preprocessing inside the service
+pandas
