@@ -1,3 +1,4 @@
 netstat -aon | findstr :<PORT_NUMBER>
 taskkill /PID <PID> /F
 gh auth login
+uvicorn serve_price_model:app --reload --port 8000
