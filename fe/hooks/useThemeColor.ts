@@ -8,14 +8,18 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 
 export function useThemeColor(
   props: { light?: string; dark?: string },
-  colorName: keyof typeof Colors.light & keyof typeof Colors.dark
+  colorName: keyof typeof Colors | keyof typeof Colors.light
 ) {
   const theme = useColorScheme() ?? 'light';
   const colorFromProps = props[theme];
 
   if (colorFromProps) {
     return colorFromProps;
+  } else if (typeof Colors[colorName as keyof typeof Colors] === 'string') {
+    // If the colorName exists directly on Colors and is a string (e.g., 'primary', 'secondary', 'error')
+    return Colors[colorName as keyof typeof Colors] as string;
   } else {
-    return Colors[theme][colorName];
+    // Fallback to theme-specific colors
+    return Colors[theme][colorName as keyof typeof Colors.light];
   }
 }
