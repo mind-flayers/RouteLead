@@ -1,9 +1,11 @@
 export { default as Dashboard } from './Dashboard';
 export { default as MyRoutes } from './MyRoutes';
 export { default as MyEarnings } from './MyEarnings';
-export { default as ChatsList } from './ChatsList';
-export { default as Profile } from './Profile';
+export { default as ChatList } from './ChatList';
 export { default as CreateRoute } from './create_route/CreateRoute';
 export { default as Notifications } from './Notifications';
 export { default as DeliverySummary } from './DeliverySummary';
 export { default as WithdrawalDetails } from './WithdrawalDetails';
+export { default as Profile } from './Profile';
+export { default as PersonalInformation } from './PersonalInformation';
+export { default as UploadFacePhoto } from './UploadFacePhoto';

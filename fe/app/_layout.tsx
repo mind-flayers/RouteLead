@@ -54,6 +54,13 @@ function RootLayoutNav() {
         <Stack.Screen name="pages/login" options={{ headerShown: false }} />
         <Stack.Screen name="pages/signup" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="pages/driver/DeliveryManagement" options={{ headerShown: false }} />
+        <Stack.Screen name="pages/driver/MyEarnings" options={{ headerShown: false }} />
+        <Stack.Screen name="pages/driver/MyRoutes" options={{ headerShown: false }} />
+        <Stack.Screen name="pages/driver/ChatList" options={{ headerShown: false }} />
+        <Stack.Screen name="pages/driver/ChatScreen" options={{ headerShown: false }} />
+        <Stack.Screen name="pages/driver/Notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="pages/driver/Profile" options={{ headerShown: false }} />
       </Stack>
     </ThemeProvider>
   );
