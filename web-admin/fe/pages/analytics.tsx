@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 
 // Dummy data for charts and stats
