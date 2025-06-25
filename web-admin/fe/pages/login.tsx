@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 
 const themeColor = "#FF8C00"; // RouteLead theme orange

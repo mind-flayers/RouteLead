@@ -2,6 +2,16 @@
 import React from 'react';
 
 const Navbar: React.FC = () => {
+  const handleLogout = () => {
+    const confirmed = window.confirm('Are you sure you want to logout?');
+    if (confirmed) {
+      // Add logout logic here
+      console.log('Logout confirmed');
+      // You can redirect to login page or clear session
+      // window.location.href = '/login';
+    }
+  };
+
   return (
     <header style={styles.header}>
       <div style={styles.left}>
@@ -28,6 +38,9 @@ const Navbar: React.FC = () => {
           alt="User"
           style={styles.avatar}
         />
+        <button style={styles.logoutButton} onClick={handleLogout}>
+          Logout
+        </button>
       </div>
     </header>
   );
@@ -35,7 +48,7 @@ const Navbar: React.FC = () => {
 
 const styles: { [key: string]: React.CSSProperties } = {
   header: {
-    width: '100vw',
+    width: '100%',
     left: 0,
     top: 0,
     height: 64,
@@ -48,6 +61,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     margin: 0,
     position: 'fixed',
     zIndex: 100,
+    boxSizing: 'border-box',
   },
   left: {
     display: 'flex',
@@ -86,10 +100,31 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: 'center',
     gap: 18,
   },
+  notificationContainer: {
+    position: 'relative',
+    cursor: 'pointer',
+  },
   bell: {
     fontSize: 22,
-    color: '#FF8C00', // Royal orange, or use '#1A237E' for navy blue
+    color: '#FF8C00',
     cursor: 'pointer',
+    transition: 'transform 0.2s',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    background: '#EF4444',
+    color: '#fff',
+    borderRadius: '50%',
+    width: 18,
+    height: 18,
+    fontSize: 11,
+    fontWeight: 700,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '2px solid #fff',
   },
   avatar: {
     width: 38,
@@ -97,6 +132,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: '50%',
     objectFit: 'cover',
     border: '2px solid #F3EDE7',
+  },
+  logoutButton: {
+    background: '#fff',
+    border: '1px solid #E5E7EB',
+    borderRadius: 8,
+    padding: '8px 16px',
+    fontWeight: 600,
+    fontSize: 14,
+    color: '#EF4444',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    fontFamily: 'Montserrat, sans-serif',
   },
 };
 
