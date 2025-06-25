@@ -1,3 +1,4 @@
+'use client';
 import React, { useState } from 'react';
 
 const NAVY_BLUE = '#1A237E';
@@ -142,6 +143,104 @@ const rowStyle: React.CSSProperties = {
   borderBottom: '1px solid #F3EDE7',
   fontSize: 15,
   height: 56,
+};
+
+const filterSelectStyle: React.CSSProperties = {
+  border: `1px solid ${NAVY_BLUE}22`,
+  borderRadius: 10,
+  padding: '0.5rem 1.2rem',
+  background: '#fff',
+  fontSize: 15,
+  fontFamily: 'Montserrat, sans-serif',
+  color: NAVY_BLUE,
+  outline: 'none',
+};
+
+const paginationBtnStyle: React.CSSProperties = {
+  background: '#fff',
+  border: `1px solid ${NAVY_BLUE}22`,
+  borderRadius: 8,
+  padding: '4px 18px',
+  fontWeight: 600,
+  fontSize: 15,
+  color: NAVY_BLUE,
+  marginLeft: 8,
+  cursor: 'pointer',
+};
+
+const StatCard: React.FC<{ title: string, value: string, desc: string, color: string }> = ({ title, value, desc, color }) => {
+  const [show, setShow] = useState(false);
+
+  return (
+    <div style={{
+      background: '#fff',
+      borderRadius: 12,
+      boxShadow: '0 2px 12px #0001',
+      padding: '1.2rem 2rem',
+      minWidth: 180,
+      minHeight: 80,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
+      gap: 4,
+      position: 'relative'
+    }}>
+      <div style={{ fontWeight: 700, fontSize: 18, color: '#222' }}>{title}</div>
+      <div style={{ fontWeight: 800, fontSize: 26, color }}>{value}</div>
+      <div style={{ fontSize: 13, color: '#7B7B93' }}>{desc}</div>
+      <a
+        style={{
+          color,
+          fontWeight: 600,
+          fontSize: 14,
+          marginTop: 2,
+          cursor: 'pointer',
+          textDecoration: 'none'
+        }}
+        onClick={() => setShow(s => !s)}
+      >
+        View Details
+      </a>
+      {show && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          marginTop: 8,
+          background: '#fff',
+          border: `1px solid ${color}33`,
+          borderRadius: 10,
+          boxShadow: '0 4px 24px #0002',
+          padding: '1rem 1.5rem',
+          zIndex: 10,
+          minWidth: 220,
+        }}>
+          <div style={{ fontWeight: 700, color, marginBottom: 6 }}>{title} Details</div>
+          <div style={{ color: '#444', fontSize: 15 }}>
+            {title === 'Total Users' && <>There are <b>{value}</b> users registered in the system.</>}
+            {title === 'Active Drivers' && <>There are <b>{value}</b> drivers currently active.</>}
+            {title === 'Pending Verifications' && <>There are <b>{value}</b> users awaiting verification.</>}
+            {title === 'Blocked Accounts' && <>There are <b>{value}</b> permanently suspended users.</>}
+          </div>
+          <button
+            style={{
+              marginTop: 12,
+              background: color,
+              color: '#fff',
+              border: 'none',
+              borderRadius: 6,
+              padding: '6px 18px',
+              fontWeight: 600,
+              cursor: 'pointer'
+            }}
+            onClick={() => setShow(false)}
+          >
+            Close
+          </button>
+        </div>
+      )}
+    </div>
+  );
 };
 
 const UserManagement: React.FC = () => {
@@ -398,105 +497,6 @@ const UserManagement: React.FC = () => {
       </div>
     </div>
   );
-};
-
-const StatCard: React.FC<{ title: string, value: string, desc: string, color: string }> = ({ title, value, desc, color }) => {
-  const [show, setShow] = useState(false);
-
-  return (
-    <div style={{
-      background: '#fff',
-      borderRadius: 12,
-      boxShadow: '0 2px 12px #0001',
-      padding: '1.2rem 2rem',
-      minWidth: 180,
-      minHeight: 80,
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      gap: 4,
-      position: 'relative'
-    }}>
-      <div style={{ fontWeight: 700, fontSize: 18, color: '#222' }}>{title}</div>
-      <div style={{ fontWeight: 800, fontSize: 26, color }}>{value}</div>
-      <div style={{ fontSize: 13, color: '#7B7B93' }}>{desc}</div>
-      <a
-        style={{
-          color,
-          fontWeight: 600,
-          fontSize: 14,
-          marginTop: 2,
-          cursor: 'pointer',
-          textDecoration: 'none'
-        }}
-        onClick={() => setShow(s => !s)}
-      >
-        View Details
-      </a>
-      {show && (
-        <div style={{
-          position: 'absolute',
-          top: '100%',
-          left: 0,
-          marginTop: 8,
-          background: '#fff',
-          border: `1px solid ${color}33`,
-          borderRadius: 10,
-          boxShadow: '0 4px 24px #0002',
-          padding: '1rem 1.5rem',
-          zIndex: 10,
-          minWidth: 220,
-        }}>
-          <div style={{ fontWeight: 700, color, marginBottom: 6 }}>{title} Details</div>
-          <div style={{ color: '#444', fontSize: 15 }}>
-            {/* Example details, you can customize per card */}
-            {title === 'Total Users' && <>There are <b>{value}</b> users registered in the system.</>}
-            {title === 'Active Drivers' && <>There are <b>{value}</b> drivers currently active.</>}
-            {title === 'Pending Verifications' && <>There are <b>{value}</b> users awaiting verification.</>}
-            {title === 'Blocked Accounts' && <>There are <b>{value}</b> permanently suspended users.</>}
-          </div>
-          <button
-            style={{
-              marginTop: 12,
-              background: color,
-              color: '#fff',
-              border: 'none',
-              borderRadius: 6,
-              padding: '6px 18px',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-            onClick={() => setShow(false)}
-          >
-            Close
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const filterSelectStyle: React.CSSProperties = {
-  border: `1px solid ${NAVY_BLUE}22`,
-  borderRadius: 10,
-  padding: '0.5rem 1.2rem',
-  background: '#fff',
-  fontSize: 15,
-  fontFamily: 'Montserrat, sans-serif',
-  color: NAVY_BLUE,
-  outline: 'none',
-};
-
-const paginationBtnStyle: React.CSSProperties = {
-  background: '#fff',
-  border: `1px solid ${NAVY_BLUE}22`,
-  borderRadius: 8,
-  padding: '4px 18px',
-  fontWeight: 600,
-  fontSize: 15,
-  color: NAVY_BLUE,
-  marginLeft: 8,
-  cursor: 'pointer',
 };
 
 export default UserManagement;
