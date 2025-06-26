@@ -1,5 +1,5 @@
 import React, { FC } from 'react';
-import { TouchableOpacity, Text, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import { TouchableOpacity, Text, StyleProp, ViewStyle, TextStyle, View } from 'react-native';
 
 /**
  * Interface for the PrimaryButton component's props.
@@ -15,6 +15,10 @@ interface PrimaryButtonProps {
   textStyle?: StyleProp<TextStyle>;
   /** If true, the button will be un-pressable and visually disabled. Defaults to false. */
   disabled?: boolean;
+  /** Optional icon to display next to the title. */
+  icon?: React.ReactNode;
+  /** Optional className for TailwindCSS. */
+  className?: string;
 }
 
 /**
@@ -25,7 +29,9 @@ const PrimaryButton: FC<PrimaryButtonProps> = ({
   onPress, 
   style, 
   textStyle, 
-  disabled = false 
+  disabled = false,
+  icon,
+  className
 }) => {
   return (
     <TouchableOpacity
@@ -33,9 +39,10 @@ const PrimaryButton: FC<PrimaryButtonProps> = ({
       disabled={disabled}
       activeOpacity={0.8}
       // Combining base styles with a conditional style for the disabled state.
-      className={`bg-orange-400 py-4 px-8 rounded-3xl items-center justify-center ${disabled ? 'opacity-50' : ''}`}
+      className={`bg-orange-500 py-4 px-8 rounded-3xl items-center justify-center flex-row ${disabled ? 'opacity-50' : ''} ${className || ''}`}
       style={style}
     >
+      {icon && <View className="mr-2">{icon}</View>}
       <Text className="text-white text-lg font-bold" style={textStyle}>
         {title}
       </Text>

@@ -1,13 +1,36 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
 import PrimaryButton from '@/components/ui/PrimaryButton';
-import SecondaryButton from '@/components/ui/SecondaryButton';
+import BottomNavigationBar from '@/components/ui/BottomNavigationBar';
+import { supabase } from '@/lib/supabase';
 
 const Dashboard = () => {
   const router = useRouter();
+  const [userName, setUserName] = useState('Mishaf Hasan'); // Default name
+
+  useEffect(() => {
+    const fetchUserName = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching profile:', error);
+        } else if (data) {
+          setUserName(`${data.first_name || ''} ${data.last_name || ''}`.trim());
+        }
+      }
+    };
+
+    fetchUserName();
+  }, []);
 
   // Data for the KPI cards for easier management
   const kpiData = [
@@ -58,7 +81,7 @@ const Dashboard = () => {
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
         {/* Welcome Section */}
         <View className="mb-4 items-center">
-          <Text className="text-2xl font-bold mb-1">Welcome, John Doe!</Text>
+          <Text className="text-2xl font-bold mb-1">Welcome, {userName}!</Text>
           <Text className="text-gray-600">Ready for your next route?</Text>
         </View>
 
@@ -66,12 +89,6 @@ const Dashboard = () => {
         <PrimaryButton
           title="Post New Route"
           onPress={() => router.push('/pages/driver/create_route/CreateRoute')}
-          style={{ marginBottom: 24 }}
-        />
-
-        <SecondaryButton 
-          title='Secondary Button'
-          onPress={() => router.push('/pages/customer/FindRoute')}
           style={{ marginBottom: 24 }}
         />
 
@@ -148,39 +165,27 @@ const Dashboard = () => {
         </View>
       </ScrollView>
 
+      {/* Floating Action Button */}
+      <TouchableOpacity
+        className="absolute bottom-20 right-6 bg-orange-500 p-4 rounded-full shadow-lg mb-4"
+        onPress={() => router.push('/pages/driver/DeliveryManagement')}
+        style={{
+          zIndex: 10,
+          shadowColor: "#000",
+          shadowOffset: {
+            width: 0,
+            height: 4,
+          },
+          shadowOpacity: 0.30,
+          shadowRadius: 4.65,
+          elevation: 8,
+        }}
+      >
+        <Ionicons name="car-outline" size={30} color="white" />
+      </TouchableOpacity>
+
       {/* Bottom Navigation Bar */}
-      <View className="flex-row justify-around items-center bg-white border-t border-gray-200 py-2">
-        <Link href="/(tabs)" className="items-center">
-          <View className="items-center">
-            <Ionicons name="home" size={24} color="#f97316" />
-            <Text className="text-orange-600 text-xs">Home</Text>
-          </View>
-        </Link>
-        <Link href="/pages/driver/MyRoutes" className="items-center">
-          <View className="items-center">
-            <MaterialCommunityIcons name="truck-outline" size={24} color="gray" />
-            <Text className="text-gray-500 text-xs">Routes</Text>
-          </View>
-        </Link>
-        <Link href="/pages/driver/MyEarnings" className="items-center">
-          <View className="items-center">
-            <FontAwesome5 name="dollar-sign" size={24} color="gray" />
-            <Text className="text-gray-500 text-xs">Earnings</Text>
-          </View>
-        </Link>
-        <Link href="/pages/driver/ChatsList" className="items-center">
-          <View className="items-center">
-            <Ionicons name="chatbox-outline" size={24} color="gray" />
-            <Text className="text-gray-500 text-xs">Chat</Text>
-          </View>
-        </Link>
-        <Link href="/pages/driver/Profile" className="items-center">
-          <View className="items-center">
-            <Ionicons name="person-outline" size={24} color="gray" />
-            <Text className="text-gray-500 text-xs">Profile</Text>
-          </View>
-        </Link>
-      </View>
+      <BottomNavigationBar activeTab="home" />
     </SafeAreaView>
   );
 };
