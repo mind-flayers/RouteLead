@@ -106,7 +106,7 @@ export default function BookingConfirmation() {
       </TouchableOpacity>
       <TouchableOpacity
         className="bg-white border border-gray-200 py-4 rounded-md mb-8"
-        onPress={() => router.push('/')}
+        onPress={() => router.push('/pages/customer/Dashboard')}
       >
         <Text className="text-gray-700 text-center font-semibold text-base">Back to Home</Text>
       </TouchableOpacity>
