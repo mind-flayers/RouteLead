@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
@@ -29,14 +29,14 @@ export default function Payment() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#222" />
         </TouchableOpacity>
-        <Text className="text-lg font-bold flex-1 text-center -ml-6">Secure Payment</Text>
+        <Text style={styles.headerTitle}>Secure Payment</Text>
         <View style={{ width: 24 }} /> {/* Placeholder for alignment */}
       </View>
 
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
         <View className="items-center mt-8">
-          <Text className="text-gray-500 mb-2">TOTAL</Text>
-          <Text className="text-4xl font-extrabold mb-8">$3,080</Text>
+          <Text style={styles.totalLabel}>TOTAL</Text>
+          <Text style={styles.totalAmount}>$3,080</Text>
         </View>
 
         {/* Payment Methods */}
@@ -49,7 +49,7 @@ export default function Payment() {
               activeOpacity={0.8}
             >
               {card.icon}
-              <Text className="ml-4 flex-1 text-base">{card.label}</Text>
+              <Text style={styles.cardLabel}>{card.label}</Text>
               <Ionicons
                 name={selected === idx ? 'radio-button-on' : 'radio-button-off'}
                 size={22}
@@ -65,7 +65,7 @@ export default function Payment() {
           onPress={() => {/* Handle payment */}}
         >
           <Ionicons name="lock-closed-outline" size={20} color="#fff" />
-          <Text className="text-white font-semibold text-base ml-2">Pay now</Text>
+          <Text style={styles.buttonText}>Pay now</Text>
         </TouchableOpacity>
 
         {/* Booking Confirmation Button */}
@@ -74,7 +74,7 @@ export default function Payment() {
   onPress={() => router.push('/pages/customer/BookingConfirmation')}
 >
   <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-  <Text className="text-white font-semibold text-base ml-2">Booking Confirmation</Text>
+  <Text style={styles.buttonText}>Booking Confirmation</Text>
 </TouchableOpacity>
 
         {/* Chat Button */}
@@ -83,15 +83,56 @@ export default function Payment() {
           onPress={() => {/* Navigate to chat page */}}
         >
           <Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFA726" />
-          <Text className="text-[#FFA726] font-semibold text-base ml-2">Chat</Text>
+          <Text style={styles.chatButtonText}>Chat</Text>
         </TouchableOpacity>
 
         {/* Add new card */}
         <TouchableOpacity className="flex-row items-center justify-center mt-6">
           <Ionicons name="add" size={18} color="#FFA726" />
-          <Text className="text-[#FFA726] font-semibold ml-2">Add new card</Text>
+          <Text style={styles.addCardText}>Add new card</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'center',
+    marginLeft: -24,
+  },
+  totalLabel: {
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  totalAmount: {
+    fontSize: 36,
+    fontWeight: '800',
+    marginBottom: 32,
+  },
+  cardLabel: {
+    marginLeft: 16,
+    flex: 1,
+    fontSize: 16,
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  chatButtonText: {
+    color: '#FFA726',
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  addCardText: {
+    color: '#FFA726',
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+});

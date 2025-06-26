@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router'; // Add this impor
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 
 export default function PlaceBid() {
-  const router = useRouter(); // Add this line
+  const router = useRouter();
 
   const handlePlaceBid = () => {
     // You can pass bid details as params if needed
@@ -16,50 +16,97 @@ export default function PlaceBid() {
   const [type, setType] = useState('Small Package');
 
   return (
-    <ScrollView className="flex-1 bg-white px-6 py-6">
+    <ScrollView style={styles.container}>
       {/* Bid Details */}
-      <Text className="text-lg font-semibold mb-4">Place Your Bid</Text>
+      <Text style={styles.title}>Place Your Bid</Text>
 
-      <View className="bg-gray-100 p-4 rounded-lg mb-6">
-        <Text className="text-sm font-medium text-gray-700 mb-2">Bid Amount</Text>
+      <View style={styles.section}>
+        <Text style={styles.label}>Bid Amount</Text>
         <TextInput
           value={bid}
           onChangeText={setBid}
           keyboardType="numeric"
           placeholder="e.g., 500.00"
-          className="bg-white border border-gray-300 rounded-md px-4 py-2 mb-2"
+          style={styles.input}
         />
       </View>
 
       {/* Parcel Details */}
-      <View className="bg-gray-100 p-4 rounded-lg mb-6">
-        <Text className="text-sm font-medium text-gray-700 mb-2">Weight (kg)</Text>
+      <View style={styles.section}>
+        <Text style={styles.label}>Weight (kg)</Text>
         <TextInput
           value={weight}
           onChangeText={setWeight}
           keyboardType="numeric"
           placeholder="e.g., 5"
-          className="bg-white border border-gray-300 rounded-md px-4 py-2 mb-4"
+          style={styles.input}
         />
-        <Text className="text-sm font-medium text-gray-700 mb-2">Dimensions (cm)</Text>
+        <Text style={styles.label}>Dimensions (cm)</Text>
         <TextInput
           value={dimensions}
           onChangeText={setDimensions}
           placeholder="e.g., 30×20×15"
-          className="bg-white border border-gray-300 rounded-md px-4 py-2 mb-4"
+          style={styles.input}
         />
-        <Text className="text-sm font-medium text-gray-700 mb-2">Parcel Type</Text>
+        <Text style={styles.label}>Parcel Type</Text>
         <TextInput
           value={type}
           onChangeText={setType}
           placeholder="e.g., Small Package"
-          className="bg-white border border-gray-300 rounded-md px-4 py-2"
+          style={styles.input}
         />
       </View>
 
       {/* Submit Button */}
-      <TouchableOpacity className="bg-[#0D47A1] py-4 rounded-md" onPress={handlePlaceBid}>
-        <Text className="text-white font-semibold text-center text-base">Place Your Bid</Text>
-      </TouchableOpacity>  </ScrollView>
+      <TouchableOpacity style={styles.button} onPress={handlePlaceBid}>
+        <Text style={styles.buttonText}>Place Your Bid</Text>
+      </TouchableOpacity>
+    </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: 'white',
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
+  },
+  section: {
+    backgroundColor: '#f3f4f6',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 24,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
+  button: {
+    backgroundColor: '#0D47A1',
+    paddingVertical: 16,
+    borderRadius: 6,
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: '600',
+    textAlign: 'center',
+    fontSize: 16,
+  },
+});

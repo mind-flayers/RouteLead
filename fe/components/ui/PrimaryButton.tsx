@@ -1,5 +1,5 @@
 import React, { FC } from 'react';
-import { TouchableOpacity, Text, StyleProp, ViewStyle, TextStyle, View } from 'react-native';
+import { TouchableOpacity, Text, StyleProp, ViewStyle, TextStyle, View, StyleSheet } from 'react-native';
 
 /**
  * Interface for the PrimaryButton component's props.
@@ -43,11 +43,19 @@ const PrimaryButton: FC<PrimaryButtonProps> = ({
       style={style}
     >
       {icon && <View className="mr-2">{icon}</View>}
-      <Text className="text-white text-lg font-bold" style={textStyle}>
+      <Text style={[styles.buttonText, textStyle]}>
         {title}
       </Text>
     </TouchableOpacity>
   );
 };
+
+const styles = StyleSheet.create({
+  buttonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+});
 
 export default PrimaryButton;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
@@ -24,10 +24,19 @@ const TopBar: React.FC<TopBarProps> = ({ title, showBack = true }) => {
       ) : (
         <View className="w-10" /> // Placeholder for alignment
       )}
-      <Text className="flex-1 text-center text-xl font-bold">{title}</Text>
+      <Text style={styles.title}>{title}</Text>
       <View className="w-10" />{/* Placeholder for alignment */}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  title: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+});
 
 export default TopBar;

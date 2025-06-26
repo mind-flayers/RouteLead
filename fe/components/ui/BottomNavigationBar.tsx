@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Dimensions, Platform } from 'react-native';
+import { View, Text, Dimensions, Platform, StyleSheet } from 'react-native';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 
@@ -14,12 +14,12 @@ const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({ activeTab }) 
   
   const getTabStyle = (tabName: string) => ({
     iconColor: activeTab === tabName ? '#F97316' : 'gray',
-    textColor: activeTab === tabName ? 'text-orange-500' : 'text-gray-500'
+    textColor: activeTab === tabName ? '#F97316' : '#6B7280'
   });
 
   // Responsive sizing
   const iconSize = isVerySmallScreen ? 18 : isSmallScreen ? 20 : 22;
-  const textSize = isVerySmallScreen ? 'text-[9px]' : isSmallScreen ? 'text-[10px]' : 'text-xs';
+  const textSize = isVerySmallScreen ? 9 : isSmallScreen ? 10 : 12;
   const containerPadding = isSmallScreen ? 'py-1 px-0.5' : 'py-2 px-1';
   const minHeight = isSmallScreen ? 'min-h-[42px]' : 'min-h-[48px]';
   const tabPadding = isVerySmallScreen ? 'px-0.5' : 'px-1';
@@ -36,7 +36,7 @@ const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({ activeTab }) 
         <View className={`items-center ${minHeight} justify-center ${tabPadding}`}>
           <Ionicons name="home" size={iconSize} color={getTabStyle('home').iconColor} />
           <Text 
-            className={`${getTabStyle('home').textColor} ${textSize} mt-0.5 text-center font-medium leading-tight`}
+            style={[styles.tabText, { color: getTabStyle('home').textColor, fontSize: textSize }]}
             numberOfLines={1}
             adjustsFontSizeToFit
           >
@@ -54,7 +54,7 @@ const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({ activeTab }) 
             color={getTabStyle('routes').iconColor} 
           />
           <Text 
-            className={`${getTabStyle('routes').textColor} ${textSize} mt-0.5 text-center font-medium leading-tight`}
+            style={[styles.tabText, { color: getTabStyle('routes').textColor, fontSize: textSize }]}
             numberOfLines={1}
             adjustsFontSizeToFit
           >
@@ -72,7 +72,7 @@ const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({ activeTab }) 
             color={getTabStyle('earnings').iconColor} 
           />
           <Text 
-            className={`${getTabStyle('earnings').textColor} ${textSize} mt-0.5 text-center font-medium leading-tight`}
+            style={[styles.tabText, { color: getTabStyle('earnings').textColor, fontSize: textSize }]}
             numberOfLines={1}
             adjustsFontSizeToFit
           >
@@ -90,7 +90,7 @@ const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({ activeTab }) 
             color={getTabStyle('chats').iconColor} 
           />
           <Text 
-            className={`${getTabStyle('chats').textColor} ${textSize} mt-0.5 text-center font-medium leading-tight`}
+            style={[styles.tabText, { color: getTabStyle('chats').textColor, fontSize: textSize }]}
             numberOfLines={1}
             adjustsFontSizeToFit
           >
@@ -108,7 +108,7 @@ const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({ activeTab }) 
             color={getTabStyle('profile').iconColor} 
           />
           <Text 
-            className={`${getTabStyle('profile').textColor} ${textSize} mt-0.5 text-center font-medium leading-tight`}
+            style={[styles.tabText, { color: getTabStyle('profile').textColor, fontSize: textSize }]}
             numberOfLines={1}
             adjustsFontSizeToFit
           >
@@ -119,5 +119,14 @@ const BottomNavigationBar: React.FC<BottomNavigationBarProps> = ({ activeTab }) 
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  tabText: {
+    marginTop: 2,
+    textAlign: 'center',
+    fontWeight: '500',
+    lineHeight: 12,
+  },
+});
 
 export default BottomNavigationBar;

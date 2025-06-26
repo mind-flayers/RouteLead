@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 interface ProgressBarProps {
@@ -30,13 +30,14 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ currentStep }) => {
             {currentStep > step.id ? (
               <Ionicons name="checkmark" size={20} color="white" />
             ) : (
-              <Text className="text-white font-bold text-sm">{step.id}</Text>
+              <Text style={styles.stepNumber}>{step.id}</Text>
             )}
           </View>
           <Text
-            className={`text-xs mt-2 text-center leading-3 ${
-              currentStep === step.id ? 'text-orange-500 font-bold' : 'text-gray-600'
-            }`}
+            style={[
+              styles.stepName,
+              currentStep === step.id ? styles.activeStepName : styles.inactiveStepName
+            ]}
             numberOfLines={2}
           >
             {step.name}
@@ -50,5 +51,26 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ currentStep }) => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  stepNumber: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  stepName: {
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 12,
+  },
+  activeStepName: {
+    color: '#F97316',
+    fontWeight: 'bold',
+  },
+  inactiveStepName: {
+    color: '#6B7280',
+  },
+});
 
 export default ProgressBar;

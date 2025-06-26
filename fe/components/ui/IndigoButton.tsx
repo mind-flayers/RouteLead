@@ -1,5 +1,5 @@
 import React, { FC } from 'react';
-import { TouchableOpacity, Text, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import { TouchableOpacity, Text, StyleProp, ViewStyle, TextStyle, StyleSheet } from 'react-native';
 
 /**
  * Interface for the IndigoButton component's props.
@@ -38,13 +38,20 @@ const IndigoButton: FC<IndigoButtonProps> = ({
       style={style}
     >
       <Text
-        className="text-white text-xl font-bold"
-        style={textStyle}
+        style={[styles.buttonText, textStyle]}
       >
         {title}
       </Text>
     </TouchableOpacity>
   );
 };
+
+const styles = StyleSheet.create({
+  buttonText: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+});
 
 export default IndigoButton;

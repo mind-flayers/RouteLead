@@ -1,5 +1,5 @@
 import React, { FC } from 'react';
-import { TouchableOpacity, Text, StyleProp, ViewStyle, TextStyle, View } from 'react-native';
+import { TouchableOpacity, Text, StyleProp, ViewStyle, TextStyle, View, StyleSheet } from 'react-native';
 
 /**
  * Interface for the SecondaryButton component's props.
@@ -45,13 +45,20 @@ const SecondaryButton: FC<SecondaryButtonProps> = ({
     >
       {icon && <View className="mr-2">{icon}</View>}
       <Text
-        className="text-blue-800 text-lg font-bold"
-        style={textStyle}
+        style={[styles.buttonText, textStyle]}
       >
         {title}
       </Text>
     </TouchableOpacity>
   );
 };
+
+const styles = StyleSheet.create({
+  buttonText: {
+    color: '#1E40AF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+});
 
 export default SecondaryButton;
