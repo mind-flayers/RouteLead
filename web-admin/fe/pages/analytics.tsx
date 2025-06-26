@@ -25,13 +25,6 @@ const stats = [
     positive: true,
     desc: 'compared to last month',
   },
-  {
-    label: 'Disputes Resolved',
-    value: '85',
-    change: '-5.0%',
-    positive: false,
-    desc: 'compared to last month',
-  },
 ];
 
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
@@ -70,37 +63,63 @@ const ROYAL_ORANGE = '#FF8C00';
 const maxDemographic = Math.max(...demographics.map(d => d.value));
 
 const Analytics = () => (
-  <div style={{ width: '100%', maxWidth: 1200, margin: '0 auto', padding: 24, boxSizing: 'border-box' }}>
-    <h1 style={{ fontWeight: 800, fontSize: 28, marginBottom: 4, color: NAVY_BLUE }}>Analytics Dashboard</h1>
-    <div style={{ color: '#7B7B93', fontSize: 16, marginBottom: 18 }}>
-      Comprehensive insights into platform performance and user engagement.
-    </div>
-    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
-      <div style={{ flex: 1 }} />
-      <input
-        type="date"
-        style={{
-          border: '1px solid #E5E7EB',
-          borderRadius: 8,
-          padding: '8px 14px',
-          fontSize: 15,
-          marginRight: 10,
-        }}
-      />
-      <button
-        style={{
-          background: '#fff',
-          border: '1px solid #E5E7EB',
-          borderRadius: 8,
-          padding: '8px 18px',
-          fontWeight: 600,
-          fontSize: 15,
-          color: NAVY_BLUE,
-          cursor: 'pointer',
-        }}
-      >
-        &#128190; Share Report
-      </button>
+  <div style={{
+    padding: '0 0 2rem 0',
+    width: '100%',
+    maxWidth: 1200,
+    margin: '0 auto',
+    boxSizing: 'border-box'
+  }}>
+    <div style={{ height: 32 }} />
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'space-between', 
+      alignItems: 'flex-start',
+      marginBottom: 18,
+      flexWrap: 'wrap',
+      gap: 16
+    }}>
+      <div>
+        <h1
+          style={{
+            fontWeight: 800,
+            fontSize: 28,
+            color: NAVY_BLUE,
+            textAlign: 'left',
+            marginBottom: 5
+          }}
+        >
+          Analytics Dashboard
+        </h1>
+        <div style={{ color: '#7B7B93', fontSize: 16 }}>
+          Comprehensive insights into platform performance and user engagement.
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          type="date"
+          style={{
+            border: '1px solid #E5E7EB',
+            borderRadius: 8,
+            padding: '8px 14px',
+            fontSize: 15,
+          }}
+        />
+        <button
+          style={{
+            background: '#fff',
+            border: '1px solid #E5E7EB',
+            borderRadius: 8,
+            padding: '8px 18px',
+            fontWeight: 600,
+            fontSize: 15,
+            color: NAVY_BLUE,
+            cursor: 'pointer',
+          }}
+        >
+          &#128190; Share Report
+        </button>
+      </div>
     </div>
     {/* Stat Cards */}
     <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 22 }}>

@@ -1,5 +1,5 @@
 import React, { FC } from 'react';
-import { TouchableOpacity, Text, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import { TouchableOpacity, Text, StyleProp, ViewStyle, TextStyle, View } from 'react-native';
 
 /**
  * Interface for the SecondaryButton component's props.
@@ -15,6 +15,10 @@ interface SecondaryButtonProps {
   textStyle?: StyleProp<TextStyle>;
   /** If true, the button will be un-pressable and visually disabled. Defaults to false. */
   disabled?: boolean;
+  /** Optional icon to display next to the title. */
+  icon?: React.ReactNode;
+  /** Optional className for TailwindCSS. */
+  className?: string;
 }
 
 /**
@@ -26,6 +30,8 @@ const SecondaryButton: FC<SecondaryButtonProps> = ({
   style,
   textStyle,
   disabled = false,
+  icon,
+  className,
 }) => {
   return (
     <TouchableOpacity
@@ -34,11 +40,12 @@ const SecondaryButton: FC<SecondaryButtonProps> = ({
       activeOpacity={0.8}
       // Base styles for the outline button, with a conditional disabled state.
       // Note: 'border-blue-600' is used as a representative blue. Adjust this in your tailwind.config.js if needed.
-      className={`bg-white border-2 border-blue-600 py-3 rounded-3xl items-center justify-center ${disabled ? 'opacity-50' : ''}`}
+      className={`bg-white border-2 border-blue-800 py-4 px-8 rounded-3xl items-center justify-center flex-row ${disabled ? 'opacity-50' : ''} ${className || ''}`}
       style={style}
     >
+      {icon && <View className="mr-2">{icon}</View>}
       <Text
-        className="text-blue-600 text-lg font-bold"
+        className="text-blue-800 text-lg font-bold"
         style={textStyle}
       >
         {title}
