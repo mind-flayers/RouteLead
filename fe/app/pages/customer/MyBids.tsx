@@ -147,7 +147,7 @@ export default function MyBids() {const [filter, setFilter] = useState('all');
       </ScrollView>
 
       {/* Bottom Navigation */}
-      <View className="flex-row justify-between items-center px-8 py-3 bg-white border-t border-gray-200">
+      {/* <View className="flex-row justify-between items-center px-8 py-3 bg-white border-t border-gray-200">
         <TouchableOpacity className="items-center">
           <Ionicons name="home-outline" size={24} color="#888" />
           <Text className="text-xs text-gray-600 mt-1">Home</Text>
@@ -160,7 +160,7 @@ export default function MyBids() {const [filter, setFilter] = useState('all');
           <Ionicons name="location-outline" size={24} color="#888" />
           <Text className="text-xs text-gray-600 mt-1">Tracking</Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
     </View>
   );
 }
