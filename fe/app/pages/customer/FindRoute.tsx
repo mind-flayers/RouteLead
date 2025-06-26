@@ -39,7 +39,7 @@ export default function FindRouteScreen() {
           <Text className="text-center text-gray-500 my-4">1 of 3</Text>
           <TouchableOpacity
             onPress={() => setStep(2)}
-            className="bg-blue-900 rounded-md mx-6 py-3"
+            className="bg-[#0D47A1] rounded-md mx-6 py-3"
           >
             <Text className="text-white text-center font-semibold">Set pickup</Text>
           </TouchableOpacity>
@@ -62,7 +62,7 @@ export default function FindRouteScreen() {
           <Text className="text-center text-gray-500 my-4">2 of 3</Text>
           <TouchableOpacity
             onPress={() => setStep(3)}
-            className="bg-blue-900 rounded-md mx-6 py-3"
+            className="bg-[#0D47A1] rounded-md mx-6 py-3"
           >
             <Text className="text-white text-center font-semibold">Set drop-off</Text>
           </TouchableOpacity>
@@ -85,13 +85,13 @@ export default function FindRouteScreen() {
           <View key={index} className="bg-white p-4 rounded-lg mb-4 shadow border border-gray-200">
             <View className="flex-row justify-between items-center mb-1">
               <Text className="font-semibold text-base">{route.from} ➜ {route.to}</Text>
-              <Text className="text-orange-500 font-bold">{route.price}</Text>
+              <Text className="text-[#FF8C00] font-bold">{route.price}</Text>
             </View>
             <Text className="text-sm text-gray-600 mb-1">{route.distance} • {route.time}</Text>
             <Text className="text-xs text-gray-500 mb-2">{route.size}</Text>
             <TouchableOpacity
   onPress={() => router.push('/pages/customer/RouteDetails')}
-  className="bg-orange-500 py-2 rounded-md mt-2"
+  className="bg-[#0D47A1] py-2 rounded-md mt-2"
 >
   <Text className="text-white text-center font-medium">View Details</Text>
 </TouchableOpacity>

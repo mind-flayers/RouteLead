@@ -110,7 +110,7 @@ export default function MyBids() {const [filter, setFilter] = useState('all');
             <TouchableOpacity className="bg-[#FFF3E0] px-4 py-2 rounded-md mr-2">
               <Text className="text-[#FFA726] font-semibold">Delete</Text>
             </TouchableOpacity>
-            <TouchableOpacity className="bg-[#222] px-4 py-2 rounded-md flex-1">
+            <TouchableOpacity className="bg-[#0D47A1] px-4 py-2 rounded-md flex-1">
               <Text className="text-white text-center font-semibold">View Details</Text>
             </TouchableOpacity>
           </View>
@@ -139,7 +139,7 @@ export default function MyBids() {const [filter, setFilter] = useState('all');
             <View className="bg-[#FFFDE7] px-4 py-2 rounded-md mr-2">
               <Text className="text-[#FBC02D] font-semibold">Active</Text>
             </View>
-            <TouchableOpacity className="bg-[#222] px-4 py-2 rounded-md flex-1">
+            <TouchableOpacity className="bg-[#0D47A1] px-4 py-2 rounded-md flex-1">
               <Text className="text-white text-center font-semibold">View Details</Text>
             </TouchableOpacity>
           </View>

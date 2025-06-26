@@ -1,0 +1,12 @@
+{
+  "name": "routelead",
+  "version": "1.0.0",
+  "description": "**RouteLead** is a mobile-first logistics bidding platform that connects Drivers returning empty after deliveries with Customers who need to send parcels. This monorepo contains both the **frontend** (React Native) and **backend** (Spring Boot) applications.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

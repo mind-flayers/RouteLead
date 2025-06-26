@@ -5,7 +5,18 @@ import { router } from 'expo-router';
 import { useAuth } from '../../../lib/auth';
 
 export default function ProfilePage() {
-    const { user } = useAuth();
+   
+    const {  user, signOut } = useAuth(); // Assuming signOut is available from useAuth
+    
+     const handleSignOut = async () => {
+      try {
+        await signOut();
+        router.replace('/pages/login');
+      } catch (error) {
+        console.error('Error signing out:', error);
+      }
+    };
+
 
   return (
     <ScrollView
@@ -60,6 +71,16 @@ export default function ProfilePage() {
         <ProfileRow icon="notifications-outline" label="Notifications" />
         <ProfileRow icon="settings-outline" label="App Preferences" />
       </View>
+
+      {/* Logout Button */}
+      <TouchableOpacity
+        className="bg-red-600 rounded-xl p-4 w-full mt-2"
+        onPress={handleSignOut}
+      >
+        <Text className="text-white text-lg font-bold text-center">
+          Logout
+        </Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
