@@ -1,103 +1,272 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
+
+const themeColor = "#FF8C00"; // RouteLead theme orange
+
+const Login: React.FC = () => {
+  const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    // ... your login logic here (e.g., authentication)
+    router.push('/dashboard'); // Redirect to dashboard
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+    <div style={styles.bg}>
+      <div style={styles.container}>
+        {/* Left Side */}
+        <div style={styles.left}>
+          <div style={styles.logoWrap}>
+            <img
+              src="/images/logo.png"
+              alt="RouteLead Logo"
+              style={styles.logoImg}
+              width={64}
+              height={64}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          </div>
+          <h2 style={styles.title}>Admin Login</h2>
+          <div style={styles.subtitle}>Access your RouteLead admin panel</div>
+          <form style={styles.form} onSubmit={handleLogin}>
+            <label style={styles.label}>Username or Email</label>
+            <input
+              style={styles.input}
+              type="text"
+              placeholder="admin@routelead.com"
+              autoComplete="username"
+            />
+            <label style={{ ...styles.label, marginTop: 18 }}>Password</label>
+            <div style={styles.passwordWrap}>
+              <input
+                style={styles.input}
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••"
+                autoComplete="current-password"
+              />
+              <span
+                style={styles.eye}
+                onClick={() => setShowPassword((v) => !v)}
+                tabIndex={0}
+                role="button"
+                aria-label="Show password"
+              >
+                {showPassword ? (
+                  // Eye open
+                  <svg width="20" height="20" fill="none">
+                    <ellipse cx="10" cy="10" rx="7" ry="5" stroke="#BDBDBD" strokeWidth="2"/>
+                    <circle cx="10" cy="10" r="2" fill="#BDBDBD"/>
+                  </svg>
+                ) : (
+                  // Eye closed
+                  <svg width="20" height="20" fill="none">
+                    <ellipse cx="10" cy="10" rx="7" ry="5" stroke="#BDBDBD" strokeWidth="2"/>
+                    <line x1="4" y1="16" x2="16" y2="4" stroke="#BDBDBD" strokeWidth="2"/>
+                  </svg>
+                )}
+              </span>
+            </div>
+            <button type="submit" style={styles.loginBtn}>Login</button>
+          </form>
+          <div style={styles.forgot}>
+            <a href="#" style={styles.forgotLink}>Forgot Password?</a>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+        {/* Right Side */}
+        <div style={styles.right}>
+          <img
+            src="/images/login-cover.png"
+            alt="RouteLead Login Cover"
+            style={styles.coverImg}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <div style={styles.rightOverlay}>
+            <div style={styles.welcomeTitle}>Welcome to <b>RouteLead</b></div>
+            <div style={styles.welcomeDesc}>Manage your routes, leads, and operations with ease.</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+const inputWidth = 320;
+
+const styles: { [key: string]: React.CSSProperties } = {
+  bg: {
+    minHeight: '100vh',
+    background: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  container: {
+    width: 800,
+    minHeight: 500,
+    background: '#fff',
+    borderRadius: 12,
+    boxShadow: '0 2px 24px #0001',
+    display: 'flex',
+    overflow: 'hidden',
+    marginTop: 60,
+  },
+  left: {
+    flex: 1,
+    padding: '48px 40px 32px 40px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    background: '#fff',
+    zIndex: 1,
+  },
+  logoWrap: {
+    marginBottom: 18,
+  },
+  logoImg: {
+    width: 64,
+    height: 64,
+    objectFit: 'contain',
+    display: 'block',
+  },
+  title: {
+    fontWeight: 900,
+    fontSize: 32,
+    margin: '0 0 8px 0',
+    fontFamily: 'Montserrat, Arial, sans-serif',
+    textAlign: 'center',
+    background: 'none',
+    border: 'none',
+    boxShadow: 'none',
+    padding: 0,
+  },
+  subtitle: {
+    color: '#7B7B93',
+    fontSize: 16,
+    marginBottom: 28,
+    textAlign: 'center',
+  },
+  form: {
+    width: inputWidth,
+    display: 'flex',
+    flexDirection: 'column',
+    marginTop: 8,
+    maxWidth: '100%',
+  },
+  label: {
+    fontWeight: 600,
+    fontSize: 14,
+    marginBottom: 6,
+    color: '#222',
+    fontFamily: 'Montserrat, Arial, sans-serif',
+  },
+  input: {
+    width: '100%',
+    padding: '12px 14px',
+    borderRadius: 6,
+    border: '1.5px solid #E5E7EB',
+    fontSize: 15,
+    marginBottom: 2,
+    fontFamily: 'Montserrat, Arial, sans-serif',
+    background: '#fff',
+    outline: 'none',
+    transition: 'border 0.2s',
+    boxSizing: 'border-box',
+  },
+  passwordWrap: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  eye: {
+    position: 'absolute',
+    right: 12,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    cursor: 'pointer',
+    opacity: 0.7,
+  },
+  loginBtn: {
+    width: '100%',
+    background: '#FF8C00',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 6,
+    padding: '12px 0',
+    fontWeight: 700,
+    fontSize: 16,
+    cursor: 'pointer',
+    marginTop: 22,
+    fontFamily: 'Montserrat, Arial, sans-serif',
+    boxShadow: '0 2px 8px #FF8C0022',
+    transition: 'background 0.2s',
+  },
+  forgot: {
+    marginTop: 18,
+    textAlign: 'center',
+  },
+  forgotLink: {
+    color: '#7B7B93',
+    fontSize: 15,
+    textDecoration: 'none',
+    fontWeight: 500,
+    cursor: 'pointer',
+  },
+  right: {
+    flex: 1,
+    position: 'relative',
+    minHeight: 500,
+    background: '#F7F7FA',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+    padding: 0,
+    overflow: 'hidden',
+  },
+  coverImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    zIndex: 0,
+  },
+  rightOverlay: {
+    position: 'relative',
+    zIndex: 1,
+    width: '100%',
+    textAlign: 'center',
+    color: '#fff',
+    background: 'rgba(34,34,34,0.32)',
+    padding: '60px 24px 40px 24px',
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 500,
+  },
+  welcomeTitle: {
+    fontWeight: 700,
+    fontSize: 26,
+    color: '#fff',
+    marginTop: 0,
+    textAlign: 'center',
+    textShadow: '0 2px 8px #0004',
+  },
+  welcomeDesc: {
+    color: '#fff',
+    fontSize: 16,
+    marginTop: 12,
+    textAlign: 'center',
+    maxWidth: 320,
+    textShadow: '0 2px 8px #0004',
+  },
+};
+
+export default Login;

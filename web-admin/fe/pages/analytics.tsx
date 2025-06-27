@@ -6,21 +6,21 @@ import React from 'react';
 const stats = [
   {
     label: 'Total Routes Posted',
-    value: '1,892',
+    value: '5',
     change: '+12.5%',
     positive: true,
     desc: 'compared to last month',
   },
   {
     label: 'Active Drivers',
-    value: '450',
+    value: '2',
     change: '+8.1%',
     positive: true,
     desc: 'compared to last month',
   },
   {
     label: 'Successful Bids',
-    value: '1,520',
+    value: '2',
     change: '+10.3%',
     positive: true,
     desc: 'compared to last month',
@@ -141,10 +141,10 @@ const Analytics = () => (
         >
           <div style={{ fontWeight: 700, fontSize: 15, color: '#222' }}>{s.label}</div>
           <div style={{ fontWeight: 800, fontSize: 28, color: NAVY_BLUE }}>{s.value}</div>
-          <div style={{ fontSize: 14, color: s.positive ? '#22C55E' : '#EF4444', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+          {/* <div style={{ fontSize: 14, color: s.positive ? '#22C55E' : '#EF4444', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
             {s.positive ? '↑' : '↓'} {s.change}
             <span style={{ color: '#7B7B93', fontWeight: 500, marginLeft: 8 }}>{s.desc}</span>
-          </div>
+          </div> */}
         </div>
       ))}
     </div>
@@ -226,7 +226,7 @@ const Analytics = () => (
             <span style={{ width: 14, height: 4, background: '#4F46E5', borderRadius: 2, display: 'inline-block' }} /> Bid Activity
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <span style={{ width: 14, height: 4, background: '#22C55E', borderRadius: 2, display: 'inline-block' }} /> New Users
+            <span style={{ width: 14, height: 4, background: '#22C55E', borderRadius: 2, display: 'inline-block' }} /> Users
           </span>
         </div>
       </div>

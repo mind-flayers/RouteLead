@@ -16,6 +16,14 @@ const ROYAL_ORANGE = '#FF8C00';
 
 const Sidebar: React.FC = () => {
   const router = useRouter();
+
+  const handleLogout = () => {
+    const confirmed = window.confirm('Are you sure you want to logout?');
+    if (confirmed) {
+      router.push('/'); 
+    }
+  };
+
   return (
     <aside style={styles.sidebar}>
       <nav style={{ flex: 1 }}>
@@ -44,7 +52,7 @@ const Sidebar: React.FC = () => {
         </ul>
       </nav>
       <div style={styles.bottomSection}>
-        <button style={styles.newOrderBtn}>New Order</button>
+        <button style={styles.newOrderBtn} onClick={handleLogout}>logout</button>
         <div style={styles.helpRow}>
           <div style={styles.avatar}>N</div>
           <Link href="/help" style={styles.helpLink}>

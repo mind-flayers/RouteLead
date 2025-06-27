@@ -156,19 +156,19 @@ const Dashboard: React.FC = () => {
       }}>
         <div style={{ ...cardStyle, flex: 1, minWidth: 180, maxWidth: 300 }}>
           <div style={cardTitle}>Total Users</div>
-          <div style={cardValue}>1,245</div>
+          <div style={cardValue}>8</div>
         </div>
         <div style={{ ...cardStyle, flex: 1, minWidth: 180, maxWidth: 300 }}>
           <div style={cardTitle}>Active Routes</div>
-          <div style={cardValue}>87</div>
-        </div>
-        <div style={{ ...cardStyle, flex: 1, minWidth: 180, maxWidth: 300 }}>
-          <div style={cardTitle}>Pending Disputes</div>
           <div style={cardValue}>5</div>
         </div>
         <div style={{ ...cardStyle, flex: 1, minWidth: 180, maxWidth: 300 }}>
+          <div style={cardTitle}>Pending Disputes</div>
+          <div style={cardValue}>1</div>
+        </div>
+        <div style={{ ...cardStyle, flex: 1, minWidth: 180, maxWidth: 300 }}>
           <div style={cardTitle}>Revenue (This Month)</div>
-          <div style={cardValue}>Rs.12,340</div>
+          <div style={cardValue}>Rs.1200</div>
         </div>
       </div>
       {/* Analytics Section: 3 charts in a row */}

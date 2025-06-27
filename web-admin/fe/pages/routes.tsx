@@ -30,64 +30,64 @@ const RouteDashboard = () => {
 	Blocked: '#EF4444',
 };
 
-  // Dummy route data
-  const routes = [
-    {
-      id: 'RL-101',
-      origin: 'New York',
-      destination: 'Boston',
-      driver: 'Sarah Lee',
-      status: 'Active',
-      compliance: 'Compliant',
-      dispute: 'No',
-      postDate: '2024-06-01',
-      eta: '2024-06-02',
-    },
-    {
-      id: 'RL-102',
-      origin: 'Chicago',
-      destination: 'Detroit',
-      driver: 'Mike Chen',
-      status: 'Pending',
-      compliance: 'Needs Attention',
-      dispute: 'Yes',
-      postDate: '2024-06-03',
-      eta: '2024-06-04',
-    },
-    {
-      id: 'RL-103',
-      origin: 'San Francisco',
-      destination: 'Los Angeles',
-      driver: 'Priya Patel',
-      status: 'Blocked',
-      compliance: 'Blocked',
-      dispute: 'No',
-      postDate: '2024-06-05',
-      eta: '2024-06-06',
-    },
-    {
-      id: 'RL-104',
-      origin: 'Dallas',
-      destination: 'Houston',
-      driver: 'Carlos Ruiz',
-      status: 'Active',
-      compliance: 'Compliant',
-      dispute: 'No',
-      postDate: '2024-06-07',
-      eta: '2024-06-08',
-    },
-    {
-      id: 'RL-105',
-      origin: 'Miami',
-      destination: 'Orlando',
-      driver: 'Emily Wong',
-      status: 'Pending',
-      compliance: 'Needs Attention',
-      dispute: 'Yes',
-      postDate: '2024-06-09',
-      eta: '2024-06-10',
-    },
-  ];
+// Dummy route data (Sri Lankan version)
+const routes = [
+  {
+    id: 'SL-001',
+    origin: 'Colombo',
+    destination: 'Kandy',
+    driver: 'Nimal Perera',
+    status: 'Active',
+    compliance: 'Compliant',
+    dispute: 'No',
+    postDate: '2024-06-01',
+    eta: '2024-06-01',
+  },
+  {
+    id: 'SL-002',
+    origin: 'Galle',
+    destination: 'Matara',
+    driver: 'Kamal Silva',
+    status: 'Pending',
+    compliance: 'Needs Attention',
+    dispute: 'Yes',
+    postDate: '2024-06-03',
+    eta: '2024-06-03',
+  },
+  {
+    id: 'SL-003',
+    origin: 'Jaffna',
+    destination: 'Anuradhapura',
+    driver: 'Suresh Kumar',
+    status: 'Blocked',
+    compliance: 'Blocked',
+    dispute: 'No',
+    postDate: '2024-06-05',
+    eta: '2024-06-06',
+  },
+  {
+    id: 'SL-004',
+    origin: 'Negombo',
+    destination: 'Kurunegala',
+    driver: 'Thilina Jayasuriya',
+    status: 'Active',
+    compliance: 'Compliant',
+    dispute: 'No',
+    postDate: '2024-06-07',
+    eta: '2024-06-07',
+  },
+  {
+    id: 'SL-005',
+    origin: 'Badulla',
+    destination: 'Nuwara Eliya',
+    driver: 'Ruwan Fernando',
+    status: 'Pending',
+    compliance: 'Needs Attention',
+    dispute: 'Yes',
+    postDate: '2024-06-09',
+    eta: '2024-06-09',
+  },
+];
 
   const labelButtonStyle = (color: string, active: boolean = false): React.CSSProperties => ({
 	background: color + '22',
@@ -184,8 +184,8 @@ const filterSelectStyle: React.CSSProperties = {
           justifyContent: 'center',
         }}>
           <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Total Routes</div>
-          <div style={{ fontWeight: 800, fontSize: 32, marginBottom: 4 }}>{totalRoutes}</div>
-          <div style={{ fontSize: 15, opacity: 0.85, marginBottom: 8 }}>+10% from last month</div>
+          <div style={{ fontWeight: 800, fontSize: 32, marginBottom: 4 }}>5</div>
+          <div style={{ fontSize: 15, opacity: 0.85, marginBottom: 8 }}>+2% from last month</div>
           <div style={{ position: 'absolute', top: 18, right: 18, opacity: 0.15, fontSize: 54 }}>🛣️</div>
         </div>
         <div style={{
@@ -201,7 +201,7 @@ const filterSelectStyle: React.CSSProperties = {
           justifyContent: 'center',
         }}>
           <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Active Drivers</div>
-          <div style={{ fontWeight: 800, fontSize: 32, marginBottom: 4 }}>{activeDrivers}</div>
+          <div style={{ fontWeight: 800, fontSize: 32, marginBottom: 4 }}>2</div>
           <div style={{ fontSize: 15, color: GREEN, marginBottom: 8 }}>+5% from last week</div>
         </div>
       </div>

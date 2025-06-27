@@ -6,7 +6,7 @@ const NAVY_BLUE = '#1A237E';
 const ROYAL_ORANGE = '#FF8C00';
 
 const Settings = () => {
-  const [appName, setAppName] = useState('RouteLead Dashboard');
+  const [appName, setAppName] = useState('RouteLead');
   const [supportEmail, setSupportEmail] = useState('support@routelead.com');
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
