@@ -16,7 +16,7 @@ const PostRoute = () => {
           title: 'Create Route',
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color="black" />
+              <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
           ),
         }}
@@ -97,13 +97,13 @@ const PostRoute = () => {
           </View>
           <View style={styles.detailRow}>
             <Text style={[styles.detailText, styles.indent]}>Space</Text>
-            <Text style={styles.detailValue}>35cm</Text><Text>*</Text><Text style={styles.detailValue}>35cm</Text><Text>*</Text><Text style={styles.detailValue}>35cm</Text>
+            <Text style={styles.detailValue}>35cm * 35cm * 35cm</Text>
           </View>
 
           <View style={styles.detailRow}>
             <Ionicons name="compass-outline" size={18} color="#555" />
             <Text style={styles.detailText}>Pickup Radius</Text>
-            <Text style={styles.detailValue}>25</Text><Text style={styles.detailValue}>km</Text>
+            <Text style={styles.detailValue}>25 km</Text>
           </View>
         </View>
 
@@ -112,7 +112,7 @@ const PostRoute = () => {
           <View style={styles.detailRow}>
             <Ionicons name="cash-outline" size={18} color="#555" />
             <Text style={styles.detailText}>Base Price</Text>
-            <Text style={styles.detailValue}>LKR 120.00</Text>
+            <Text style={styles.detailValue}>LKR 180.00</Text>
           </View>
         </View>
       </ScrollView>

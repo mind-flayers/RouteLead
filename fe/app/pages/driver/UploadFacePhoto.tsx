@@ -74,10 +74,10 @@ const UploadFacePhoto = () => {
   };
 
   const handleContinue = () => {
-    if (!selectedImage) {
-      Alert.alert('Photo Required', 'Please upload your face photo to continue.');
-      return;
-    }
+//    if (!selectedImage) {
+//      Alert.alert('Photo Required', 'Please upload your face photo to continue.');
+//      return;
+//    }
     // Here you would typically upload the image to your server
     router.push('/pages/driver/UploadPersonalDocs');
   };
@@ -141,7 +141,7 @@ const UploadFacePhoto = () => {
               selectedImage ? 'bg-orange-500' : 'bg-gray-400'
             }`}
             onPress={handleContinue}
-            disabled={!selectedImage}
+            disabled={false}
           >
             <Text className="text-white text-lg font-bold">
               {selectedImage ? 'Continue' : 'Choose Photo First'}

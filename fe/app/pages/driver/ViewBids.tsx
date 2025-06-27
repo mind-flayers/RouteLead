@@ -24,35 +24,38 @@ const ViewBids = () => {
   const bids = [
     {
       id: '1',
-      name: 'Michael Chen',
+      name: 'Chris C',
       avatar: require('../../../assets/images/profile_placeholder.jpeg'),
       amount: '52.50',
       timeAgo: '1 hr ago',
       weight: '8 kg',
       dimensions: '30×20×15 cm',
-      address: '123 Elm Street, Apartment 4B, Springfield, IL 62704',
+      fromAddress: '456 Main Street, Colombo 03',
+      toAddress: '123 Elm Street, Apartment 4B, Mannar',
       notes: 'Can you deliver by evening today?',
     },
     {
       id: '2',
-      name: 'Sarah Johnson',
+      name: 'NithuShan M',
       avatar: require('../../../assets/images/profile_placeholder.jpeg'),
       amount: '45.00',
       timeAgo: '3 hr ago',
       weight: '5 kg',
       dimensions: '20×15×10 cm',
-      address: '123 Elm Street, Apartment 4B, Springfield, IL 62704',
+      fromAddress: '78 Galle Road, Colombo 04',
+      toAddress: '123 Elm Street, Jaffna',
       notes: 'Please ensure careful handling of fragile items.',
     },
     {
       id: '3',
-      name: 'Jessica Lee',
+      name: 'Sanji J',
       avatar: require('../../../assets/images/profile_placeholder.jpeg'),
       amount: '38.00',
       timeAgo: '2 hr ago',
       weight: '3 kg',
       dimensions: '15×15×5 cm',
-      address: '123 Elm Street, Apartment 4B, Springfield, IL 62704',
+      fromAddress: '99 Kandy Road, Colombo 07',
+      toAddress: '123 Elm Street, Matale',
       notes: 'Small package, urgent delivery requested.',
     },
   ];
@@ -65,6 +68,8 @@ const ViewBids = () => {
       amount: '48.00',
       weight: '6 kg',
       dimensions: '25×20×10 cm',
+      fromAddress: '200 Negombo Road, Colombo 13',
+      toAddress: '123 Elm Street, Matale',
       notes: 'Flexible with delivery time, just keep me updated.',
     },
   ];
@@ -87,14 +92,14 @@ const ViewBids = () => {
           <View className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
             <View className="flex-row items-center mb-2">
               <Ionicons name="location-sharp" size={20} color="#6B7280" />
-              <Text className="ml-2 text-base font-semibold">New York, NY</Text>
+              <Text className="ml-2 text-base font-semibold">Colombo</Text>
             </View>
             <View className="items-center my-1">
               <Ionicons name="arrow-down" size={20} color="#6B7280" />
             </View>
             <View className="flex-row items-center mb-2">
               <Ionicons name="location-sharp" size={20} color="#6B7280" />
-              <Text className="ml-2 text-base font-semibold">Los Angeles, CA</Text>
+              <Text className="ml-2 text-base font-semibold">Badulla</Text>
             </View>
             <View className="flex-row justify-between items-center mt-4 pt-4 border-t border-gray-200">
               <View className="flex-row items-center">
@@ -138,15 +143,15 @@ const ViewBids = () => {
                 <MaterialCommunityIcons name="package-variant" size={18} color="#6B7280" />
                 <Text className="ml-2 text-gray-700">{bid.weight} {bid.dimensions}</Text>
               </View>
-              <Text>From: </Text>
+              <Text className="text-gray-600 font-semibold mb-1">From: </Text>
               <View className="flex-row items-center mb-3">
                 <Ionicons name="location-sharp" size={18} color="#6B7280" />
-                <Text className="ml-2 text-gray-700">{bid.address}</Text>
+                <Text className="ml-2 text-gray-700">{bid.fromAddress}</Text>
               </View>
-              <Text>To: </Text>
+              <Text className="text-gray-600 font-semibold mb-1">To: </Text>
               <View className="flex-row items-center mb-3">
                 <Ionicons name="location-sharp" size={18} color="#6B7280" />
-                <Text className="ml-2 text-gray-700">{bid.address}</Text>
+                <Text className="ml-2 text-gray-700">{bid.toAddress}</Text>
               </View>
               <Text className="text-blue-600 font-semibold mb-4">Notes: <Text className="text-gray-700 font-normal">{bid.notes}</Text></Text>
               <View className="flex-row justify-between">
@@ -173,6 +178,16 @@ const ViewBids = () => {
               <View className="flex-row items-center mb-1">
                 <MaterialCommunityIcons name="package-variant" size={18} color="#6B7280" />
                 <Text className="ml-2 text-gray-700">{bid.weight} {bid.dimensions}</Text>
+              </View>
+              <Text className="text-gray-600 font-semibold mb-1">From: </Text>
+              <View className="flex-row items-center mb-3">
+                <Ionicons name="location-sharp" size={18} color="#6B7280" />
+                <Text className="ml-2 text-gray-700">{bid.fromAddress}</Text>
+              </View>
+              <Text className="text-gray-600 font-semibold mb-1">To: </Text>
+              <View className="flex-row items-center mb-3">
+                <Ionicons name="location-sharp" size={18} color="#6B7280" />
+                <Text className="ml-2 text-gray-700">{bid.toAddress}</Text>
               </View>
               <Text className="text-blue-600 font-semibold mb-4">Notes: <Text className="text-gray-700 font-normal">{bid.notes}</Text></Text>
               <IndigoButton title="View Details" onPress={handleViewDetails} />

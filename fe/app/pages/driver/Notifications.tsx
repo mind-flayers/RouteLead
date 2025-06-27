@@ -17,7 +17,7 @@ const Notifications = () => {
     {
       id: '1',
       type: 'New Bid Received',
-      description: 'A new bid of $120 for load #RLD5678 has been placed. Review now to',
+      description: 'A new bid of LKR 120 for load #RLD5678 has been placed. Review now to',
       time: 'Just now',
       icon: 'hammer', // FontAwesome5 for bid/auction
       read: false,
@@ -25,7 +25,7 @@ const Notifications = () => {
     {
       id: '2',
       type: 'Payment Processed',
-      description: 'Your payment of $350 for completed delivery #RLD1234 has been',
+      description: 'Your payment of LKR 350 for completed delivery #RLD1234 has been',
       time: '5 min ago',
       icon: 'dollar-sign', // FontAwesome5 for money
       read: false,
@@ -49,7 +49,7 @@ const Notifications = () => {
     {
       id: '5',
       type: 'Withdrawal Completed',
-      description: 'Your withdrawal request for $1000 has been successfully processed and',
+      description: 'Your withdrawal request for LKR 1000 has been successfully processed and',
       time: '1 hr ago',
       icon: 'check-circle', // FontAwesome5 for completed/check
       read: true,
@@ -57,7 +57,7 @@ const Notifications = () => {
     {
       id: '6',
       type: 'Weekend Bonus Alert!',
-      description: 'Earn an extra $50 for completing 3 deliveries this weekend. Tap to learn',
+      description: 'Earn an extra LKR 50 for completing 3 deliveries this weekend. Tap to learn',
       time: 'Yesterday',
       icon: 'bell', // Ionicons for notification/alert
       read: false,

@@ -34,7 +34,7 @@ const DeliverySummary = () => {
         <BannerCard className="mb-5 bg-orange-500 p-5 rounded-lg flex-row items-center justify-between">
           <View>
             <Text className="text-white text-base font-semibold">You have Earned:</Text>
-            <Text className="text-white text-4xl font-bold text-center">LKR 280.75</Text>
+            <Text className="text-white text-4xl font-bold text-center">LKR 450.00</Text>
           </View>
           <MaterialCommunityIcons name="trophy" size={60} color="rgba(255,255,255,0.3)" />
         </BannerCard>
@@ -52,7 +52,7 @@ const DeliverySummary = () => {
           <View className="flex-row items-center mb-2">
             <FontAwesome name="user-o" size={20} color="#6B7280" />
             <Text className="ml-2 text-gray-700 w-24">Customer Name:</Text>
-            <Text className="text-gray-900 font-semibold">Sarah Jenkins</Text>
+            <Text className="text-gray-900 font-semibold">Chris C</Text>
           </View>
 
           <View className="flex-row items-center mb-2">
@@ -73,7 +73,7 @@ const DeliverySummary = () => {
             <Ionicons name="location-sharp" size={20} color="#6B7280" />
             <Text className="ml-2 text-gray-700 w-24">Pickup Location:</Text>
             <View className="flex-col">
-              <Text className="text-gray-900 font-semibold">123 Main St, Anytown, USA</Text>
+              <Text className="text-gray-900 font-semibold">123 Elm Street, Apartment 4B, Badulla</Text>
               <View className="flex-row items-center mt-1">
                 <FontAwesome name="clock-o" size={14} color="#6B7280" />
                 <Text className="ml-1 text-gray-600 text-sm">09:15 AM</Text>
@@ -87,10 +87,10 @@ const DeliverySummary = () => {
             <MaterialCommunityIcons name="flag-checkered" size={20} color="#6B7280" />
             <Text className="ml-2 text-gray-700 w-24">Delivery Location:</Text>
             <View className="flex-col">
-              <Text className="text-gray-900 font-semibold">456 Oak Ave, Somesville, USA</Text>
+              <Text className="text-gray-900 font-semibold">21/A, Colombo</Text>
               <View className="flex-row items-center mt-1">
                 <FontAwesome name="clock-o" size={14} color="#6B7280" />
-                <Text className="ml-1 text-gray-600 text-sm">09:40 AM</Text>
+                <Text className="ml-1 text-gray-600 text-sm">09:40 PM</Text>
               </View>
             </View>
           </View>

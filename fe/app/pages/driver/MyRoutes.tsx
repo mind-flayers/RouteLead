@@ -9,7 +9,6 @@ import EditButton from '@/components/ui/EditButton';
 import DeleteButton from '@/components/ui/DeleteButton';
 import PrimaryCard from '@/components/ui/PrimaryCard';
 import IndigoButton from '@/components/ui/IndigoButton';
-import BottomNavigationBar from '@/components/ui/BottomNavigationBar';
 
 const MyRoutes = () => {
   const router = useRouter();
@@ -18,40 +17,40 @@ const MyRoutes = () => {
   const routesData = [
     {
       id: '1',
-      origin: 'New York, NY',
-      destination: 'Los Angeles, CA',
+      origin: 'Colombo',
+      destination: 'Badulla',
       status: 'Active',
-      date: 'Oct 26, 2024',
+      date: 'Oct 26, 2025',
       timer: '02 D | 02:56:48 H',
       bids: 7,
       highestBid: 'LKR 250.00',
     },
     {
       id: '2',
-      origin: 'New York, NY',
-      destination: 'Los Angeles, CA',
+      origin: 'Badulla',
+      destination: 'Colombo',
       status: 'Active',
-      date: 'Oct 26, 2024',
+      date: 'Oct 26, 2025',
       timer: '02 D | 02:56:48 H',
       bids: 7,
       highestBid: 'LKR 250.00',
     },
     {
       id: '3',
-      origin: 'New York, NY',
-      destination: 'Los Angeles, CA',
+      origin: 'Kandy',
+      destination: 'Jaffna',
       status: 'Active',
-      date: 'Oct 26, 2024',
+      date: 'Oct 26, 2025',
       timer: '02 D | 02:56:48 H',
       bids: 7,
       highestBid: 'N/A',
     },
     {
       id: '4',
-      origin: 'Seattle, WA',
-      destination: 'Portland, OR',
+      origin: 'Galle',
+      destination: 'Kandy',
       status: 'Expired',
-      date: 'Sep 15, 2024',
+      date: 'Sep 15, 2025',
       bids: 0,
       highestBid: 'LKR 1300.00',
     },
@@ -134,7 +133,7 @@ const MyRoutes = () => {
                   />
                   <EditButton
                     title="Edit"
-                    onPress={() => router.push('/pages/driver/EditRoute')} // Assuming an EditRoute screen
+                    onPress={() => router.push('/pages/driver/create_route/CreateRoute')} // Assuming an EditRoute screen
                     // style={{ flex: 1, marginRight: 8, paddingVertical: 6, paddingHorizontal: 10 }}
                     textStyle={{ fontSize: 12 }}
                   />
@@ -159,7 +158,48 @@ const MyRoutes = () => {
       </ScrollView>
 
       {/* Bottom Navigation Bar */}
-      <BottomNavigationBar activeTab="routes" />
+      <View className="flex-row justify-between items-center bg-white border-t border-gray-200 px-2 py-2 absolute bottom-0 w-full" style={{ minHeight: 60 }}>
+        <Link href="/pages/driver/Dashboard" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <Ionicons name="home" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Home</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/MyRoutes" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <MaterialCommunityIcons name="truck-delivery" size={22} color="#F97316" />
+              <Text className="text-orange-500 text-xs mt-1" numberOfLines={1}>Routes</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/MyEarnings" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <FontAwesome5 name="dollar-sign" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Earnings</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/ChatList" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <Ionicons name="chatbubbles" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Chats</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/Profile" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <Ionicons name="person" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Profile</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+      </View>
     </SafeAreaView>
   );
 };

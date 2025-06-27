@@ -44,7 +44,13 @@ const ChatScreen = () => {
           />
           <Text className="text-lg font-bold">{name || 'Chat'}</Text>
         </View>
-        <TouchableOpacity className="p-2">
+        <TouchableOpacity 
+          className="p-2"
+          onPress={() => router.push({
+            pathname: '/pages/driver/CallScreen',
+            params: { customerName: name }
+          })}
+        >
           <Ionicons name="call-outline" size={24} color="black" />
         </TouchableOpacity>
         <TouchableOpacity className="p-2 ml-2">
