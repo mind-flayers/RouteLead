@@ -21,7 +21,7 @@ const PersonalInformation = () => {
   const [lastName, setLastName] = useState('Hasan');
   const [dateOfBirth, setDateOfBirth] = useState(new Date('2000-05-15'));
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [gender, setGender] = useState('Female');
+  const [gender, setGender] = useState('Male');
   const [nicNumber, setNicNumber] = useState('123456789');
   const [phoneNumber, setPhoneNumber] = useState('0781234567');
   const [emailAddress, setEmailAddress] = useState('example@example.com');
@@ -29,6 +29,9 @@ const PersonalInformation = () => {
   const [addressLine2, setAddressLine2] = useState('Nogegoda');
   const [city, setCity] = useState('Colombo');
   const [showCityPicker, setShowCityPicker] = useState(false);
+  const [showGenderPicker, setShowGenderPicker] = useState(false);
+
+  const genderOptions = ['Male', 'Female'];
 
   const handleBackPress = () => {
     navigation.goBack();
@@ -90,7 +93,7 @@ const PersonalInformation = () => {
           <Text className="text-sm text-gray-600 mb-1">Date of Birth</Text>
           <TouchableOpacity onPress={showDatepicker} className="flex-row items-center border border-gray-300 rounded-md p-3 mb-4 bg-white">
             <FontAwesome5 name="calendar-alt" size={18} color="gray" />
-            <Text className="ml-3 text-base text-gray-700">{dateOfBirth.toDateString()}</Text>
+            <Text className="ml-3 text-base text-gray-700">{dateOfBirth.toLocaleDateString('en-GB')}</Text>
           </TouchableOpacity>
           {showDatePicker && (
             <DateTimePicker
@@ -103,11 +106,30 @@ const PersonalInformation = () => {
           )}
 
           <Text className="text-sm text-gray-600 mb-1">Gender</Text>
-          <TouchableOpacity onPress={() => console.log('Open Gender Picker')} className="flex-row items-center justify-between border border-gray-300 rounded-md p-3 mb-4 bg-white">
-            <Text className="text-base text-gray-700">{gender}</Text>
-            <Ionicons name="chevron-down" size={20} color="gray" />
-          </TouchableOpacity>
-          {/* Gender picker implementation would go here, e.g., using a modal or a custom component */}
+          <View className="relative">
+            <TouchableOpacity onPress={() => setShowGenderPicker(true)} className="flex-row items-center justify-between border border-gray-300 rounded-md p-3 mb-4 bg-white">
+              <Text className="text-base text-gray-700">{gender}</Text>
+              <Ionicons name="chevron-down" size={20} color="gray" />
+            </TouchableOpacity>
+            {showGenderPicker && (
+              <View className="absolute left-0 right-0 bg-white border border-gray-300 rounded-md z-50" style={{ bottom: '100%', maxHeight: 150, marginBottom: 4 }}>
+                <ScrollView nestedScrollEnabled={true}>
+                  {genderOptions.map((item, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      className="p-3 border-b border-gray-200"
+                      onPress={() => {
+                        setGender(item);
+                        setShowGenderPicker(false);
+                      }}
+                    >
+                      <Text className="text-base text-gray-700">{item}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
 
           <Text className="text-sm text-gray-600 mb-1">NIC Number</Text>
           <TextInput

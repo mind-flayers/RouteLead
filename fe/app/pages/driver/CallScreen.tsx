@@ -9,6 +9,9 @@ const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 const CallScreen = () => {
   const router = useRouter();
   const { phoneNumber, customerName } = useLocalSearchParams();
+  
+  // Ensure customerName is a string, not an array
+  const displayName = Array.isArray(customerName) ? customerName[0] : customerName;
 
   const gradientColors = useRef(new Animated.Value(0)).current;
   const [isMuted, setIsMuted] = useState(false);
@@ -76,29 +79,29 @@ const CallScreen = () => {
             <TouchableOpacity onPress={() => router.back()} className="items-center">
               <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
-            <View className="w-6" /> {/* Placeholder for alignment */}
+            <View className="w-6" />
           </View>
 
-          <View className="flex-1 justify-center items-center">
+          <View className="flex-1 justify-start items-center">
             <View className="bg-purple-200 p-1 rounded-full mb-8">
               <Image
                 source={require('../../../assets/images/profile_placeholder.jpeg')} // Replace with actual customer image if available
                 className="w-32 h-32 rounded-full"
               />
             </View>
-            <Text className="text-3xl font-bold text-white mb-2">{customerName || 'Customer'}</Text>
+            <Text className="text-3xl font-bold text-white mb-2">{displayName || 'Customer'}</Text>
           </View>
 
           {/* Call Timer */}
-          <View className="absolute bottom-36 w-full flex-row justify-center items-center">
+          {/* <View className="absolute bottom-36 w-full flex-row justify-center items-center">
             <View className="flex-row items-center bg-black bg-opacity-30 px-4 py-2 rounded-full">
               <View className="w-2 h-2 bg-red-500 rounded-full mr-2" />
               <Text className="text-white text-lg">{formatTime(callDuration)}</Text>
             </View>
-          </View>
+          </View> */}
 
           {/* Action Buttons */}
-          <View className="absolute bottom-10 w-full flex-row justify-center items-center">
+          <View className="absolute bottom-10 mb-20 w-full flex-row justify-center items-center">
             <TouchableOpacity
               className="bg-white bg-opacity-30 p-4 rounded-full mx-3"
               onPress={() => setIsSpeakerOn(!isSpeakerOn)}

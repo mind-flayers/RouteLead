@@ -5,7 +5,6 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo
 import { Link, useRouter } from 'expo-router';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import PrimaryCard from '@/components/ui/PrimaryCard';
-import BottomNavigationBar from '@/components/ui/BottomNavigationBar';
 
 const MyEarnings = () => {
   const router = useRouter();
@@ -14,65 +13,65 @@ const MyEarnings = () => {
     {
       id: '1',
       type: 'route_completion',
-      description: 'Route Completion: Central City to Port',
-      date: 'April 20, 2024',
-      amount: '+150.00',
+      description: 'Route Completion: Badulla to Colombo',
+      date: 'April 20, 2025',
+      amount: '+1500.00',
       isCredit: true,
     },
     {
       id: '2',
       type: 'bank_transfer',
       description: 'Bank Transfer to Account ****1234',
-      date: 'April 18, 2024',
-      amount: '-500.00',
+      date: 'April 18, 2025',
+      amount: '-5000.00',
       isCredit: false,
     },
     {
       id: '3',
       type: 'route_completion',
-      description: 'Route Completion: Industrial Park to Suburb',
-      date: 'April 15, 2024',
-      amount: '+85.50',
+      description: 'Route Completion: Industrial Park to Pettah',
+      date: 'April 15, 2025',
+      amount: '+850.50',
       isCredit: true,
     },
     {
       id: '4',
-      type: 'fuel_surcharge',
-      description: 'Fuel Surcharge Adjustment',
-      date: 'April 14, 2024',
-      amount: '-10.25',
+      type: 'bank_transfer',
+      description: 'Bank Transfer to Account ****1234',
+      date: 'April 18, 2025',
+      amount: '-5000.00',
       isCredit: false,
     },
     {
       id: '5',
       type: 'route_completion',
-      description: 'Route Completion: Downtown to Airport',
-      date: 'April 12, 2024',
-      amount: '+220.00',
+      description: 'Route Completion: Kandy to Galle',
+      date: 'April 12, 2025',
+      amount: '+2200.00',
       isCredit: true,
     },
     {
       id: '6',
       type: 'route_completion',
-      description: 'Route Completion: Residential Delivery',
-      date: 'April 10, 2024',
-      amount: '+45.00',
+      description: 'Route Completion: Matara to Colombo',
+      date: 'April 10, 2025',
+      amount: '+4500.00',
       isCredit: true,
     },
     {
       id: '7',
       type: 'bank_transfer',
       description: 'Bank Transfer to Account ****1234',
-      date: 'April 05, 2024',
+      date: 'April 05, 2025',
       amount: '-1000.00',
       isCredit: false,
     },
     {
       id: '8',
       type: 'route_completion',
-      description: 'Route Completion: Rural Area Logistics',
-      date: 'April 03, 2024',
-      amount: '+180.00',
+      description: 'Route Completion: Colombo to Jaffna',
+      date: 'April 03, 2025',
+      amount: '+1800.00',
       isCredit: true,
     },
   ];
@@ -155,7 +154,48 @@ const MyEarnings = () => {
       </ScrollView>
 
       {/* Bottom Navigation Bar */}
-      <BottomNavigationBar activeTab="earnings" />
+      <View className="flex-row justify-between items-center bg-white border-t border-gray-200 px-2 py-2 absolute bottom-0 w-full" style={{ minHeight: 60 }}>
+        <Link href="/pages/driver/Dashboard" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <Ionicons name="home" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Home</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/MyRoutes" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <MaterialCommunityIcons name="truck-delivery" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Routes</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/MyEarnings" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <FontAwesome5 name="dollar-sign" size={22} color="#F97316" />
+              <Text className="text-orange-500 text-xs mt-1" numberOfLines={1}>Earnings</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/ChatList" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <Ionicons name="chatbubbles" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Chats</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/Profile" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <Ionicons name="person" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Profile</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+      </View>
     </SafeAreaView>
   );
 };

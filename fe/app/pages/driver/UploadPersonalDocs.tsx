@@ -263,7 +263,8 @@ const UploadPersonalDocs = () => {
           <Text className="text-gray-700 text-lg font-bold">Back</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={validateAndContinue}
+          onPress={() => router.push('/pages/driver/SelectVehicleType')}
+          // onPress={handleBackPress}
           className="flex-1 ml-2 bg-orange-500 py-3 rounded-lg items-center"
         >
           <Text className="text-white text-lg font-bold">Next</Text>

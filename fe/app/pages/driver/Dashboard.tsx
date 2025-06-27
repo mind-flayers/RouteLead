@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
 import PrimaryButton from '@/components/ui/PrimaryButton';
-import BottomNavigationBar from '@/components/ui/BottomNavigationBar';
 import { supabase } from '@/lib/supabase';
 
 const Dashboard = () => {
@@ -44,19 +43,19 @@ const Dashboard = () => {
       title: "Pending Bids",
       icon: <FontAwesome5 name="list-alt" size={20} color="#f97316" />,
       value: "7",
-      subtext: "2 new bids since last login"
+      subtext: "2 new bids today"
     },
     {
       title: "Weekly Total\nEarnings",
       icon: <FontAwesome5 name="dollar-sign" size={20} color="#f97316" />,
-      value: "LKR 98000.50",
+      value: "LKR 15450.50",
       subtext: "+8.1% from last week"
     },
     {
       title: "Routes\nCompleted",
       icon: <AntDesign name="checkcircle" size={20} color="#f97316" />,
       value: "24",
-      subtext: "Total deliveries this month"
+      subtext: "Deliveries this month"
     }
   ];
 
@@ -116,7 +115,7 @@ const Dashboard = () => {
         </View>
 
         {/* Route Activity Overview */}
-        <Text className="text-xl font-bold mb-4">Route Activity Overview</Text>
+        <Text className="text-xl font-bold mb-4">Recent Activities</Text>
         <View className="space-y-4">
           {/* Activity 1 */}
           <Link href="/pages/driver/DeliverySummary" className="flex-row items-center justify-between">
@@ -126,11 +125,11 @@ const Dashboard = () => {
               </View>
               <View>
                 <Text className="font-semibold">Route Completion:</Text>
-                <Text className="text-gray-700">Central City to Port</Text>
-                <Text className="text-gray-500 text-sm">April 20, 2024</Text>
+                <Text className="text-gray-700">Puttalam to Mannar</Text>
+                <Text className="text-gray-500 text-sm">April 20, 2025</Text>
               </View>
             </View>
-            <Text className="text-green-600 font-bold">+LKR 150.00</Text>
+            <Text className="text-green-600 font-bold">+LKR 550.00</Text>
           </Link>
 
           {/* Activity 2 */}
@@ -142,7 +141,7 @@ const Dashboard = () => {
               <View>
                 <Text className="font-semibold">Bank Transfer to Account</Text>
                 <Text className="text-gray-700">****1234</Text>
-                <Text className="text-gray-500 text-sm">April 18, 2024</Text>
+                <Text className="text-gray-500 text-sm">April 18, 2025</Text>
               </View>
             </View>
             <Text className="text-red-600 font-bold">-LKR 500.00</Text>
@@ -156,11 +155,11 @@ const Dashboard = () => {
               </View>
               <View>
                 <Text className="font-semibold">Route Completion:</Text>
-                <Text className="text-gray-700">Industrial Park to Suburb</Text>
-                <Text className="text-gray-500 text-sm">April 15, 2024</Text>
+                <Text className="text-gray-700">Colombo to Badulla</Text>
+                <Text className="text-gray-500 text-sm">April 15, 2025</Text>
               </View>
             </View>
-            <Text className="text-green-600 font-bold">+LKR 85.50</Text>
+            <Text className="text-green-600 font-bold">+LKR 850.50</Text>
           </Link>
         </View>
       </ScrollView>
@@ -185,7 +184,48 @@ const Dashboard = () => {
       </TouchableOpacity>
 
       {/* Bottom Navigation Bar */}
-      <BottomNavigationBar activeTab="home" />
+      <View className="flex-row justify-between items-center bg-white border-t border-gray-200 px-2 py-2 absolute bottom-0 w-full" style={{ minHeight: 60 }}>
+        <Link href="/(tabs)" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <Ionicons name="home" size={22} color="#F97316" />
+              <Text className="text-orange-500 text-xs mt-1" numberOfLines={1}>Home</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/MyRoutes" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <MaterialCommunityIcons name="truck-delivery" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Routes</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/MyEarnings" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <FontAwesome5 name="dollar-sign" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Earnings</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/ChatList" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <Ionicons name="chatbubbles" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Chats</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/Profile" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <Ionicons name="person" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Profile</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+      </View>
     </SafeAreaView>
   );
 };

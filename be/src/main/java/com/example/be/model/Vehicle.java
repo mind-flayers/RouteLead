@@ -1,53 +1,80 @@
 package com.example.be.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
+import java.time.ZonedDateTime;
+import java.util.UUID;
+
+@Getter
+@Setter
 @Entity
 @Table(name = "vehicle_details")
 public class Vehicle {
-  
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-  @Column(nullable = false)
-  private String make;
+    @Column(name = "driver_id", nullable = false)
+    private UUID driverId;
 
-  @Column(nullable = false)
-  private String model;
+    @Column(name = "color")
+    private String color;
 
-  @Column(name = "year_of_manufacture")
-  private Integer year;
+    @Column(name = "make", nullable = false)
+    private String make;
 
-  @Column(name = "color")
-  private String color;
+    @Column(name = "model", nullable = false)
+    private String model;
 
-  public Vehicle() {}
-  
-  public Vehicle(String make, String model, Integer year, String color) {
-    this.make = make;
-    this.model = model;
-    this.year = year;
-    this.color = color;
-  }
+    @Column(name = "year_of_manufacture")
+    private Integer yearOfManufacture;
 
-  public Long getId() { return id; }
-  public void setId(Long id) { this.id = id; }
+    @Column(name = "plate_number", nullable = false)
+    private String plateNumber;
 
-  public String getMake() { return make; }
-  public void setMake(String make) { this.make = make; }
+    @Column(name = "max_weight_kg", nullable = false, precision = 10, scale = 2)
+    private BigDecimal maxWeightKg = BigDecimal.ZERO;
 
-  public String getModel() { return model; }
-  public void setModel(String model) { this.model = model; }
+    @Column(name = "max_volume_m3", nullable = false, precision = 10, scale = 2)
+    private BigDecimal maxVolumeM3 = BigDecimal.ZERO;
 
-  public Integer getYear() { return year; }
-  public void setYear(Integer year) { this.year = year; }
+    @Column(name = "vehicle_photos", columnDefinition = "jsonb")
+    private String vehiclePhotos = "[]";
 
-  public String getColor() { return color; }
-  public void setColor(String color) { this.color = color; }
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private ZonedDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private ZonedDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = ZonedDateTime.now();
+        }
+        if (updatedAt == null) {
+            updatedAt = ZonedDateTime.now();
+        }
+        if (maxWeightKg == null) {
+            maxWeightKg = BigDecimal.ZERO;
+        }
+        if (maxVolumeM3 == null) {
+            maxVolumeM3 = BigDecimal.ZERO;
+        }
+        if (vehiclePhotos == null) {
+            vehiclePhotos = "[]";
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = ZonedDateTime.now();
+    }
 } 

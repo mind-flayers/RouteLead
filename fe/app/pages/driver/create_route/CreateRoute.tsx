@@ -20,7 +20,7 @@ const CreateRoute = () => {
           title: 'Create Route',
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color="black" />
+              <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
           ),
         }}

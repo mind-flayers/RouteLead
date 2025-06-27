@@ -24,7 +24,7 @@ const WithdrawalSuccess = () => {
         <View className="items-center mb-8">
           <AntDesign name="checkcircleo" size={80} color="#f97316" className="mb-4" />
           <Text className="text-3xl font-bold text-center mb-2">Withdrawal Successful!</Text>
-          <Text className="text-5xl font-bold text-orange-500 mb-8">$500.00</Text>
+          <Text className="text-5xl font-bold text-orange-500 mb-8">LKR 500.00</Text>
 
           <PrimaryCard style={{ width: '100%', padding: 20, alignItems: 'center' }}>
             <Text className="text-gray-700 text-lg mb-1">Method: Bank Transfer</Text>

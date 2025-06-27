@@ -38,7 +38,7 @@ public class VehicleService {
 
         vehicle.setMake(vehicleDetails.getMake());
         vehicle.setModel(vehicleDetails.getModel());
-        vehicle.setYear(vehicleDetails.getYear());
+        vehicle.setYearOfManufacture(vehicleDetails.getYearOfManufacture());
 
         return vehicleRepository.save(vehicle);
     }
