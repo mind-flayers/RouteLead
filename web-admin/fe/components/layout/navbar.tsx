@@ -38,9 +38,6 @@ const Navbar: React.FC = () => {
           alt="User"
           style={styles.avatar}
         />
-        <button style={styles.logoutButton} onClick={handleLogout}>
-          Logout
-        </button>
       </div>
     </header>
   );
