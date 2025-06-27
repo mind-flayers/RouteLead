@@ -43,40 +43,40 @@ const UploadVehicleDocs = () => {
 
   const validateAndSubmit = () => {
     // Check required vehicle photos
-    if (!documents.frontView) {
-      Alert.alert('Missing Document', 'Please upload front view of the vehicle.');
-      return;
-    }
-    if (!documents.backView) {
-      Alert.alert('Missing Document', 'Please upload back view of the vehicle.');
-      return;
-    }
-    if (!documents.insideView) {
-      Alert.alert('Missing Document', 'Please upload inside view of the vehicle.');
-      return;
-    }
+    // if (!documents.frontView) {
+    //   Alert.alert('Missing Document', 'Please upload front view of the vehicle.');
+    //   return;
+    // }
+    // if (!documents.backView) {
+    //   Alert.alert('Missing Document', 'Please upload back view of the vehicle.');
+    //   return;
+    // }
+    // if (!documents.insideView) {
+    //   Alert.alert('Missing Document', 'Please upload inside view of the vehicle.');
+    //   return;
+    // }
 
     // Check required vehicle documents
-    if (!documents.vehicleLicense) {
-      Alert.alert('Missing Document', 'Please upload vehicle license.');
-      return;
-    }
-    if (!documents.vehicleInsurance) {
-      Alert.alert('Missing Document', 'Please upload vehicle insurance.');
-      return;
-    }
-    if (!documents.vehicleRegistration) {
-      Alert.alert('Missing Document', 'Please upload vehicle registration.');
-      return;
-    }
+    // if (!documents.vehicleLicense) {
+    //   Alert.alert('Missing Document', 'Please upload vehicle license.');
+    //   return;
+    // }
+    // if (!documents.vehicleInsurance) {
+    //   Alert.alert('Missing Document', 'Please upload vehicle insurance.');
+    //   return;
+    // }
+    // if (!documents.vehicleRegistration) {
+    //   Alert.alert('Missing Document', 'Please upload vehicle registration.');
+    //   return;
+    // }
 
     // Check owner documents if not the owner
-    if (!isOwner) {
-      if (!documents.ownerNicFront || !documents.ownerNicBack) {
-        Alert.alert('Missing Document', 'Please upload both sides of the owner\'s NIC.');
-        return;
-      }
-    }
+    // if (!isOwner) {
+    //   if (!documents.ownerNicFront || !documents.ownerNicBack) {
+    //     Alert.alert('Missing Document', 'Please upload both sides of the owner\'s NIC.');
+    //     return;
+    //   }
+    // }
 
     // All documents are uploaded, proceed with submission
     Alert.alert(
@@ -95,7 +95,7 @@ const UploadVehicleDocs = () => {
       'Submission Successful',
       'Your documents have been submitted for review. You will be notified once the review is complete.',
       [
-        { text: 'OK', onPress: () => router.replace('/pages/driver/Dashboard') }
+        { text: 'OK', onPress: () => router.replace('/pages/driver/Profile') }
       ]
     );
   };

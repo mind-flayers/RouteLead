@@ -24,7 +24,7 @@ const WithdrawalDetails = () => {
         <BannerCard className="mb-5 bg-orange-500 p-4 rounded-2xl flex-row items-center justify-between">
           <View>
             <Text className="text-white text-base font-medium">Amount</Text>
-            <Text className="text-white text-4xl font-bold mt-2">LKR 280.75</Text>
+            <Text className="text-white text-4xl font-bold mt-2">LKR 1500.00</Text>
           </View>
           <FontAwesome5 name="trophy" size={40} color="white" />
         </BannerCard>

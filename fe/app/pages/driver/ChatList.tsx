@@ -3,7 +3,6 @@ import { View, Text, ScrollView, TouchableOpacity, Image, TextInput } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
-import BottomNavigationBar from '@/components/ui/BottomNavigationBar';
 
 const ChatList = () => {
   const router = useRouter();
@@ -11,7 +10,7 @@ const ChatList = () => {
   const chatData = [
     {
       id: '1',
-      name: 'Maria Smith',
+      name: 'Kasun Perera',
       lastMessage: 'Parcel has been successful',
       time: 'Just now',
       unreadCount: 1,
@@ -19,7 +18,7 @@ const ChatList = () => {
     },
     {
       id: '2',
-      name: 'CargoCorp Logistics',
+      name: 'Sanjika J',
       lastMessage: 'We are interested in your r',
       time: 'Yesterday',
       unreadCount: 3,
@@ -27,7 +26,7 @@ const ChatList = () => {
     },
     {
       id: '3',
-      name: 'Alex Johnson',
+      name: 'Christan Cone',
       lastMessage: 'When will the delivery arrive',
       time: 'Monday',
       unreadCount: 0,
@@ -35,7 +34,7 @@ const ChatList = () => {
     },
     {
       id: '4',
-      name: 'Customer Services',
+      name: 'Nithushan M',
       lastMessage: 'How do I update my vehicle de',
       time: 'Jan 5',
       unreadCount: 0,
@@ -43,7 +42,7 @@ const ChatList = () => {
     },
     {
       id: '5',
-      name: 'Sarah Connor',
+      name: 'Karun Wickramasinghe',
       lastMessage: 'Confirming the pickup tim',
       time: '2 days ago',
       unreadCount: 0,
@@ -51,8 +50,8 @@ const ChatList = () => {
     },
     {
       id: '6',
-      name: 'Global Express Inc.',
-      lastMessage: 'We have submitted a new b',
+      name: 'Pratheepan Sam',
+      lastMessage: 'We have submitted a new bid',
       time: 'Last week',
       unreadCount: 0,
       profileImage: 'profile_placeholder',
@@ -128,7 +127,48 @@ const ChatList = () => {
       </ScrollView>
 
       {/* Bottom Navigation Bar */}
-      <BottomNavigationBar activeTab="chats" />
+      <View className="flex-row justify-between items-center bg-white border-t border-gray-200 px-2 py-2 absolute bottom-0 w-full" style={{ minHeight: 60 }}>
+        <Link href="/pages/driver/Dashboard" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <Ionicons name="home" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Home</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/MyRoutes" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <MaterialCommunityIcons name="truck-delivery" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Routes</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/MyEarnings" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <FontAwesome5 name="dollar-sign" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Earnings</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/ChatList" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <Ionicons name="chatbubbles" size={22} color="#F97316" />
+              <Text className="text-orange-500 text-xs mt-1" numberOfLines={1}>Chats</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+        <Link href="/pages/driver/Profile" asChild>
+          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
+            <View className="items-center justify-center">
+              <Ionicons name="person" size={22} color="gray" />
+              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Profile</Text>
+            </View>
+          </TouchableOpacity>
+        </Link>
+      </View>
     </SafeAreaView>
   );
 };

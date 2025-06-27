@@ -10,7 +10,7 @@ const EnterPricing = () => {
   const router = useRouter();
   const initialPrice = 150; // Example initial price
   const [suggestedPrice, setSuggestedPrice] = useState(String(initialPrice));
-  const [selectedProfitMargin, setSelectedProfitMargin] = useState('15%'); // Default selected
+  const [selectedProfitMargin, setSelectedProfitMargin] = useState(""); // Default selected
 
   const calculatePrice = (basePrice: number, margin: string) => {
     const percentage = parseFloat(margin) / 100;
@@ -31,7 +31,7 @@ const EnterPricing = () => {
           title: 'Create Route',
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color="black" />
+              <Ionicons name="arrow-back" size={24} color="white" />
             </TouchableOpacity>
           ),
         }}

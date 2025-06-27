@@ -24,41 +24,41 @@ const SelectVehicleType = () => {
   ];
 
   const validateAndContinue = () => {
-    if (!selectedVehicleType) {
-      Alert.alert('Vehicle Type Required', 'Please select your vehicle type.');
-      return;
-    }
+    // if (!selectedVehicleType) {
+    //   Alert.alert('Vehicle Type Required', 'Please select your vehicle type.');
+    //   return;
+    // }
     // if (isOwner === null) {
     //   Alert.alert('Ownership Required', 'Please specify if you own the vehicle.');
     //   return;
     // }
-    if (!manufacturer.trim()) {
-      Alert.alert('Missing Information', 'Please enter the vehicle manufacturer.');
-      return;
-    }
-    if (!model.trim()) {
-      Alert.alert('Missing Information', 'Please enter the vehicle model.');
-      return;
-    }
-    if (!year.trim()) {
-      Alert.alert('Missing Information', 'Please enter the year of manufacture.');
-      return;
-    }
-    if (!color.trim()) {
-      Alert.alert('Missing Information', 'Please enter the vehicle color.');
-      return;
-    }
-    if (!licensePlate.trim()) {
-      Alert.alert('Missing Information', 'Please enter the license plate number.');
-      return;
-    }
+    // if (!manufacturer.trim()) {
+    //   Alert.alert('Missing Information', 'Please enter the vehicle manufacturer.');
+    //   return;
+    // }
+    // if (!model.trim()) {
+    //   Alert.alert('Missing Information', 'Please enter the vehicle model.');
+    //   return;
+    // }
+    // if (!year.trim()) {
+    //   Alert.alert('Missing Information', 'Please enter the year of manufacture.');
+    //   return;
+    // }
+    // if (!color.trim()) {
+    //   Alert.alert('Missing Information', 'Please enter the vehicle color.');
+    //   return;
+    // }
+    // if (!licensePlate.trim()) {
+    //   Alert.alert('Missing Information', 'Please enter the license plate number.');
+    //   return;
+    // }
 
-    const currentYear = new Date().getFullYear();
-    const vehicleYear = parseInt(year);
-    if (isNaN(vehicleYear) || vehicleYear < 1900 || vehicleYear > currentYear) {
-      Alert.alert('Invalid Year', 'Please enter a valid year of manufacture.');
-      return;
-    }
+    // const currentYear = new Date().getFullYear();
+    // const vehicleYear = parseInt(year);
+    // if (isNaN(vehicleYear) || vehicleYear < 1900 || vehicleYear > currentYear) {
+    //   Alert.alert('Invalid Year', 'Please enter a valid year of manufacture.');
+    //   return;
+    // }
 
     router.push('/pages/driver/UploadVehicleDocs');
   };
@@ -153,7 +153,8 @@ const SelectVehicleType = () => {
           <Text className="text-gray-700 text-lg font-bold">Back</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={validateAndContinue}
+          // onPress={validateAndContinue}
+          onPress={() => router.push('/pages/driver/UploadVehicleDocs')}
           className="flex-1 ml-2 bg-orange-500 py-3 rounded-lg items-center"
         >
           <Text className="text-white text-lg font-bold">Next</Text>
