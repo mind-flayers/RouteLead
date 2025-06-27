@@ -1,4 +1,4 @@
-package com.example.be.model;
+package com.example.be.types;
 
 public enum UserRole {
     ADMIN,
