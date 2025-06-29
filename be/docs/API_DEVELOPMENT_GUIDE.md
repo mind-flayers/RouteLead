@@ -36,10 +36,10 @@ Before starting a new API, ensure you have:
 
 ### Step 1: Create the Model (Entity)
 
-Create your JPA entity in `src/main/java/com/example/routelead/model/`:
+Create your JPA entity in `src/main/java/com/example/be/model/`:
 
 ```java
-package com.example.routelead.model;
+package com.example.be.model;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -76,11 +76,11 @@ public class YourEntity {
 
 ### Step 2: Create DTOs
 
-Create request and response DTOs in `src/main/java/com/example/routelead/dto/`:
+Create request and response DTOs in `src/main/java/com/example/be/dto/`:
 
 **Response DTO:**
 ```java
-package com.example.routelead.dto;
+package com.example.be.dto;
 
 import lombok.Data;
 import lombok.Builder;
@@ -103,7 +103,7 @@ public class YourEntityDto {
 
 **Request DTO:**
 ```java
-package com.example.routelead.dto;
+package com.example.be.dto;
 
 import lombok.Data;
 import lombok.Builder;
@@ -127,12 +127,12 @@ public class YourEntityRequestDto {
 
 ### Step 3: Create Repository
 
-Create your repository interface in `src/main/java/com/example/routelead/repository/`:
+Create your repository interface in `src/main/java/com/example/be/repository/`:
 
 ```java
-package com.example.routelead.repository;
+package com.example.be.repository;
 
-import com.example.routelead.model.YourEntity;
+import com.example.be.model.YourEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -152,18 +152,18 @@ public interface YourEntityRepository extends JpaRepository<YourEntity, Long> {
 
 ### Step 4: Create Service
 
-Create your service class in `src/main/java/com/example/routelead/service/`:
+Create your service class in `src/main/java/com/example/be/service/`:
 
 ```java
-package com.example.routelead.service;
+package com.example.be.service;
 
-import com.example.routelead.dto.YourEntityDto;
-import com.example.routelead.dto.YourEntityRequestDto;
-import com.example.routelead.exception.ResourceNotFoundException;
-import com.example.routelead.exception.ValidationException;
-import com.example.routelead.model.YourEntity;
-import com.example.routelead.repository.YourEntityRepository;
-import com.example.routelead.util.ValidationUtils;
+import com.example.be.dto.YourEntityDto;
+import com.example.be.dto.YourEntityRequestDto;
+import com.example.be.exception.ResourceNotFoundException;
+import com.example.be.exception.ValidationException;
+import com.example.be.model.YourEntity;
+import com.example.be.repository.YourEntityRepository;
+import com.example.be.util.ValidationUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -237,14 +237,14 @@ public class YourEntityService {
 
 ### Step 5: Create Controller
 
-Create your controller in `src/main/java/com/example/routelead/controller/`:
+Create your controller in `src/main/java/com/example/be/controller/`:
 
 ```java
-package com.example.routelead.controller;
+package com.example.be.controller;
 
-import com.example.routelead.dto.YourEntityDto;
-import com.example.routelead.dto.YourEntityRequestDto;
-import com.example.routelead.service.YourEntityService;
+import com.example.be.dto.YourEntityDto;
+import com.example.be.dto.YourEntityRequestDto;
+import com.example.be.service.YourEntityService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

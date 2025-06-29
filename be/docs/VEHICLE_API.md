@@ -9,10 +9,7 @@ http://localhost:8080/api/v1/vehicles
 ```
 
 ## Authentication
-All endpoints require proper authentication. Include JWT token in the Authorization header:
-```
-Authorization: Bearer <your-jwt-token>
-```
+**Note**: Currently, all endpoints are publicly accessible for development purposes. Authentication will be enabled for production.
 
 ## Endpoints
 
@@ -37,31 +34,14 @@ Retrieves all vehicles in the system.
     "plateNumber": "ABC123",
     "maxWeightKg": 500.00,
     "maxVolumeM3": 2.5,
-    "vehiclePhotos": "[]",
+    "vehiclePhotos": ["photo1.jpg", "photo2.jpg"],
     "createdAt": "2024-01-01T10:00:00Z",
     "updatedAt": "2024-01-01T10:00:00Z"
   }
 ]
 ```
 
-### 2. Get Vehicles by Driver ID
-**GET** `/api/v1/vehicles/driver/{driverId}`
-
-Retrieves all vehicles belonging to a specific driver.
-
-#### Path Parameters
-- `driverId` (UUID): The driver's unique identifier
-
-#### Response
-- **200 OK**: List of vehicles for the driver
-- **400 Bad Request**: Invalid driver ID format
-
-#### Example Request
-```
-GET /api/v1/vehicles/driver/550e8400-e29b-41d4-a716-446655440000
-```
-
-### 3. Get Vehicle by ID
+### 2. Get Vehicle by ID
 **GET** `/api/v1/vehicles/{id}`
 
 Retrieves a specific vehicle by its ID.
@@ -78,7 +58,7 @@ Retrieves a specific vehicle by its ID.
 GET /api/v1/vehicles/1
 ```
 
-### 4. Get Vehicle by Plate Number
+### 3. Get Vehicle by Plate Number
 **GET** `/api/v1/vehicles/plate/{plateNumber}`
 
 Retrieves a vehicle by its plate number.
@@ -93,6 +73,23 @@ Retrieves a vehicle by its plate number.
 #### Example Request
 ```
 GET /api/v1/vehicles/plate/ABC123
+```
+
+### 4. Get Vehicles by Driver ID
+**GET** `/api/v1/vehicles/driver/{driverId}`
+
+Retrieves all vehicles belonging to a specific driver.
+
+#### Path Parameters
+- `driverId` (UUID): The driver's unique identifier
+
+#### Response
+- **200 OK**: List of vehicles for the driver
+- **400 Bad Request**: Invalid driver ID format
+
+#### Example Request
+```
+GET /api/v1/vehicles/driver/550e8400-e29b-41d4-a716-446655440000
 ```
 
 ### 5. Create Vehicle
@@ -111,27 +108,27 @@ Creates a new vehicle for a driver.
   "plateNumber": "ABC123",
   "maxWeightKg": 500.00,
   "maxVolumeM3": 2.5,
-  "vehiclePhotos": "[]"
+  "vehiclePhotos": ["photo1.jpg", "photo2.jpg"]
 }
 ```
 
 #### Required Fields
 - `driverId`: UUID of the driver (required)
-- `make`: Vehicle manufacturer (required, 1-100 characters)
-- `model`: Vehicle model (required, 1-100 characters)
-- `plateNumber`: Vehicle license plate number (required, 1-20 characters, unique)
+- `make`: Vehicle manufacturer (required)
+- `model`: Vehicle model (required)
+- `plateNumber`: Vehicle license plate number (required)
 
 #### Optional Fields
-- `color`: Vehicle color (max 50 characters)
+- `color`: Vehicle color
 - `yearOfManufacture`: Year the vehicle was manufactured
-- `maxWeightKg`: Maximum weight capacity in kilograms (must be positive)
-- `maxVolumeM3`: Maximum volume capacity in cubic meters (must be positive)
-- `vehiclePhotos`: JSON string containing vehicle photo URLs
+- `maxWeightKg`: Maximum weight capacity in kilograms (defaults to 0.00)
+- `maxVolumeM3`: Maximum volume capacity in cubic meters (defaults to 0.00)
+- `vehiclePhotos`: Array of strings containing vehicle photo URLs (defaults to empty array)
 
 #### Response
 - **201 Created**: Vehicle created successfully
 - **400 Bad Request**: Invalid or missing required fields
-- **409 Conflict**: Plate number already exists
+- **500 Internal Server Error**: Server error
 
 #### Example Response
 ```json
@@ -145,7 +142,7 @@ Creates a new vehicle for a driver.
   "plateNumber": "ABC123",
   "maxWeightKg": 500.00,
   "maxVolumeM3": 2.5,
-  "vehiclePhotos": "[]",
+  "vehiclePhotos": ["photo1.jpg", "photo2.jpg"],
   "createdAt": "2024-01-01T10:00:00Z",
   "updatedAt": "2024-01-01T10:00:00Z"
 }
@@ -169,15 +166,14 @@ Updates an existing vehicle.
   "plateNumber": "XYZ789",
   "maxWeightKg": 600.00,
   "maxVolumeM3": 3.0,
-  "vehiclePhotos": "[\"url1\", \"url2\"]"
+  "vehiclePhotos": ["url1", "url2"]
 }
 ```
 
 #### Response
 - **200 OK**: Vehicle updated successfully
-- **400 Bad Request**: Invalid data
 - **404 Not Found**: Vehicle not found
-- **409 Conflict**: New plate number already exists
+- **500 Internal Server Error**: Server error
 
 ### 7. Delete Vehicle
 **DELETE** `/api/v1/vehicles/{id}`
@@ -188,59 +184,28 @@ Deletes a vehicle.
 - `id` (Long): Vehicle ID
 
 #### Response
-- **204 No Content**: Vehicle deleted successfully
+- **200 OK**: Vehicle deleted successfully
 - **404 Not Found**: Vehicle not found
+- **500 Internal Server Error**: Server error
 
-### 8. Search Vehicles by Make and Model
-**GET** `/api/v1/vehicles/search?make={make}&model={model}`
+## Data Model
 
-Finds vehicles by make and model.
-
-#### Query Parameters
-- `make` (String): Vehicle make (required)
-- `model` (String): Vehicle model (required)
-
-#### Response
-- **200 OK**: List of matching vehicles
-- **400 Bad Request**: Missing required parameters
-
-#### Example Request
-```
-GET /api/v1/vehicles/search?make=Toyota&model=Camry
-```
-
-### 9. Find Vehicles by Weight Capacity
-**GET** `/api/v1/vehicles/capacity/weight?minWeight={minWeight}`
-
-Finds vehicles with minimum weight capacity.
-
-#### Query Parameters
-- `minWeight` (BigDecimal): Minimum weight capacity in kg (required, must be positive)
-
-#### Response
-- **200 OK**: List of vehicles with sufficient weight capacity
-- **400 Bad Request**: Invalid weight parameter
-
-#### Example Request
-```
-GET /api/v1/vehicles/capacity/weight?minWeight=500.00
-```
-
-### 10. Find Vehicles by Volume Capacity
-**GET** `/api/v1/vehicles/capacity/volume?minVolume={minVolume}`
-
-Finds vehicles with minimum volume capacity.
-
-#### Query Parameters
-- `minVolume` (BigDecimal): Minimum volume capacity in m³ (required, must be positive)
-
-#### Response
-- **200 OK**: List of vehicles with sufficient volume capacity
-- **400 Bad Request**: Invalid volume parameter
-
-#### Example Request
-```
-GET /api/v1/vehicles/capacity/volume?minVolume=2.5
+### Vehicle Entity
+```java
+{
+  "id": Long,                    // Auto-generated primary key
+  "driverId": UUID,              // Driver's unique identifier (required)
+  "color": String,               // Vehicle color (optional)
+  "make": String,                // Vehicle manufacturer (required)
+  "model": String,               // Vehicle model (required)
+  "yearOfManufacture": Integer,  // Manufacturing year (optional)
+  "plateNumber": String,         // License plate number (required)
+  "maxWeightKg": BigDecimal,     // Max weight capacity (default: 0.00)
+  "maxVolumeM3": BigDecimal,     // Max volume capacity (default: 0.00)
+  "vehiclePhotos": List<String>, // Array of photo URLs (default: empty array)
+  "createdAt": ZonedDateTime,    // Creation timestamp (auto-generated)
+  "updatedAt": ZonedDateTime     // Last update timestamp (auto-generated)
+}
 ```
 
 ## Error Handling
@@ -250,60 +215,52 @@ All endpoints return consistent error responses with the following structure:
 ```json
 {
   "timestamp": "2024-01-01T10:00:00Z",
-  "message": "Error description",
-  "errorCode": "ERROR_CODE",
-  "path": "/api/v1/vehicles"
+  "status": 404,
+  "error": "Not Found",
+  "path": "/api/v1/vehicles/999"
 }
 ```
-
-### Common Error Codes
-
-- `RESOURCE_NOT_FOUND`: Requested resource not found
-- `VALIDATION_ERROR`: Input validation failed
-- `UNAUTHORIZED`: Authentication required
-- `FORBIDDEN`: Insufficient permissions
-- `INTERNAL_ERROR`: Server error
 
 ### HTTP Status Codes
 
 - `200`: Success
 - `201`: Created
-- `204`: No Content
 - `400`: Bad Request (validation errors)
-- `401`: Unauthorized
-- `403`: Forbidden
 - `404`: Not Found
-- `409`: Conflict (duplicate resource)
 - `500`: Internal Server Error
 
 ## Validation Rules
 
 ### Vehicle Creation/Update Validation
 
-1. **driverId**: Must be a valid UUID
-2. **make**: Required, 1-100 characters
-3. **model**: Required, 1-100 characters
-4. **plateNumber**: Required, 1-20 characters, must be unique
-5. **color**: Optional, max 50 characters
+1. **driverId**: Must be a valid UUID (required)
+2. **make**: Required, cannot be null or empty
+3. **model**: Required, cannot be null or empty
+4. **plateNumber**: Required, cannot be null or empty
+5. **color**: Optional
 6. **yearOfManufacture**: Optional, must be a valid year
-7. **maxWeightKg**: Optional, must be positive
-8. **maxVolumeM3**: Optional, must be positive
-9. **vehiclePhotos**: Optional, JSON string
+7. **maxWeightKg**: Optional, defaults to 0.00
+8. **maxVolumeM3**: Optional, defaults to 0.00
+9. **vehiclePhotos**: Optional, must be an array of strings (not a JSON string)
 
-## Rate Limiting
+## Important Notes
 
-API requests are rate-limited to prevent abuse:
-- 100 requests per minute per IP address
-- 1000 requests per hour per authenticated user
+### vehiclePhotos Field
+The `vehiclePhotos` field is stored as a JSONB array in the database and should be sent as a JSON array, not a JSON string:
 
-## Logging
+**Correct:**
+```json
+{
+  "vehiclePhotos": ["photo1.jpg", "photo2.jpg"]
+}
+```
 
-All API requests are logged with the following information:
-- HTTP method and path
-- Request parameters
-- Response status
-- Processing time
-- User context (if authenticated)
+**Incorrect:**
+```json
+{
+  "vehiclePhotos": "[\"photo1.jpg\", \"photo2.jpg\"]"
+}
+```
 
 ## Testing
 
@@ -311,6 +268,7 @@ All API requests are logged with the following information:
 
 1. **Start the application**:
    ```bash
+   cd be
    ./gradlew bootRun
    ```
 
@@ -326,8 +284,12 @@ All API requests are logged with the following information:
        "driverId": "550e8400-e29b-41d4-a716-446655440000",
        "make": "Toyota",
        "model": "Camry",
-       "plateNumber": "ABC123"
+       "plateNumber": "ABC123",
+       "vehiclePhotos": ["photo1.jpg", "photo2.jpg"]
      }'
+   
+   # Get vehicle by plate number
+   curl -X GET http://localhost:8080/api/v1/vehicles/plate/ABC123
    ```
 
 ### Run Tests

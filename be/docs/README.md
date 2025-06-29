@@ -21,7 +21,7 @@ The RouteLead backend follows a **layered architecture** with clear separation o
 ## 📁 Project Structure
 
 ```
-src/main/java/com/example/routelead/
+src/main/java/com/example/be/
 ├── controller/          # REST API controllers
 ├── service/            # Business logic services
 ├── repository/         # Data access repositories
@@ -97,7 +97,7 @@ http://localhost:8080/api/v1
 - **Methods**: camelCase (e.g., `getVehicleById`)
 - **Variables**: camelCase (e.g., `vehicleId`)
 - **Constants**: UPPER_SNAKE_CASE (e.g., `MAX_RETRY_ATTEMPTS`)
-- **Packages**: lowercase (e.g., `com.example.routelead.controller`)
+- **Packages**: lowercase (e.g., `com.example.be.controller`)
 
 ### Error Handling
 
