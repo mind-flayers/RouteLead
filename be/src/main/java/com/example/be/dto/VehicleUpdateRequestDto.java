@@ -3,13 +3,9 @@ package com.example.be.dto;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.ZonedDateTime;
-import java.util.UUID;
 
 @Data
-public class VehicleDto {
-    private Long id;
-    private UUID driverId;
+public class VehicleUpdateRequestDto {
     private String color;
     private String make;
     private String model;
@@ -18,6 +14,4 @@ public class VehicleDto {
     private BigDecimal maxWeightKg;
     private BigDecimal maxVolumeM3;
     private String vehiclePhotos;
-    private ZonedDateTime createdAt;
-    private ZonedDateTime updatedAt;
 } 

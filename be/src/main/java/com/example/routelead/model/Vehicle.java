@@ -1,23 +1,31 @@
-package com.example.be.model;
+package com.example.routelead.model;
 
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
-import java.util.List;
 import java.util.UUID;
 
+/**
+ * Entity representing a vehicle in the RouteLead system.
+ * Contains information about vehicles registered by drivers.
+ */
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Entity
-@Table(name = "vehicle_details")
+@Table(name = "routelead_vehicle_details")
 public class Vehicle {
+    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -37,18 +45,20 @@ public class Vehicle {
     @Column(name = "year_of_manufacture")
     private Integer yearOfManufacture;
 
-    @Column(name = "plate_number", nullable = false)
+    @Column(name = "plate_number", nullable = false, unique = true)
     private String plateNumber;
 
     @Column(name = "max_weight_kg", nullable = false, precision = 10, scale = 2)
+    @Builder.Default
     private BigDecimal maxWeightKg = BigDecimal.ZERO;
 
     @Column(name = "max_volume_m3", nullable = false, precision = 10, scale = 2)
+    @Builder.Default
     private BigDecimal maxVolumeM3 = BigDecimal.ZERO;
 
-    @Column(name = "vehicle_photos")
-    @JdbcTypeCode(SqlTypes.JSON)
-    private List<String> vehiclePhotos = List.of();
+    @Column(name = "vehicle_photos", columnDefinition = "jsonb")
+    @Builder.Default
+    private String vehiclePhotos = "[]";
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -73,7 +83,7 @@ public class Vehicle {
             maxVolumeM3 = BigDecimal.ZERO;
         }
         if (vehiclePhotos == null) {
-            vehiclePhotos = List.of();
+            vehiclePhotos = "[]";
         }
     }
 
