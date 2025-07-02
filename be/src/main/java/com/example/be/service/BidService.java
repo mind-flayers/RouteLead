@@ -1,4 +1,6 @@
 package com.example.be.service;
+// ...existing imports...
+
 
 import com.example.be.dto.BidCreateDto;
 import com.example.be.dto.BidDto;
@@ -76,6 +78,25 @@ public class BidService {
         bid.setEndIndex(bidCreateDto.getEndIndex());
         bid.setOfferedPrice(bidCreateDto.getOfferedPrice());
         // status, createdAt, updatedAt are set automatically
+        Bid savedBid = bidRepository.save(bid);
+        BidDto dto = new BidDto();
+        dto.setId(savedBid.getId());
+        dto.setRequestId(savedBid.getRequestId());
+        dto.setRouteId(savedBid.getRouteId());
+        dto.setStartIndex(savedBid.getStartIndex());
+        dto.setEndIndex(savedBid.getEndIndex());
+        dto.setOfferedPrice(savedBid.getOfferedPrice());
+        dto.setStatus(savedBid.getStatus());
+        dto.setCreatedAt(savedBid.getCreatedAt());
+        dto.setUpdatedAt(savedBid.getUpdatedAt());
+        return dto;
+    }
+
+    @Transactional
+    public BidDto updateBidStatus(UUID bidId, com.example.be.types.BidStatus status) {
+        Bid bid = bidRepository.findById(bidId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Bid not found"));
+        bid.setStatus(status);
         Bid savedBid = bidRepository.save(bid);
         BidDto dto = new BidDto();
         dto.setId(savedBid.getId());

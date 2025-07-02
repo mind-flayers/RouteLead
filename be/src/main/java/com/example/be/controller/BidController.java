@@ -40,4 +40,10 @@ public class BidController {
         BidDto createdBid = bidService.createBid(bidCreateDto);
         return ResponseEntity.ok(createdBid);
     }
+    @PatchMapping("/{bidId}/status")
+    public ResponseEntity<BidDto> updateBidStatus(@PathVariable("bidId") UUID bidId, @RequestBody com.example.be.dto.BidStatusUpdateDto statusUpdateDto) {
+        log.info("PATCH /bids/{}/status - Updating bid status", bidId);
+        BidDto updatedBid = bidService.updateBidStatus(bidId, statusUpdateDto.getStatus());
+        return ResponseEntity.ok(updatedBid);
+    }
 }
