@@ -8,7 +8,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ProfileService {
@@ -76,5 +78,27 @@ public class ProfileService {
         dto.setCreatedAt(profile.getCreatedAt());
         dto.setUpdatedAt(profile.getUpdatedAt());
         return dto;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProfileDto> getAllProfiles() {
+        List<Profile> profiles = profileRepository.findAll();
+        return profiles.stream()
+                .map(profile -> {
+                    ProfileDto dto = new ProfileDto();
+                    dto.setId(profile.getId());
+                    dto.setEmail(profile.getEmail());
+                    dto.setRole(profile.getRole());
+                    dto.setFirstName(profile.getFirstName());
+                    dto.setLastName(profile.getLastName());
+                    dto.setPhoneNumber(profile.getPhoneNumber());
+                    dto.setNicNumber(profile.getNicNumber());
+                    dto.setProfilePhotoUrl(profile.getProfilePhotoUrl());
+                    dto.setIsVerified(profile.getIsVerified());
+                    dto.setCreatedAt(profile.getCreatedAt());
+                    dto.setUpdatedAt(profile.getUpdatedAt());
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 }

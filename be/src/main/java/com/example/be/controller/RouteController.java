@@ -2,17 +2,19 @@ package com.example.be.controller;
 
 import com.example.be.dto.CreateRouteDto;
 import com.example.be.dto.RouteSegmentDto;
+import com.example.be.dto.PricePredictionDto;
 import com.example.be.model.ReturnRoute;
 import com.example.be.types.RouteStatus;
 import com.example.be.repository.ReturnRouteRepository;
 import com.example.be.service.RouteService;
+import com.example.be.service.PricePredictionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,6 +26,7 @@ import java.util.UUID;
 public class RouteController {
     private final RouteService service;
     private final ReturnRouteRepository routeRepo;
+    private final PricePredictionService pricePredictionService;
 
     @PostMapping
     public ResponseEntity<Void> create(@RequestBody CreateRouteDto dto) throws Exception {
@@ -81,29 +84,10 @@ public class RouteController {
         // TODO: Implement this method in RouteService
         return ResponseEntity.ok(List.of());
     }
-} package com.example.be.controller;
-
-import com.example.be.dto.PricePredictionDto;
-import com.example.be.service.PricePredictionService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.UUID;
-
-@Slf4j
-@RestController
-@RequestMapping("/routes")
-@RequiredArgsConstructor
-@CrossOrigin(origins = "*")
-public class RouteController {
-
-    private final PricePredictionService pricePredictionService;
 
     @GetMapping("/price-suggestion")
     public ResponseEntity<PricePredictionDto> getPriceSuggestion(@RequestParam("routeId") UUID routeId) {
-        log.info("GET /routes/price-suggestion - Fetching price suggestion for route {}", routeId);
+        log.info("GET /api/routes/price-suggestion - Fetching price suggestion for route {}", routeId);
         PricePredictionDto suggestion = pricePredictionService.getLatestPriceSuggestion(routeId);
         return ResponseEntity.ok(suggestion);
     }

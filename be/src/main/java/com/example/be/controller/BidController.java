@@ -20,6 +20,7 @@ public class BidController {
 
     private final BidService bidService;
 
+    //test bid: 722d67db-97b3-4258-84b5-944b6a780125
     @GetMapping("/{bidId}")
     public ResponseEntity<BidDto> getBidById(@PathVariable("bidId") UUID bidId) {
         log.info("GET /bids/{} - Fetching bid by ID", bidId);

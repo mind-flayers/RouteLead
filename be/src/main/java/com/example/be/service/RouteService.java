@@ -64,9 +64,11 @@ public class RouteService {
             route.getUpdatedAt()
         );
         
-        // For now, return a simple response since we can't get the generated ID easily
+        // For now, skip the complex route processing and return early
+        // TODO: Implement proper route ID retrieval and continue with segment creation
         return;
 
+        /*
         // 2) fetch directions
         LatLng origin = new LatLng(dto.getOriginLat(), dto.getOriginLng());
         LatLng destination = new LatLng(dto.getDestinationLat(), dto.getDestinationLng());
@@ -124,6 +126,7 @@ public class RouteService {
         }
         
         log.info("Route created with {} segments", towns.size());
+        */
     }
 
     public List<RouteSegmentDto> getSegments(UUID routeId) {
