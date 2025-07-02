@@ -1,4 +1,4 @@
-netstat -aon | findstr :<PORT_NUMBER>
+netstat -aon | findstr :8080
 taskkill /PID <PID> /F
 gh auth login
 .\venv\Scripts\Activate.ps1
