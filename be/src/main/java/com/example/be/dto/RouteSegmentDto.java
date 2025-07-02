@@ -11,6 +11,7 @@ public class RouteSegmentDto {
     private UUID id;
     private UUID routeId;
     private Integer segmentIndex;
+    private String townName;
     private BigDecimal startLat;
     private BigDecimal startLng;
     private BigDecimal endLat;

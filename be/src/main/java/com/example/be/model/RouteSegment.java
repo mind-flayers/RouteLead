@@ -24,6 +24,9 @@ public class RouteSegment {
     @Column(name = "segment_index", nullable = false)
     private Integer segmentIndex;
 
+    @Column(name = "town_name", nullable = false)
+    private String townName;
+
     @Column(name = "start_lat", nullable = false, precision = 10, scale = 8)
     private BigDecimal startLat;
 

@@ -1,0 +1,84 @@
+package com.example.be.controller;
+
+import com.example.be.dto.CreateRouteDto;
+import com.example.be.dto.RouteSegmentDto;
+import com.example.be.model.ReturnRoute;
+import com.example.be.types.RouteStatus;
+import com.example.be.repository.ReturnRouteRepository;
+import com.example.be.service.RouteService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.UUID;
+
+@Slf4j
+@RestController
+@RequestMapping("/api/routes")
+@RequiredArgsConstructor
+@CrossOrigin(origins = "*")
+public class RouteController {
+    private final RouteService service;
+    private final ReturnRouteRepository routeRepo;
+
+    @PostMapping
+    public ResponseEntity<Void> create(@RequestBody CreateRouteDto dto) throws Exception {
+        log.info("POST /api/routes - Creating new route");
+        service.createRoute(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @PostMapping("/test")
+    public ResponseEntity<String> testCreate(@RequestBody CreateRouteDto dto) {
+        log.info("POST /api/routes/test - Testing basic route creation");
+        
+        try {
+            // Create a simple route object
+            ReturnRoute route = new ReturnRoute();
+            route.setDriverId(dto.getDriverId());
+            route.setOriginLat(dto.getOriginLat());
+            route.setOriginLng(dto.getOriginLng());
+            route.setDestinationLat(dto.getDestinationLat());
+            route.setDestinationLng(dto.getDestinationLng());
+            route.setDepartureTime(dto.getDepartureTime());
+            route.setDetourToleranceKm(dto.getDetourToleranceKm());
+            route.setSuggestedPriceMin(dto.getSuggestedPriceMin());
+            route.setSuggestedPriceMax(dto.getSuggestedPriceMax());
+            route.setStatus(RouteStatus.OPEN);
+            
+            // Try to save using native SQL
+            routeRepo.insertRouteWithEnum(
+                route.getDriverId(),
+                route.getOriginLat(),
+                route.getOriginLng(),
+                route.getDestinationLat(),
+                route.getDestinationLng(),
+                route.getDepartureTime(),
+                route.getDetourToleranceKm(),
+                route.getSuggestedPriceMin(),
+                route.getSuggestedPriceMax(),
+                route.getStatus().name(),
+                route.getCreatedAt(),
+                route.getUpdatedAt()
+            );
+            
+            return ResponseEntity.ok("Route created successfully!");
+            
+        } catch (Exception e) {
+            log.error("Error creating route: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Error: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/segments")
+    public ResponseEntity<List<RouteSegmentDto>> getSegments(@RequestParam UUID routeId) {
+        log.info("GET /api/routes/segments - Fetching segments for route: {}", routeId);
+        // TODO: Implement this method in RouteService
+        return ResponseEntity.ok(List.of());
+    }
+} 

@@ -47,7 +47,7 @@ public class ReturnRoute {
     @Column(name = "suggested_price_max", nullable = false, precision = 10, scale = 2)
     private BigDecimal suggestedPriceMax;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = com.example.be.config.RouteStatusConverter.class)
     @Column(name = "status", nullable = false, columnDefinition = "route_status")
     private RouteStatus status = RouteStatus.OPEN;
 
