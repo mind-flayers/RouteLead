@@ -3,6 +3,7 @@ package com.example.be.service;
 import com.example.be.model.Profile;
 import com.example.be.types.UserRole;
 import com.example.be.repository.ProfileRepository;
+import com.example.be.dto.ProfileDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,4 +58,23 @@ public class ProfileService {
     public boolean isCustomer(Profile profile) {
         return profile.getRole() == UserRole.CUSTOMER;
     }
-} 
+
+    @Transactional(readOnly = true)
+    public ProfileDto getProfileById(UUID id) {
+        Profile profile = profileRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Profile not found"));
+        ProfileDto dto = new ProfileDto();
+        dto.setId(profile.getId());
+        dto.setEmail(profile.getEmail());
+        dto.setRole(profile.getRole());
+        dto.setFirstName(profile.getFirstName());
+        dto.setLastName(profile.getLastName());
+        dto.setPhoneNumber(profile.getPhoneNumber());
+        dto.setNicNumber(profile.getNicNumber());
+        dto.setProfilePhotoUrl(profile.getProfilePhotoUrl());
+        dto.setIsVerified(profile.getIsVerified());
+        dto.setCreatedAt(profile.getCreatedAt());
+        dto.setUpdatedAt(profile.getUpdatedAt());
+        return dto;
+    }
+}
