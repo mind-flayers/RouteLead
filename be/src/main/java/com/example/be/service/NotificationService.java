@@ -13,7 +13,10 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
+
 public class NotificationService {
+    @Autowired
+    private NotificationRepository notificationRepository;
 
     public NotificationDto createNotification(com.example.be.dto.NotificationCreateDto createDto) {
         Notification notification = new Notification();
@@ -24,8 +27,7 @@ public class NotificationService {
         Notification saved = notificationRepository.save(notification);
         return toDto(saved);
     }
-    @Autowired
-    private NotificationRepository notificationRepository;
+
 
     // ObjectMapper no longer needed for payload conversion
 
@@ -47,10 +49,11 @@ public class NotificationService {
 
     @Transactional
     public NotificationDto updateNotificationRead(UUID notificationId, Boolean isRead) {
+        // Use custom update query to only update isRead
+        notificationRepository.updateIsRead(notificationId, isRead);
+        // Fetch the updated notification to return
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Notification not found"));
-        notification.setIsRead(isRead);
-        Notification saved = notificationRepository.save(notification);
-        return toDto(saved);
+        return toDto(notification);
     }
 }
