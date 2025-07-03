@@ -18,7 +18,7 @@ public class NotificationController {
     private NotificationService notificationService;
 
     @GetMapping
-    public List<NotificationDto> getNotifications(@RequestParam(required = false) UUID userId) {
-        return notificationService.getNotifications(userId);
+    public List<NotificationDto> getNotificationsByUserId(@RequestParam("userId") UUID userId) {
+        return notificationService.getNotificationsByUserId(userId);
     }
 }

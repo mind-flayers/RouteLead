@@ -15,13 +15,8 @@ public class NotificationService {
     @Autowired
     private NotificationRepository notificationRepository;
 
-    public List<NotificationDto> getNotifications(UUID userId) {
-        List<Notification> notifications;
-        if (userId != null) {
-            notifications = notificationRepository.findByUserId(userId);
-        } else {
-            notifications = notificationRepository.findAll();
-        }
+    public List<NotificationDto> getNotificationsByUserId(UUID userId) {
+        List<Notification> notifications = notificationRepository.findByUserId(userId);
         return notifications.stream().map(this::toDto).collect(Collectors.toList());
     }
 
