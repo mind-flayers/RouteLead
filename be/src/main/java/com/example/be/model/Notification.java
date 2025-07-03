@@ -1,6 +1,8 @@
 package com.example.be.model;
 
 import com.example.be.types.NotificationType;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -26,7 +28,8 @@ public class Notification {
     private NotificationType type;
 
     @Column(name = "payload", nullable = false, columnDefinition = "jsonb")
-    private String payload;
+    @Convert(converter = com.example.be.model.PayloadJsonbConverter.class)
+    private Object payload;
 
     @Column(name = "is_read", nullable = false)
     private Boolean isRead = false;
