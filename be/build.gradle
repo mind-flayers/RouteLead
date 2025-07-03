@@ -42,6 +42,7 @@ dependencies {
 	// Google Maps dependencies
 	implementation 'com.google.maps:google-maps-services:2.2.0'
 	implementation 'com.google.maps:google-maps-services:2.2.0'
+	// implementation 'com.vladmihalcea:hibernate-types-60:2.21.1'
 }
 
 tasks.named('test') {

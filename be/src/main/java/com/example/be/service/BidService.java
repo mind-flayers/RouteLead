@@ -71,14 +71,24 @@ public class BidService {
 
     @Transactional
     public BidDto createBid(BidCreateDto bidCreateDto) {
-        Bid bid = new Bid();
-        bid.setRequestId(bidCreateDto.getRequestId());
-        bid.setRouteId(bidCreateDto.getRouteId());
-        bid.setStartIndex(bidCreateDto.getStartIndex());
-        bid.setEndIndex(bidCreateDto.getEndIndex());
-        bid.setOfferedPrice(bidCreateDto.getOfferedPrice());
-        // status, createdAt, updatedAt are set automatically
-        Bid savedBid = bidRepository.save(bid);
+        // Use native insert to handle enum casting
+        bidRepository.insertBid(
+                bidCreateDto.getRequestId(),
+                bidCreateDto.getRouteId(),
+                bidCreateDto.getStartIndex(),
+                bidCreateDto.getEndIndex(),
+                bidCreateDto.getOfferedPrice(),
+                com.example.be.types.BidStatus.PENDING.name()
+        );
+        // Fetch the saved bid to return all fields (find the latest matching bid using native query)
+        Bid savedBid = bidRepository.findLatestBidByAllFields(
+                bidCreateDto.getRequestId(),
+                bidCreateDto.getRouteId(),
+                bidCreateDto.getStartIndex(),
+                bidCreateDto.getEndIndex(),
+                bidCreateDto.getOfferedPrice(),
+                com.example.be.types.BidStatus.PENDING.name()
+        ).orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "Bid creation failed"));
         BidDto dto = new BidDto();
         dto.setId(savedBid.getId());
         dto.setRequestId(savedBid.getRequestId());

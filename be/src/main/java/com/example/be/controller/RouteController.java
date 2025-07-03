@@ -1,3 +1,4 @@
+
 package com.example.be.controller;
 
 import com.example.be.dto.CreateRouteDto;
@@ -29,6 +30,13 @@ public class RouteController {
     private final RouteService service;
     private final ReturnRouteRepository routeRepo;
     private final PricePredictionService pricePredictionService;
+
+    @GetMapping("/{routeId}")
+    public ResponseEntity<?> getRouteById(@PathVariable UUID routeId) {
+        return routeRepo.findById(routeId)
+            .<ResponseEntity<?>>map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body("Route not found"));
+    }
 
     @PostMapping
     public ResponseEntity<?> create(@RequestBody CreateRouteDto dto) {
