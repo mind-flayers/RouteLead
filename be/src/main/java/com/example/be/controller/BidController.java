@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.Map;
+import java.util.HashMap;
 
 @Slf4j
 @RestController
@@ -41,9 +43,21 @@ public class BidController {
         return ResponseEntity.ok(createdBid);
     }
     @PatchMapping("/{bidId}/status")
-    public ResponseEntity<BidDto> updateBidStatus(@PathVariable("bidId") UUID bidId, @RequestBody com.example.be.dto.BidStatusUpdateDto statusUpdateDto) {
+    public ResponseEntity<?> updateBidStatus(@PathVariable("bidId") UUID bidId, @RequestBody com.example.be.dto.BidStatusUpdateDto statusUpdateDto) {
         log.info("PATCH /bids/{}/status - Updating bid status", bidId);
-        BidDto updatedBid = bidService.updateBidStatus(bidId, statusUpdateDto.getStatus());
-        return ResponseEntity.ok(updatedBid);
+        try {
+            BidDto updatedBid = bidService.updateBidStatus(bidId, statusUpdateDto.getStatus());
+            return ResponseEntity.ok(updatedBid);
+        } catch (Exception e) {
+            log.error("Error updating bid status: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", java.time.LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/bids/" + bidId + "/status");
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 }

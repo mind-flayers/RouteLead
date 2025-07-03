@@ -35,7 +35,7 @@ public class Bid {
     @Column(name = "offered_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal offeredPrice;
 
-    @Enumerated(EnumType.STRING)
+    @Convert(converter = com.example.be.model.BidStatusConverter.class)
     @Column(name = "status", nullable = false, columnDefinition = "bid_status")
     private BidStatus status = BidStatus.PENDING;
 

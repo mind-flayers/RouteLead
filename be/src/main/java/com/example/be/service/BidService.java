@@ -96,18 +96,24 @@ public class BidService {
     public BidDto updateBidStatus(UUID bidId, com.example.be.types.BidStatus status) {
         Bid bid = bidRepository.findById(bidId)
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Bid not found"));
-        bid.setStatus(status);
-        Bid savedBid = bidRepository.save(bid);
+        
+        // Update using native SQL to handle enum properly
+        bidRepository.updateBidStatus(bidId, status.name());
+        
+        // Refresh the entity to get updated data
+        bid = bidRepository.findById(bidId)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Bid not found after update"));
+        
         BidDto dto = new BidDto();
-        dto.setId(savedBid.getId());
-        dto.setRequestId(savedBid.getRequestId());
-        dto.setRouteId(savedBid.getRouteId());
-        dto.setStartIndex(savedBid.getStartIndex());
-        dto.setEndIndex(savedBid.getEndIndex());
-        dto.setOfferedPrice(savedBid.getOfferedPrice());
-        dto.setStatus(savedBid.getStatus());
-        dto.setCreatedAt(savedBid.getCreatedAt());
-        dto.setUpdatedAt(savedBid.getUpdatedAt());
+        dto.setId(bid.getId());
+        dto.setRequestId(bid.getRequestId());
+        dto.setRouteId(bid.getRouteId());
+        dto.setStartIndex(bid.getStartIndex());
+        dto.setEndIndex(bid.getEndIndex());
+        dto.setOfferedPrice(bid.getOfferedPrice());
+        dto.setStatus(bid.getStatus());
+        dto.setCreatedAt(bid.getCreatedAt());
+        dto.setUpdatedAt(bid.getUpdatedAt());
         return dto;
     }
 }
