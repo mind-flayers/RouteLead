@@ -37,10 +37,22 @@ public class BidController {
         return ResponseEntity.ok(bids);
     }
     @PostMapping
-    public ResponseEntity<BidDto> createBid(@RequestBody BidCreateDto bidCreateDto) {
+    public ResponseEntity<?> createBid(@RequestBody BidCreateDto bidCreateDto) {
         log.info("POST /bids - Creating new bid");
-        BidDto createdBid = bidService.createBid(bidCreateDto);
-        return ResponseEntity.ok(createdBid);
+        try {
+            BidDto createdBid = bidService.createBid(bidCreateDto);
+            return ResponseEntity.ok(createdBid);
+        } catch (Exception e) {
+            log.error("Error creating bid: ", e);
+            java.util.Map<String, Object> errorResponse = new java.util.HashMap<>();
+            errorResponse.put("timestamp", java.time.ZonedDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/bids");
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
     @PatchMapping("/{bidId}/status")
     public ResponseEntity<?> updateBidStatus(@PathVariable("bidId") UUID bidId, @RequestBody com.example.be.dto.BidStatusUpdateDto statusUpdateDto) {
