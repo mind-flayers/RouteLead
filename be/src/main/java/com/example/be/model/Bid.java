@@ -1,6 +1,8 @@
 package com.example.be.model;
 
 import com.example.be.types.BidStatus;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -35,7 +37,7 @@ public class Bid {
     @Column(name = "offered_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal offeredPrice;
 
-    @Convert(converter = com.example.be.model.BidStatusConverter.class)
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, columnDefinition = "bid_status")
     private BidStatus status = BidStatus.PENDING;
 
