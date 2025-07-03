@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -48,7 +49,12 @@ public class RouteService {
         route.setSuggestedPriceMax(dto.getSuggestedPriceMax());
         route.setStatus(RouteStatus.OPEN); // Explicitly set the status
         
-        // Use native SQL to avoid enum conversion issues
+        // Set timestamps manually since we're using native SQL
+        ZonedDateTime now = ZonedDateTime.now();
+        route.setCreatedAt(now);
+        route.setUpdatedAt(now);
+        
+        // Use native SQL with proper enum casting
         routeRepo.insertRouteWithEnum(
             route.getDriverId(),
             route.getOriginLat(),

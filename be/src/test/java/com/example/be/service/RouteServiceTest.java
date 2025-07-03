@@ -6,6 +6,7 @@ import com.example.be.model.ReturnRoute;
 import com.example.be.model.RouteSegment;
 import com.example.be.repository.ReturnRouteRepository;
 import com.example.be.repository.RouteSegmentRepository;
+import com.example.be.types.RouteStatus;
 import com.example.be.util.LatLng;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

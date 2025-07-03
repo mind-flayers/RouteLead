@@ -14,9 +14,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.ZonedDateTime;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.Map;
+import java.util.HashMap;
 
 @Slf4j
 @RestController
@@ -29,10 +31,55 @@ public class RouteController {
     private final PricePredictionService pricePredictionService;
 
     @PostMapping
-    public ResponseEntity<Void> create(@RequestBody CreateRouteDto dto) throws Exception {
+    public ResponseEntity<?> create(@RequestBody CreateRouteDto dto) {
         log.info("POST /api/routes - Creating new route");
-        service.createRoute(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+        
+        // Validate required fields
+        if (dto.getDriverId() == null) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 400);
+            errorResponse.put("error", "Bad Request");
+            errorResponse.put("message", "driverId is required");
+            errorResponse.put("path", "/api/routes");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+        
+        if (dto.getOriginLat() == null || dto.getOriginLng() == null || 
+            dto.getDestinationLat() == null || dto.getDestinationLng() == null) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 400);
+            errorResponse.put("error", "Bad Request");
+            errorResponse.put("message", "All location coordinates are required");
+            errorResponse.put("path", "/api/routes");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+        
+        if (dto.getDepartureTime() == null) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 400);
+            errorResponse.put("error", "Bad Request");
+            errorResponse.put("message", "departureTime is required");
+            errorResponse.put("path", "/api/routes");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+        
+        try {
+            service.createRoute(dto);
+            return ResponseEntity.status(HttpStatus.CREATED).build();
+        } catch (Exception e) {
+            log.error("Error creating route: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/api/routes");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 
     @PostMapping("/test")
@@ -53,7 +100,12 @@ public class RouteController {
             route.setSuggestedPriceMax(dto.getSuggestedPriceMax());
             route.setStatus(RouteStatus.OPEN);
             
-            // Try to save using native SQL
+            // Set timestamps manually since we're using native SQL
+            java.time.ZonedDateTime now = java.time.ZonedDateTime.now();
+            route.setCreatedAt(now);
+            route.setUpdatedAt(now);
+            
+            // Try to save using native SQL with proper enum casting
             routeRepo.insertRouteWithEnum(
                 route.getDriverId(),
                 route.getOriginLat(),

@@ -76,9 +76,10 @@ public class GlobalExceptionHandler {
         
         Map<String, Object> errorDetails = new HashMap<>();
         errorDetails.put("timestamp", LocalDateTime.now());
-        errorDetails.put("message", "An unexpected error occurred");
-        errorDetails.put("errorCode", "INTERNAL_ERROR");
+        errorDetails.put("message", ex.getMessage());
+        errorDetails.put("errorCode", "RUNTIME_ERROR");
         errorDetails.put("path", request.getDescription(false));
+        errorDetails.put("details", ex.getClass().getSimpleName());
         
         return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -92,9 +93,10 @@ public class GlobalExceptionHandler {
         
         Map<String, Object> errorDetails = new HashMap<>();
         errorDetails.put("timestamp", LocalDateTime.now());
-        errorDetails.put("message", "An unexpected error occurred");
+        errorDetails.put("message", ex.getMessage());
         errorDetails.put("errorCode", "INTERNAL_ERROR");
         errorDetails.put("path", request.getDescription(false));
+        errorDetails.put("details", ex.getClass().getSimpleName());
         
         return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
     }

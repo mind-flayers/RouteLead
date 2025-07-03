@@ -38,7 +38,7 @@ public interface ReturnRouteRepository extends JpaRepository<ReturnRoute, UUID> 
         ) VALUES (
             :driverId, :originLat, :originLng, :destinationLat, :destinationLng,
             :departureTime, :detourToleranceKm, :suggestedPriceMin, :suggestedPriceMax,
-            :status::route_status, :createdAt, :updatedAt
+            CAST(:status AS route_status), :createdAt, :updatedAt
         )
         """, nativeQuery = true)
     void insertRouteWithEnum(
