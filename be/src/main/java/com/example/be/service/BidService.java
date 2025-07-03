@@ -21,10 +21,52 @@ import java.util.UUID;
 public class BidService {
     private static final Logger logger = LoggerFactory.getLogger(BidService.class);
     private final BidRepository bidRepository;
+    private final com.example.be.repository.CustomerBidRepository customerBidRepository;
 
     @Autowired
-    public BidService(BidRepository bidRepository) {
+    public BidService(BidRepository bidRepository, com.example.be.repository.CustomerBidRepository customerBidRepository) {
         this.bidRepository = bidRepository;
+        this.customerBidRepository = customerBidRepository;
+    }
+    @Transactional(readOnly = true)
+    public List<BidDto> getBidsByParcelRequestIdAndStatus(UUID parcelRequestId, com.example.be.types.BidStatus status) {
+        String statusStr = status != null ? status.name() : null;
+        List<com.example.be.model.Bid> bids = customerBidRepository.findByParcelRequestIdAndStatus(parcelRequestId, statusStr);
+        List<BidDto> dtos = new ArrayList<>();
+        for (com.example.be.model.Bid bid : bids) {
+            BidDto dto = new BidDto();
+            dto.setId(bid.getId());
+            dto.setRequestId(bid.getRequestId());
+            dto.setRouteId(bid.getRouteId());
+            dto.setStartIndex(bid.getStartIndex());
+            dto.setEndIndex(bid.getEndIndex());
+            dto.setOfferedPrice(bid.getOfferedPrice());
+            dto.setStatus(bid.getStatus());
+            dto.setCreatedAt(bid.getCreatedAt());
+            dto.setUpdatedAt(bid.getUpdatedAt());
+            dtos.add(dto);
+        }
+        return dtos;
+    }
+
+    public List<BidDto> getBidsByCustomerIdAndStatus(UUID customerId, com.example.be.types.BidStatus status) {
+        String statusStr = status != null ? status.name() : null;
+        List<com.example.be.model.Bid> bids = customerBidRepository.findByCustomerIdAndStatus(customerId, statusStr);
+        List<BidDto> dtos = new ArrayList<>();
+        for (com.example.be.model.Bid bid : bids) {
+            BidDto dto = new BidDto();
+            dto.setId(bid.getId());
+            dto.setRequestId(bid.getRequestId());
+            dto.setRouteId(bid.getRouteId());
+            dto.setStartIndex(bid.getStartIndex());
+            dto.setEndIndex(bid.getEndIndex());
+            dto.setOfferedPrice(bid.getOfferedPrice());
+            dto.setStatus(bid.getStatus());
+            dto.setCreatedAt(bid.getCreatedAt());
+            dto.setUpdatedAt(bid.getUpdatedAt());
+            dtos.add(dto);
+        }
+        return dtos;
     }
 
     @Transactional(readOnly = true)
@@ -125,5 +167,13 @@ public class BidService {
         dto.setCreatedAt(bid.getCreatedAt());
         dto.setUpdatedAt(bid.getUpdatedAt());
         return dto;
+    }
+
+    @Transactional
+    public void deleteBid(UUID bidId) {
+        if (!bidRepository.existsById(bidId)) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Bid not found");
+        }
+        bidRepository.deleteById(bidId);
     }
 }

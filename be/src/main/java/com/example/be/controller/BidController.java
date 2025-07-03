@@ -72,4 +72,23 @@ public class BidController {
             return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
+
+    @DeleteMapping("/{bidId}")
+    public ResponseEntity<?> deleteBid(@PathVariable("bidId") UUID bidId) {
+        log.info("DELETE /bids/{} - Deleting bid", bidId);
+        try {
+            bidService.deleteBid(bidId);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            log.error("Error deleting bid: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", java.time.ZonedDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/bids/" + bidId);
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
 }
