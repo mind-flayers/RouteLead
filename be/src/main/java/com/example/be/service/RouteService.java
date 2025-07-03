@@ -158,4 +158,20 @@ public class RouteService {
         dto.setCreatedAt(segment.getCreatedAt());
         return dto;
     }
+
+    public DirectionsResult getRouteDirections(double originLat, double originLng, double destLat, double destLng) throws Exception {
+        LatLng origin = new LatLng(originLat, originLng);
+        LatLng destination = new LatLng(destLat, destLng);
+        return maps.getDirections(origin, destination);
+    }
+
+    public List<LatLng> breakPolylineIntoSegments(String encodedPolyline, double segmentDistanceKm) throws Exception {
+        log.info("Breaking polyline into {} km segments", segmentDistanceKm);
+        
+        // Use the existing PolylineService to sample points at the specified distance
+        List<LatLng> segments = polyService.sampleByDistance(encodedPolyline, segmentDistanceKm);
+        
+        log.info("Created {} segments from polyline", segments.size());
+        return segments;
+    }
 } 

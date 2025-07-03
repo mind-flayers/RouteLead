@@ -143,4 +143,159 @@ public class RouteController {
         PricePredictionDto suggestion = pricePredictionService.getLatestPriceSuggestion(routeId);
         return ResponseEntity.ok(suggestion);
     }
+
+    @GetMapping("/directions")
+    public ResponseEntity<?> getDirections(
+            @RequestParam double originLat,
+            @RequestParam double originLng,
+            @RequestParam double destLat,
+            @RequestParam double destLng) {
+        try {
+            var directions = service.getRouteDirections(originLat, originLng, destLat, destLng);
+            if (directions.routes != null && directions.routes.length > 0) {
+                var response = new java.util.HashMap<String, Object>();
+                response.put("status", "OK");
+                response.put("origin", String.format("%.6f, %.6f", originLat, originLng));
+                response.put("destination", String.format("%.6f, %.6f", destLat, destLng));
+                
+                // Get up to 3 best routes
+                var routes = new java.util.ArrayList<java.util.Map<String, Object>>();
+                int maxRoutes = Math.min(3, directions.routes.length);
+                
+                for (int i = 0; i < maxRoutes; i++) {
+                    var route = directions.routes[i];
+                    var leg = route.legs[0];
+                    var routeInfo = new java.util.HashMap<String, Object>();
+                    
+                    // Basic route info
+                    routeInfo.put("route_number", i + 1);
+                    routeInfo.put("polyline", route.overviewPolyline.getEncodedPath());
+                    routeInfo.put("distance", leg.distance.humanReadable);
+                    routeInfo.put("duration", leg.duration.humanReadable);
+                    routeInfo.put("start_address", leg.startAddress);
+                    routeInfo.put("end_address", leg.endAddress);
+                    
+                    // Route summary
+                    var summary = new java.util.HashMap<String, Object>();
+                    summary.put("total_distance_meters", leg.distance.inMeters);
+                    summary.put("total_duration_seconds", leg.duration.inSeconds);
+                    summary.put("traffic_duration", leg.durationInTraffic != null ? leg.durationInTraffic.humanReadable : null);
+                    routeInfo.put("summary", summary);
+                    
+                    // Detailed road information
+                    var steps = new java.util.ArrayList<java.util.Map<String, Object>>();
+                    for (var step : leg.steps) {
+                        var stepInfo = new java.util.HashMap<String, Object>();
+                        stepInfo.put("instruction", step.htmlInstructions);
+                        stepInfo.put("distance", step.distance.humanReadable);
+                        stepInfo.put("duration", step.duration.humanReadable);
+                        stepInfo.put("road_name", step.htmlInstructions.replaceAll("<[^>]*>", "").trim());
+                        stepInfo.put("travel_mode", step.travelMode.toString());
+                        
+                        // Add maneuver information
+                        if (step.maneuver != null) {
+                            stepInfo.put("maneuver", step.maneuver.toString());
+                        }
+                        
+                        // Add polyline for this step
+                        if (step.polyline != null) {
+                            stepInfo.put("step_polyline", step.polyline.getEncodedPath());
+                        }
+                        
+                        steps.add(stepInfo);
+                    }
+                    routeInfo.put("steps", steps);
+                    
+                    // Road summary
+                    var roadSummary = new java.util.HashMap<String, Object>();
+                    roadSummary.put("total_steps", steps.size());
+                    roadSummary.put("major_roads", extractMajorRoads(steps));
+                    routeInfo.put("road_summary", roadSummary);
+                    
+                    routes.add(routeInfo);
+                }
+                
+                response.put("routes", routes);
+                response.put("total_routes_found", directions.routes.length);
+                response.put("routes_returned", maxRoutes);
+                
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.status(404).body(java.util.Map.of("status", "ZERO_RESULTS", "message", "No route found"));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(java.util.Map.of("status", "ERROR", "message", e.getMessage()));
+        }
+    }
+    
+    private java.util.List<String> extractMajorRoads(java.util.List<java.util.Map<String, Object>> steps) {
+        var majorRoads = new java.util.ArrayList<String>();
+        for (var step : steps) {
+            String roadName = (String) step.get("road_name");
+            if (roadName != null && !roadName.isEmpty() && !majorRoads.contains(roadName)) {
+                majorRoads.add(roadName);
+            }
+        }
+        return majorRoads;
+    }
+
+    @PostMapping("/break-polyline")
+    public ResponseEntity<?> breakPolylineIntoSegments(
+            @RequestParam String polyline,
+            @RequestParam(defaultValue = "10.0") double segmentDistanceKm) {
+        try {
+            log.info("Breaking polyline into {} km segments", segmentDistanceKm);
+            
+            // Break the polyline into segments
+            var segments = service.breakPolylineIntoSegments(polyline, segmentDistanceKm);
+            
+            var response = new java.util.HashMap<String, Object>();
+            response.put("status", "SUCCESS");
+            response.put("original_polyline", polyline);
+            response.put("segment_distance_km", segmentDistanceKm);
+            response.put("total_segments", segments.size());
+            
+            // Create detailed segment information
+            var segmentDetails = new java.util.ArrayList<java.util.Map<String, Object>>();
+            
+            for (int i = 0; i < segments.size(); i++) {
+                var segment = segments.get(i);
+                var segmentInfo = new java.util.HashMap<String, Object>();
+                
+                segmentInfo.put("segment_number", i + 1);
+                segmentInfo.put("latitude", segment.getLat());
+                segmentInfo.put("longitude", segment.getLng());
+                segmentInfo.put("coordinates", String.format("%.6f, %.6f", segment.getLat(), segment.getLng()));
+                
+                // Calculate distance from start (approximate)
+                double distanceFromStart = i * segmentDistanceKm;
+                segmentInfo.put("distance_from_start_km", distanceFromStart);
+                
+                segmentDetails.add(segmentInfo);
+            }
+            
+            response.put("segments", segmentDetails);
+            
+            // Create a new polyline from the segments (for visualization)
+            if (segments.size() > 1) {
+                var segmentPolyline = new StringBuilder();
+                for (var segment : segments) {
+                    if (segmentPolyline.length() > 0) {
+                        segmentPolyline.append("|");
+                    }
+                    segmentPolyline.append(segment.getLat()).append(",").append(segment.getLng());
+                }
+                response.put("segmented_polyline", segmentPolyline.toString());
+            }
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Error breaking polyline into segments: ", e);
+            return ResponseEntity.status(500).body(java.util.Map.of(
+                "status", "ERROR", 
+                "message", e.getMessage()
+            ));
+        }
+    }
 }

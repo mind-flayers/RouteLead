@@ -55,8 +55,13 @@ public class PolylineService {
         int lat = 0, lng = 0;
 
         while (index < len) {
+            // Decode latitude
             int b, shift = 0, result = 0;
             do {
+                if (index >= len) {
+                    log.warn("Unexpected end of polyline while decoding latitude");
+                    break;
+                }
                 b = encoded.charAt(index++) - 63;
                 result |= (b & 0x1f) << shift;
                 shift += 5;
@@ -64,9 +69,14 @@ public class PolylineService {
             int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
             lat += dlat;
 
+            // Decode longitude
             shift = 0;
             result = 0;
             do {
+                if (index >= len) {
+                    log.warn("Unexpected end of polyline while decoding longitude");
+                    break;
+                }
                 b = encoded.charAt(index++) - 63;
                 result |= (b & 0x1f) << shift;
                 shift += 5;
@@ -79,6 +89,7 @@ public class PolylineService {
             poly.add(new LatLng(latDouble, lngDouble));
         }
         
+        log.info("Decoded {} points from polyline", poly.size());
         return poly;
     }
     

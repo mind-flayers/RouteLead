@@ -27,6 +27,7 @@ public class GoogleMapsClient {
             .mode(TravelMode.DRIVING)
             .origin(new com.google.maps.model.LatLng(origin.getLat(), origin.getLng()))
             .destination(new com.google.maps.model.LatLng(dest.getLat(), dest.getLng()))
+            .alternatives(true)
             .await();
     }
 
