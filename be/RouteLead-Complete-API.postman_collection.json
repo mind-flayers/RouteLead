@@ -1,0 +1,543 @@
+{
+  "info": {
+    "name": "RouteLead Complete API Collection - With Route Updates",
+    "description": "Complete API collection for RouteLead backend testing including PATCH /routes/:routeId endpoint for route updates",
+    "version": "2.2.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "1. Signup",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@routelead.com\",\n  \"password\": \"password123\",\n  \"name\": \"Test User\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "signup"]
+            }
+          }
+        },
+        {
+          "name": "2. Login",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@routelead.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Routes",
+      "item": [
+        {
+          "name": "3. Create Route",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driverId\": \"{{driverId}}\",\n  \"originLat\": 6.9271,\n  \"originLng\": 79.8612,\n  \"destinationLat\": 7.2906,\n  \"destinationLng\": 80.6337,\n  \"departureTime\": \"2025-07-05T10:00:00+05:30\",\n  \"detourToleranceKm\": 5.0,\n  \"suggestedPriceMin\": 2500.00,\n  \"suggestedPriceMax\": 4000.00\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/routes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "routes"]
+            },
+            "description": "Create a new route with all details. Returns the created route with ID."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Test script to save route ID for other requests",
+                  "if (pm.response.code === 201) {",
+                  "    const responseJson = pm.response.json();",
+                  "    if (responseJson.id) {",
+                  "        pm.collectionVariables.set('routeId', responseJson.id);",
+                  "        console.log('Route ID saved: ' + responseJson.id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Get Route Directions (Colombo to Kandy)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/routes/directions?originLat=6.9271&originLng=79.8612&destLat=7.2906&destLng=80.6337",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "routes", "directions"],
+              "query": [
+                {"key": "originLat", "value": "6.9271", "description": "Colombo latitude"},
+                {"key": "originLng", "value": "79.8612", "description": "Colombo longitude"},
+                {"key": "destLat", "value": "7.2906", "description": "Kandy latitude"},
+                {"key": "destLng", "value": "80.6337", "description": "Kandy longitude"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Get Route by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/routes/{{routeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "routes", "{{routeId}}"]
+            },
+            "description": "Replace {{routeId}} with actual route ID from create route response"
+          }
+        },
+        {
+          "name": "5.1. Update Route (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"originLat\": 6.9271,\n  \"originLng\": 79.8612,\n  \"destinationLat\": 7.2906,\n  \"destinationLng\": 80.6337,\n  \"departureTime\": \"2025-07-06T14:30:00+05:30\",\n  \"detourToleranceKm\": 8.0,\n  \"suggestedPriceMin\": 3000.00,\n  \"suggestedPriceMax\": 4500.00,\n  \"status\": \"OPEN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/routes/{{routeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "routes", "{{routeId}}"]
+            },
+            "description": "Update an existing route. All fields are optional - only provided fields will be updated. Use cases:\n1. Change route locations (originLat/Lng, destinationLat/Lng)\n2. Update departure time\n3. Modify detour tolerance\n4. Adjust price range\n5. Change route status (OPEN, BOOKED, COMPLETED, CANCELLED)\n\nReplace {{routeId}} with actual route ID from create route response."
+          }
+        },
+        {
+          "name": "5.2. Update Route Status Only",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"BOOKED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/routes/{{routeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "routes", "{{routeId}}"]
+            },
+            "description": "Example: Update only the route status from OPEN to BOOKED when a customer books the route."
+          }
+        },
+        {
+          "name": "5.3. Update Price Range Only",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"suggestedPriceMin\": 2800.00,\n  \"suggestedPriceMax\": 4200.00\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/routes/{{routeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "routes", "{{routeId}}"]
+            },
+            "description": "Example: Driver wants to adjust pricing based on market demand."
+          }
+        },
+        {
+          "name": "5.4. Update Departure Time Only",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"departureTime\": \"2025-07-06T16:00:00+05:30\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/routes/{{routeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "routes", "{{routeId}}"]
+            },
+            "description": "Example: Driver needs to change departure time due to schedule changes."
+          }
+        },
+        {
+          "name": "6. Get Route Segments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/routes/segments?routeId={{routeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "routes", "segments"],
+              "query": [
+                {"key": "routeId", "value": "{{routeId}}", "description": "Route ID from create route response"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "7. Get Price Suggestion",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/routes/price-suggestion?routeId={{routeId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "routes", "price-suggestion"],
+              "query": [
+                {"key": "routeId", "value": "{{routeId}}", "description": "Route ID from create route response"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "8. Break Polyline into Segments",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{baseUrl}}/api/routes/break-polyline?polyline=u{~vFvyys@fS]&segmentDistanceKm=5.0",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "routes", "break-polyline"],
+              "query": [
+                {"key": "polyline", "value": "u{~vFvyys@fS]", "description": "Encoded polyline string"},
+                {"key": "segmentDistanceKm", "value": "5.0", "description": "Distance between segments in km"}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Driver Routes",
+      "item": [
+        {
+          "name": "9. Get Driver Routes - All",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/routes?driverId={{driverId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "routes"],
+              "query": [
+                {"key": "driverId", "value": "{{driverId}}", "description": "Driver UUID"}
+              ]
+            },
+            "description": "Get all routes for a specific driver regardless of status"
+          }
+        },
+        {
+          "name": "10. Get Driver Routes - OPEN Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/routes?driverId={{driverId}}&status=OPEN",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "routes"],
+              "query": [
+                {"key": "driverId", "value": "{{driverId}}", "description": "Driver UUID"},
+                {"key": "status", "value": "OPEN", "description": "Filter by OPEN route status"}
+              ]
+            },
+            "description": "Get only OPEN routes for a specific driver"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vehicles",
+      "item": [
+        {
+          "name": "11. Get All Vehicles",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles"]
+            }
+          }
+        },
+        {
+          "name": "12. Get Vehicles by Driver",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/driver/{{driverId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "driver", "{{driverId}}"]
+            },
+            "description": "Get vehicles for the driver ID"
+          }
+        },
+        {
+          "name": "13. Create Vehicle",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driverId\": \"{{driverId}}\",\n  \"color\": \"Blue\",\n  \"make\": \"Toyota\",\n  \"model\": \"Hiace\",\n  \"yearOfManufacture\": 2020,\n  \"plateNumber\": \"CAR-1234\",\n  \"maxWeightKg\": 1500.0,\n  \"maxVolumeM3\": 10.5,\n  \"vehiclePhotos\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles"]
+            }
+          }
+        },
+        {
+          "name": "14. Get Vehicle by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/{{vehicleId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "{{vehicleId}}"]
+            },
+            "description": "Replace {{vehicleId}} with actual vehicle ID"
+          }
+        },
+        {
+          "name": "15. Get Vehicle by Plate Number",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/vehicles/plate/CAR-1234",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "vehicles", "plate", "CAR-1234"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Parcel Requests & Bids",
+      "item": [
+        {
+          "name": "15. Create Parcel Request",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"{{customerId}}\",\n  \"pickupLat\": 6.9271,\n  \"pickupLng\": 79.8612,\n  \"dropoffLat\": 7.2906,\n  \"dropoffLng\": 80.6337,\n  \"weightKg\": 25.5,\n  \"volumeM3\": 2.0,\n  \"description\": \"Electronics package delivery from Colombo to Kandy\",\n  \"maxBudget\": 3500.00,\n  \"deadline\": \"2025-07-10T18:00:00+05:30\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/parcel-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "parcel-requests"]
+            }
+          }
+        },
+        {
+          "name": "16. Get All Bids",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bids",
+              "host": ["{{baseUrl}}"],
+              "path": ["bids"]
+            }
+          }
+        },
+        {
+          "name": "17. Get Bid by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/bids/722d67db-97b3-4258-84b5-944b6a780125",
+              "host": ["{{baseUrl}}"],
+              "path": ["bids", "722d67db-97b3-4258-84b5-944b6a780125"]
+            },
+            "description": "Test bid ID from the controller comment"
+          }
+        },
+        {
+          "name": "18. Create Bid",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestId\": \"{{parcelRequestId}}\",\n  \"routeId\": \"{{routeId}}\",\n  \"startIndex\": 0,\n  \"endIndex\": 1,\n  \"offeredPrice\": 3000.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bids",
+              "host": ["{{baseUrl}}"],
+              "path": ["bids"]
+            },
+            "description": "Create bid linking a parcel request to a route"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Google Maps & Health",
+      "item": [
+        {
+          "name": "19. Google Maps Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/google-maps/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "google-maps", "status"]
+            },
+            "description": "Check Google Maps API health and configuration"
+          }
+        },
+        {
+          "name": "20. Test Geocoding",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/google-maps/test-geocoding",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "google-maps", "test-geocoding"]
+            },
+            "description": "Test Google Maps Geocoding API"
+          }
+        },
+        {
+          "name": "21. Test Directions",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origin\": \"Colombo, Sri Lanka\",\n  \"destination\": \"Kandy, Sri Lanka\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/google-maps/test-directions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "google-maps", "test-directions"]
+            },
+            "description": "Test Google Maps Directions API"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications & Admin",
+      "item": [
+        {
+          "name": "25. Get Notifications",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications"]
+            }
+          }
+        },
+        {
+          "name": "26. Create Notification",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{customerId}}\",\n  \"type\": \"BID_UPDATE\",\n  \"message\": \"Your bid has been accepted\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "notifications"]
+            }
+          }
+        },
+        {
+          "name": "27. Home",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/home",
+              "host": ["{{baseUrl}}"],
+              "path": ["home"]
+            },
+            "description": "Basic home endpoint"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "driverId",
+      "value": "cdceaa3e-ab91-45d3-a971-efef43624682",
+      "type": "string",
+      "description": "Real driver ID from database"
+    },
+    {
+      "key": "customerId",
+      "value": "70ba4867-edcb-4628-b614-7bb60e935862",
+      "type": "string",
+      "description": "Real customer ID from database"
+    },
+    {
+      "key": "routeId",
+      "value": "",
+      "type": "string",
+      "description": "Will be populated after creating a route"
+    },
+    {
+      "key": "parcelRequestId",
+      "value": "",
+      "type": "string",
+      "description": "Will be populated after creating a parcel request"
+    },
+    {
+      "key": "vehicleId",
+      "value": "",
+      "type": "string",
+      "description": "Will be populated after creating a vehicle"
+    }
+  ]
+}

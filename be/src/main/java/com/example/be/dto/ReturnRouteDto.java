@@ -34,17 +34,4 @@ class ReturnRouteRequestDto {
     private BigDecimal detourToleranceKm;
     private BigDecimal suggestedPriceMin;
     private BigDecimal suggestedPriceMax;
-}
-
-@Data
-class ReturnRouteUpdateRequestDto {
-    private BigDecimal originLat;
-    private BigDecimal originLng;
-    private BigDecimal destinationLat;
-    private BigDecimal destinationLng;
-    private ZonedDateTime departureTime;
-    private BigDecimal detourToleranceKm;
-    private BigDecimal suggestedPriceMin;
-    private BigDecimal suggestedPriceMax;
-    private RouteStatus status;
 } 
