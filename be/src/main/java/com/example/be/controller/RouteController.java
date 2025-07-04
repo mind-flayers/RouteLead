@@ -1,4 +1,3 @@
-
 package com.example.be.controller;
 
 import com.example.be.dto.CreateRouteDto;
@@ -304,6 +303,50 @@ public class RouteController {
                 "status", "ERROR", 
                 "message", e.getMessage()
             ));
+        }
+    }
+
+    @DeleteMapping("/{routeId}")
+    public ResponseEntity<?> deleteRoute(@PathVariable UUID routeId) {
+        log.info("DELETE /api/routes/{} - Deleting route", routeId);
+        
+        try {
+            service.deleteRoute(routeId);
+            
+            Map<String, Object> successResponse = new HashMap<>();
+            successResponse.put("timestamp", LocalDateTime.now());
+            successResponse.put("status", 200);
+            successResponse.put("message", "Route deleted successfully");
+            successResponse.put("routeId", routeId);
+            successResponse.put("path", "/api/routes/" + routeId);
+            
+            return ResponseEntity.ok(successResponse);
+            
+        } catch (RuntimeException e) {
+            log.error("Error deleting route with ID {}: {}", routeId, e.getMessage());
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", e.getMessage().contains("not found") ? 404 : 400);
+            errorResponse.put("error", e.getMessage().contains("not found") ? "Not Found" : "Bad Request");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("path", "/api/routes/" + routeId);
+            
+            HttpStatus status = e.getMessage().contains("not found") ? HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST;
+            return ResponseEntity.status(status).body(errorResponse);
+            
+        } catch (Exception e) {
+            log.error("Unexpected error deleting route with ID {}: ", routeId, e);
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", "An unexpected error occurred while deleting the route");
+            errorResponse.put("details", e.getMessage());
+            errorResponse.put("path", "/api/routes/" + routeId);
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 }

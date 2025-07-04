@@ -247,4 +247,35 @@ public class RouteService {
         
         return updatedRoute;
     }
+
+    /**
+     * Delete a route by ID
+     * @param routeId The ID of the route to delete
+     * @throws RuntimeException if the route is not found
+     */
+    @Transactional
+    public void deleteRoute(UUID routeId) {
+        log.info("Deleting route with ID: {}", routeId);
+        
+        // Check if route exists
+        ReturnRoute route = routeRepo.findById(routeId)
+                .orElseThrow(() -> new RuntimeException("Route not found with ID: " + routeId));
+        
+        // Check if route can be deleted (business logic)
+        if (route.getStatus() == RouteStatus.BOOKED || route.getStatus() == RouteStatus.COMPLETED) {
+            throw new RuntimeException("Cannot delete route with status: " + route.getStatus() + 
+                ". Only OPEN or CANCELLED routes can be deleted.");
+        }
+        
+        // Delete associated route segments first (cascade delete should handle this, but being explicit)
+        List<RouteSegment> segments = segRepo.findByRouteIdOrderBySegmentIndex(routeId);
+        if (!segments.isEmpty()) {
+            segRepo.deleteAll(segments);
+            log.info("Deleted {} segments for route: {}", segments.size(), routeId);
+        }
+        
+        // Delete the route
+        routeRepo.delete(route);
+        log.info("Route deleted successfully with ID: {}", routeId);
+    }
 }
