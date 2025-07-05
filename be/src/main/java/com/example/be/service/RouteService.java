@@ -2,6 +2,7 @@ package com.example.be.service;
 
 import com.example.be.dto.CreateRouteDto;
 import com.example.be.dto.RouteSegmentDto;
+import com.example.be.dto.ReturnRouteUpdateRequestDto;
 import com.example.be.model.ReturnRoute;
 import com.example.be.model.RouteSegment;
 import com.example.be.types.RouteStatus;
@@ -162,7 +163,9 @@ public class RouteService {
     public DirectionsResult getRouteDirections(double originLat, double originLng, double destLat, double destLng) throws Exception {
         LatLng origin = new LatLng(originLat, originLng);
         LatLng destination = new LatLng(destLat, destLng);
-        return maps.getDirections(origin, destination);
+        
+        // TODO: Implement Google Maps Directions API call
+        throw new UnsupportedOperationException("getRouteDirections method not yet implemented");
     }
 
     public List<LatLng> breakPolylineIntoSegments(String encodedPolyline, double segmentDistanceKm) throws Exception {
@@ -174,4 +177,164 @@ public class RouteService {
         log.info("Created {} segments from polyline", segments.size());
         return segments;
     }
-} 
+
+    /**
+     * Get all routes by driver ID
+     */
+    public List<ReturnRoute> getRoutesByDriver(UUID driverId) {
+        log.info("Fetching all routes for driver: {}", driverId);
+        return routeRepo.findByDriverId(driverId);
+    }
+
+    /**
+     * Get routes by driver ID with optional status filtering
+     */
+    public List<ReturnRoute> getRoutesByDriver(UUID driverId, RouteStatus status) {
+        log.info("Fetching routes for driver: {} with status: {}", driverId, status);
+        
+        if (status != null) {
+            return routeRepo.findByDriverIdAndStatusNative(driverId, status.name());
+        } else {
+            return routeRepo.findByDriverId(driverId);
+        }
+    }
+
+    /**
+     * Update an existing route
+     * @param routeId The ID of the route to update
+     * @param updateDto The data to update the route with
+     * @return The updated route
+     * @throws RuntimeException if the route is not found
+     */
+    @Transactional
+    public ReturnRoute updateRoute(UUID routeId, ReturnRouteUpdateRequestDto updateDto) {
+        log.info("Updating route with ID: {}", routeId);
+        
+        ReturnRoute route = routeRepo.findById(routeId)
+                .orElseThrow(() -> new RuntimeException("Route not found with ID: " + routeId));
+        
+        // Update fields if they are provided in the DTO (partial update)
+        if (updateDto.getOriginLat() != null) {
+            route.setOriginLat(updateDto.getOriginLat());
+        }
+        if (updateDto.getOriginLng() != null) {
+            route.setOriginLng(updateDto.getOriginLng());
+        }
+        if (updateDto.getDestinationLat() != null) {
+            route.setDestinationLat(updateDto.getDestinationLat());
+        }
+        if (updateDto.getDestinationLng() != null) {
+            route.setDestinationLng(updateDto.getDestinationLng());
+        }
+        if (updateDto.getDepartureTime() != null) {
+            route.setDepartureTime(updateDto.getDepartureTime());
+        }
+        if (updateDto.getDetourToleranceKm() != null) {
+            route.setDetourToleranceKm(updateDto.getDetourToleranceKm());
+        }
+        if (updateDto.getSuggestedPriceMin() != null) {
+            route.setSuggestedPriceMin(updateDto.getSuggestedPriceMin());
+        }
+        if (updateDto.getSuggestedPriceMax() != null) {
+            route.setSuggestedPriceMax(updateDto.getSuggestedPriceMax());
+        }
+        if (updateDto.getStatus() != null) {
+            route.setStatus(updateDto.getStatus());
+        }
+        
+        ReturnRoute updatedRoute = routeRepo.save(route);
+        log.info("Route updated successfully with ID: {}", routeId);
+        
+        return updatedRoute;
+    }
+
+    /**
+     * Partially update an existing route using native SQL (PATCH operation)
+     * Only updates fields that are provided in the DTO (non-null values)
+     * Verifies that the route belongs to the specified driver
+     * 
+     * @param routeId The ID of the route to update
+     * @param driverId The ID of the driver who owns the route
+     * @param updateDto The data to update the route with
+     * @return The updated route
+     * @throws RuntimeException if the route is not found or doesn't belong to the driver
+     */
+    @Transactional
+    public ReturnRoute patchRoute(UUID routeId, UUID driverId, ReturnRouteUpdateRequestDto updateDto) {
+        log.info("Patching route with ID: {} for driver: {}", routeId, driverId);
+        
+        // First, verify the route exists and belongs to the driver
+        ReturnRoute existingRoute = routeRepo.findByIdAndDriverId(routeId, driverId)
+                .orElseThrow(() -> new RuntimeException("Route not found or access denied"));
+        
+        // Check if route can be updated (business logic)
+        if (existingRoute.getStatus() == RouteStatus.COMPLETED) {
+            throw new RuntimeException("Cannot update completed route");
+        }
+        
+        // Prepare status string for native query
+        String statusString = null;
+        if (updateDto.getStatus() != null) {
+            statusString = updateDto.getStatus().name();
+        }
+        
+        // Perform the update using native SQL
+        ZonedDateTime now = ZonedDateTime.now();
+        int updatedRows = routeRepo.updateRoutePartially(
+            routeId,
+            driverId,
+            updateDto.getOriginLat(),
+            updateDto.getOriginLng(),
+            updateDto.getDestinationLat(),
+            updateDto.getDestinationLng(),
+            updateDto.getDepartureTime(),
+            updateDto.getDetourToleranceKm(),
+            updateDto.getSuggestedPriceMin(),
+            updateDto.getSuggestedPriceMax(),
+            statusString,
+            now
+        );
+        
+        if (updatedRows == 0) {
+            throw new RuntimeException("Route not found or access denied");
+        }
+        
+        // Return the updated route
+        ReturnRoute updatedRoute = routeRepo.findByIdAndDriverId(routeId, driverId)
+                .orElseThrow(() -> new RuntimeException("Failed to retrieve updated route"));
+        
+        log.info("Route patched successfully with ID: {} for driver: {}", routeId, driverId);
+        return updatedRoute;
+    }
+
+    /**
+     * Delete a route by ID
+     * @param routeId The ID of the route to delete
+     * @throws RuntimeException if the route is not found
+     */
+    @Transactional
+    public void deleteRoute(UUID routeId) {
+        log.info("Deleting route with ID: {}", routeId);
+        
+        // Check if route exists
+        ReturnRoute route = routeRepo.findById(routeId)
+                .orElseThrow(() -> new RuntimeException("Route not found with ID: " + routeId));
+        
+        // Check if route can be deleted (business logic)
+        if (route.getStatus() == RouteStatus.BOOKED || route.getStatus() == RouteStatus.COMPLETED) {
+            throw new RuntimeException("Cannot delete route with status: " + route.getStatus() + 
+                ". Only OPEN or CANCELLED routes can be deleted.");
+        }
+        
+        // Delete associated route segments first (cascade delete should handle this, but being explicit)
+        List<RouteSegment> segments = segRepo.findByRouteIdOrderBySegmentIndex(routeId);
+        if (!segments.isEmpty()) {
+            segRepo.deleteAll(segments);
+            log.info("Deleted {} segments for route: {}", segments.size(), routeId);
+        }
+        
+        // Delete the route
+        routeRepo.delete(route);
+        log.info("Route deleted successfully with ID: {}", routeId);
+    }
+}
