@@ -2,6 +2,7 @@
 package com.example.be.service;
 
 import com.example.be.dto.NotificationDto;
+import com.example.be.dto.NotificationCreateDto;
 import com.example.be.model.Notification;
 import com.example.be.repository.NotificationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,7 @@ public class NotificationService {
     @Autowired
     private NotificationRepository notificationRepository;
 
-    public NotificationDto createNotification(com.example.be.dto.NotificationCreateDto createDto) {
+    public NotificationDto createNotification(NotificationCreateDto createDto) {
         Notification notification = new Notification();
         notification.setUserId(createDto.getUserId());
         notification.setType(createDto.getType());
