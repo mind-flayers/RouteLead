@@ -48,7 +48,7 @@ public class RouteService {
         route.setDetourToleranceKm(dto.getDetourToleranceKm());
         route.setSuggestedPriceMin(dto.getSuggestedPriceMin());
         route.setSuggestedPriceMax(dto.getSuggestedPriceMax());
-        route.setStatus(RouteStatus.OPEN); // Explicitly set the status
+        route.setStatus(RouteStatus.INITIATED); // Explicitly set the status
         
         // Set timestamps manually since we're using native SQL
         ZonedDateTime now = ZonedDateTime.now();
@@ -160,12 +160,13 @@ public class RouteService {
         return dto;
     }
 
+    /**
+     * Get directions between two points using Google Maps
+     */
     public DirectionsResult getRouteDirections(double originLat, double originLng, double destLat, double destLng) throws Exception {
         LatLng origin = new LatLng(originLat, originLng);
         LatLng destination = new LatLng(destLat, destLng);
-        
-        // TODO: Implement Google Maps Directions API call
-        throw new UnsupportedOperationException("getRouteDirections method not yet implemented");
+        return maps.getDirections(origin, destination);
     }
 
     public List<LatLng> breakPolylineIntoSegments(String encodedPolyline, double segmentDistanceKm) throws Exception {
