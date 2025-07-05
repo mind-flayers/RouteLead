@@ -55,4 +55,37 @@ public interface ReturnRouteRepository extends JpaRepository<ReturnRoute, UUID> 
         @Param("createdAt") java.time.ZonedDateTime createdAt,
         @Param("updatedAt") java.time.ZonedDateTime updatedAt
     );
-} 
+
+    @Modifying
+    @Query(value = """
+        UPDATE return_routes SET
+            origin_lat = COALESCE(:originLat, origin_lat),
+            origin_lng = COALESCE(:originLng, origin_lng),
+            destination_lat = COALESCE(:destinationLat, destination_lat),
+            destination_lng = COALESCE(:destinationLng, destination_lng),
+            departure_time = COALESCE(:departureTime, departure_time),
+            detour_tolerance_km = COALESCE(:detourToleranceKm, detour_tolerance_km),
+            suggested_price_min = COALESCE(:suggestedPriceMin, suggested_price_min),
+            suggested_price_max = COALESCE(:suggestedPriceMax, suggested_price_max),
+            status = COALESCE(CAST(:status AS route_status), status),
+            updated_at = :updatedAt
+        WHERE id = :routeId AND driver_id = :driverId
+        """, nativeQuery = true)
+    int updateRoutePartially(
+        @Param("routeId") UUID routeId,
+        @Param("driverId") UUID driverId,
+        @Param("originLat") java.math.BigDecimal originLat,
+        @Param("originLng") java.math.BigDecimal originLng,
+        @Param("destinationLat") java.math.BigDecimal destinationLat,
+        @Param("destinationLng") java.math.BigDecimal destinationLng,
+        @Param("departureTime") java.time.ZonedDateTime departureTime,
+        @Param("detourToleranceKm") java.math.BigDecimal detourToleranceKm,
+        @Param("suggestedPriceMin") java.math.BigDecimal suggestedPriceMin,
+        @Param("suggestedPriceMax") java.math.BigDecimal suggestedPriceMax,
+        @Param("status") String status,
+        @Param("updatedAt") java.time.ZonedDateTime updatedAt
+    );
+
+    @Query(value = "SELECT * FROM return_routes WHERE id = :routeId AND driver_id = :driverId", nativeQuery = true)
+    java.util.Optional<ReturnRoute> findByIdAndDriverId(@Param("routeId") UUID routeId, @Param("driverId") UUID driverId);
+}

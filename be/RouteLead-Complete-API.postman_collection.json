@@ -350,6 +350,37 @@
             },
             "description": "Get only OPEN routes for a specific driver"
           }
+        },
+        {
+          "name": "11. Get Driver Bid History - All",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/bids/history?driverId={{driverId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "bids", "history"],
+              "query": [
+                {"key": "driverId", "value": "{{driverId}}", "description": "Driver UUID"}
+              ]
+            },
+            "description": "Get all bid history for a specific driver including parcel request details and customer information"
+          }
+        },
+        {
+          "name": "12. Get Driver Bid History - By Status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/driver/bids/history?driverId={{driverId}}&status=PENDING",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "driver", "bids", "history"],
+              "query": [
+                {"key": "driverId", "value": "{{driverId}}", "description": "Driver UUID"},
+                {"key": "status", "value": "PENDING", "description": "Filter by bid status (PENDING, ACCEPTED, REJECTED)"}
+              ]
+            },
+            "description": "Get bid history for a specific driver filtered by status. Available statuses: PENDING, ACCEPTED, REJECTED"
+          }
         }
       ]
     },
@@ -357,7 +388,7 @@
       "name": "Vehicles",
       "item": [
         {
-          "name": "11. Get All Vehicles",
+          "name": "13. Get All Vehicles",
           "request": {
             "method": "GET",
             "url": {
@@ -368,7 +399,7 @@
           }
         },
         {
-          "name": "12. Get Vehicles by Driver",
+          "name": "14. Get Vehicles by Driver",
           "request": {
             "method": "GET",
             "url": {
@@ -380,7 +411,7 @@
           }
         },
         {
-          "name": "13. Create Vehicle",
+          "name": "15. Create Vehicle",
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
@@ -396,7 +427,7 @@
           }
         },
         {
-          "name": "14. Get Vehicle by ID",
+          "name": "16. Get Vehicle by ID",
           "request": {
             "method": "GET",
             "url": {
@@ -408,7 +439,7 @@
           }
         },
         {
-          "name": "15. Get Vehicle by Plate Number",
+          "name": "17. Get Vehicle by Plate Number",
           "request": {
             "method": "GET",
             "url": {
@@ -424,7 +455,7 @@
       "name": "Parcel Requests & Bids",
       "item": [
         {
-          "name": "15. Create Parcel Request",
+          "name": "18. Create Parcel Request",
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
@@ -440,7 +471,7 @@
           }
         },
         {
-          "name": "16. Get All Bids",
+          "name": "19. Get All Bids",
           "request": {
             "method": "GET",
             "url": {
@@ -451,7 +482,7 @@
           }
         },
         {
-          "name": "17. Get Bid by ID",
+          "name": "20. Get Bid by ID",
           "request": {
             "method": "GET",
             "url": {
@@ -463,7 +494,7 @@
           }
         },
         {
-          "name": "18. Create Bid",
+          "name": "21. Create Bid",
           "request": {
             "method": "POST",
             "header": [{"key": "Content-Type", "value": "application/json"}],
@@ -485,7 +516,7 @@
       "name": "Google Maps & Health",
       "item": [
         {
-          "name": "19. Google Maps Status",
+          "name": "22. Google Maps Status",
           "request": {
             "method": "GET",
             "url": {

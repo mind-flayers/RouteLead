@@ -3,6 +3,7 @@ package com.example.be.controller;
 import com.example.be.dto.CreateRouteDto;
 import com.example.be.dto.RouteSegmentDto;
 import com.example.be.dto.PricePredictionDto;
+import com.example.be.dto.ReturnRouteUpdateRequestDto;
 import com.example.be.model.ReturnRoute;
 import com.example.be.types.RouteStatus;
 import com.example.be.repository.ReturnRouteRepository;
@@ -343,6 +344,54 @@ public class RouteController {
             errorResponse.put("status", 500);
             errorResponse.put("error", "Internal Server Error");
             errorResponse.put("message", "An unexpected error occurred while deleting the route");
+            errorResponse.put("details", e.getMessage());
+            errorResponse.put("path", "/api/routes/" + routeId);
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PatchMapping("/{routeId}")
+    public ResponseEntity<?> patchRoute(
+            @PathVariable UUID routeId,
+            @RequestParam UUID driverId,
+            @RequestBody ReturnRouteUpdateRequestDto updateDto) {
+        log.info("PATCH /api/routes/{} - Updating route for driver: {}", routeId, driverId);
+        
+        try {
+            ReturnRoute updatedRoute = service.patchRoute(routeId, driverId, updateDto);
+            
+            Map<String, Object> successResponse = new HashMap<>();
+            successResponse.put("timestamp", LocalDateTime.now());
+            successResponse.put("status", 200);
+            successResponse.put("message", "Route updated successfully");
+            successResponse.put("data", updatedRoute);
+            successResponse.put("path", "/api/routes/" + routeId);
+            
+            return ResponseEntity.ok(successResponse);
+            
+        } catch (RuntimeException e) {
+            log.error("Error updating route with ID {}: {}", routeId, e.getMessage());
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", e.getMessage().contains("not found") || e.getMessage().contains("access denied") ? 404 : 400);
+            errorResponse.put("error", e.getMessage().contains("not found") || e.getMessage().contains("access denied") ? "Not Found" : "Bad Request");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("path", "/api/routes/" + routeId);
+            
+            HttpStatus status = e.getMessage().contains("not found") || e.getMessage().contains("access denied") ? 
+                HttpStatus.NOT_FOUND : HttpStatus.BAD_REQUEST;
+            return ResponseEntity.status(status).body(errorResponse);
+            
+        } catch (Exception e) {
+            log.error("Unexpected error updating route with ID {}: ", routeId, e);
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", "An unexpected error occurred while updating the route");
             errorResponse.put("details", e.getMessage());
             errorResponse.put("path", "/api/routes/" + routeId);
             

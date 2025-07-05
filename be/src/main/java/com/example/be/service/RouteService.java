@@ -249,6 +249,65 @@ public class RouteService {
     }
 
     /**
+     * Partially update an existing route using native SQL (PATCH operation)
+     * Only updates fields that are provided in the DTO (non-null values)
+     * Verifies that the route belongs to the specified driver
+     * 
+     * @param routeId The ID of the route to update
+     * @param driverId The ID of the driver who owns the route
+     * @param updateDto The data to update the route with
+     * @return The updated route
+     * @throws RuntimeException if the route is not found or doesn't belong to the driver
+     */
+    @Transactional
+    public ReturnRoute patchRoute(UUID routeId, UUID driverId, ReturnRouteUpdateRequestDto updateDto) {
+        log.info("Patching route with ID: {} for driver: {}", routeId, driverId);
+        
+        // First, verify the route exists and belongs to the driver
+        ReturnRoute existingRoute = routeRepo.findByIdAndDriverId(routeId, driverId)
+                .orElseThrow(() -> new RuntimeException("Route not found or access denied"));
+        
+        // Check if route can be updated (business logic)
+        if (existingRoute.getStatus() == RouteStatus.COMPLETED) {
+            throw new RuntimeException("Cannot update completed route");
+        }
+        
+        // Prepare status string for native query
+        String statusString = null;
+        if (updateDto.getStatus() != null) {
+            statusString = updateDto.getStatus().name();
+        }
+        
+        // Perform the update using native SQL
+        ZonedDateTime now = ZonedDateTime.now();
+        int updatedRows = routeRepo.updateRoutePartially(
+            routeId,
+            driverId,
+            updateDto.getOriginLat(),
+            updateDto.getOriginLng(),
+            updateDto.getDestinationLat(),
+            updateDto.getDestinationLng(),
+            updateDto.getDepartureTime(),
+            updateDto.getDetourToleranceKm(),
+            updateDto.getSuggestedPriceMin(),
+            updateDto.getSuggestedPriceMax(),
+            statusString,
+            now
+        );
+        
+        if (updatedRows == 0) {
+            throw new RuntimeException("Route not found or access denied");
+        }
+        
+        // Return the updated route
+        ReturnRoute updatedRoute = routeRepo.findByIdAndDriverId(routeId, driverId)
+                .orElseThrow(() -> new RuntimeException("Failed to retrieve updated route"));
+        
+        log.info("Route patched successfully with ID: {} for driver: {}", routeId, driverId);
+        return updatedRoute;
+    }
+
+    /**
      * Delete a route by ID
      * @param routeId The ID of the route to delete
      * @throws RuntimeException if the route is not found

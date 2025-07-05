@@ -169,6 +169,81 @@ public class BidService {
         return dto;
     }
 
+    @Transactional(readOnly = true)
+    public List<com.example.be.dto.DriverBidHistoryDto> getDriverBidHistory(UUID driverId, com.example.be.types.BidStatus status) {
+        List<Object[]> results;
+        
+        if (status != null) {
+            results = bidRepository.findBidHistoryByDriverIdAndStatus(driverId, status.name());
+        } else {
+            results = bidRepository.findBidHistoryByDriverId(driverId);
+        }
+        
+        List<com.example.be.dto.DriverBidHistoryDto> bidHistoryList = new ArrayList<>();
+        
+        for (Object[] row : results) {
+            com.example.be.dto.DriverBidHistoryDto dto = new com.example.be.dto.DriverBidHistoryDto();
+            
+            // Map the query results to DTO
+            dto.setBidId((UUID) row[0]);
+            dto.setRequestId((UUID) row[1]);
+            dto.setRouteId((UUID) row[2]);
+            dto.setStartIndex((Integer) row[3]);
+            dto.setEndIndex((Integer) row[4]);
+            dto.setOfferedPrice((java.math.BigDecimal) row[5]);
+            dto.setStatus(com.example.be.types.BidStatus.valueOf((String) row[6]));
+            
+            // Handle different timestamp types
+            if (row[7] instanceof java.sql.Timestamp) {
+                dto.setCreatedAt(((java.sql.Timestamp) row[7]).toInstant().atZone(java.time.ZoneId.systemDefault()));
+            } else if (row[7] instanceof java.time.OffsetDateTime) {
+                dto.setCreatedAt(((java.time.OffsetDateTime) row[7]).toZonedDateTime());
+            } else if (row[7] instanceof java.time.LocalDateTime) {
+                dto.setCreatedAt(((java.time.LocalDateTime) row[7]).atZone(java.time.ZoneId.systemDefault()));
+            }
+            
+            if (row[8] instanceof java.sql.Timestamp) {
+                dto.setUpdatedAt(((java.sql.Timestamp) row[8]).toInstant().atZone(java.time.ZoneId.systemDefault()));
+            } else if (row[8] instanceof java.time.OffsetDateTime) {
+                dto.setUpdatedAt(((java.time.OffsetDateTime) row[8]).toZonedDateTime());
+            } else if (row[8] instanceof java.time.LocalDateTime) {
+                dto.setUpdatedAt(((java.time.LocalDateTime) row[8]).atZone(java.time.ZoneId.systemDefault()));
+            }
+            
+            // Parcel request details
+            dto.setPickupLat((java.math.BigDecimal) row[9]);
+            dto.setPickupLng((java.math.BigDecimal) row[10]);
+            dto.setDropoffLat((java.math.BigDecimal) row[11]);
+            dto.setDropoffLng((java.math.BigDecimal) row[12]);
+            dto.setWeightKg((java.math.BigDecimal) row[13]);
+            dto.setVolumeM3((java.math.BigDecimal) row[14]);
+            dto.setDescription((String) row[15]);
+            dto.setMaxBudget((java.math.BigDecimal) row[16]);
+            
+            // Handle deadline timestamp
+            if (row[17] instanceof java.sql.Timestamp) {
+                dto.setDeadline(((java.sql.Timestamp) row[17]).toInstant().atZone(java.time.ZoneId.systemDefault()));
+            } else if (row[17] instanceof java.time.OffsetDateTime) {
+                dto.setDeadline(((java.time.OffsetDateTime) row[17]).toZonedDateTime());
+            } else if (row[17] instanceof java.time.LocalDateTime) {
+                dto.setDeadline(((java.time.LocalDateTime) row[17]).atZone(java.time.ZoneId.systemDefault()));
+            }
+            
+            // Customer details
+            dto.setCustomerFirstName((String) row[18]);
+            dto.setCustomerLastName((String) row[19]);
+            
+            bidHistoryList.add(dto);
+        }
+        
+        return bidHistoryList;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Object[]> debugGetDriverBidHistoryRaw(UUID driverId) {
+        return bidRepository.findBidHistoryByDriverId(driverId);
+    }
+
     @Transactional
     public void deleteBid(UUID bidId) {
         if (!bidRepository.existsById(bidId)) {
