@@ -193,7 +193,7 @@ public class RouteService {
         log.info("Fetching routes for driver: {} with status: {}", driverId, status);
         
         if (status != null) {
-            return routeRepo.findByDriverIdAndStatus(driverId, status);
+            return routeRepo.findByDriverIdAndStatusNative(driverId, status.name());
         } else {
             return routeRepo.findByDriverId(driverId);
         }

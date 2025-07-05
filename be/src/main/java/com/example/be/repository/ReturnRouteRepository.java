@@ -29,6 +29,12 @@ public interface ReturnRouteRepository extends JpaRepository<ReturnRoute, UUID> 
      */
     List<ReturnRoute> findByDriverIdAndStatus(UUID driverId, com.example.be.types.RouteStatus status);
 
+    /**
+     * Find routes by driver ID and status using native query
+     */
+    @Query(value = "SELECT * FROM return_routes WHERE driver_id = :driverId AND status = CAST(:status AS route_status)", nativeQuery = true)
+    List<ReturnRoute> findByDriverIdAndStatusNative(@Param("driverId") UUID driverId, @Param("status") String status);
+
     @Modifying
     @Query(value = """
         INSERT INTO return_routes (
