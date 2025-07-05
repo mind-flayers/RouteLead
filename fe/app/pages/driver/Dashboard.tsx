@@ -185,7 +185,7 @@ const Dashboard = () => {
 
       {/* Bottom Navigation Bar */}
       <View className="flex-row justify-between items-center bg-white border-t border-gray-200 px-2 py-2 absolute bottom-0 w-full" style={{ minHeight: 60 }}>
-        <Link href="/(tabs)" asChild>
+        <Link href="/pages/driver/Dashboard">
           <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
             <View className="items-center justify-center">
               <Ionicons name="home" size={22} color="#F97316" />

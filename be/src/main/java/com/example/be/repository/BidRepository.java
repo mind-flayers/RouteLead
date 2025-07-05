@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -37,4 +38,32 @@ public interface BidRepository extends JpaRepository<Bid, UUID> {
             @Param("offeredPrice") java.math.BigDecimal offeredPrice,
             @Param("status") String status
     );
+
+    // Get bid history for a specific driver with parcel request details
+    @Query(value = "SELECT b.id, b.request_id, b.route_id, b.start_index, b.end_index, " +
+            "b.offered_price, b.status, b.created_at, b.updated_at, " +
+            "pr.pickup_lat, pr.pickup_lng, pr.dropoff_lat, pr.dropoff_lng, " +
+            "pr.weight_kg, pr.volume_m3, pr.description, pr.max_budget, pr.deadline, " +
+            "p.first_name as customer_first_name, p.last_name as customer_last_name " +
+            "FROM bids b " +
+            "INNER JOIN return_routes rr ON b.route_id = rr.id " +
+            "INNER JOIN parcel_requests pr ON b.request_id = pr.id " +
+            "INNER JOIN profiles p ON pr.customer_id = p.id " +
+            "WHERE rr.driver_id = :driverId " +
+            "ORDER BY b.created_at DESC", nativeQuery = true)
+    List<Object[]> findBidHistoryByDriverId(@Param("driverId") UUID driverId);
+
+    // Get bid history for a specific driver filtered by status
+    @Query(value = "SELECT b.id, b.request_id, b.route_id, b.start_index, b.end_index, " +
+            "b.offered_price, b.status, b.created_at, b.updated_at, " +
+            "pr.pickup_lat, pr.pickup_lng, pr.dropoff_lat, pr.dropoff_lng, " +
+            "pr.weight_kg, pr.volume_m3, pr.description, pr.max_budget, pr.deadline, " +
+            "p.first_name as customer_first_name, p.last_name as customer_last_name " +
+            "FROM bids b " +
+            "INNER JOIN return_routes rr ON b.route_id = rr.id " +
+            "INNER JOIN parcel_requests pr ON b.request_id = pr.id " +
+            "INNER JOIN profiles p ON pr.customer_id = p.id " +
+            "WHERE rr.driver_id = :driverId AND b.status = CAST(:status AS bid_status) " +
+            "ORDER BY b.created_at DESC", nativeQuery = true)
+    List<Object[]> findBidHistoryByDriverIdAndStatus(@Param("driverId") UUID driverId, @Param("status") String status);
 }
