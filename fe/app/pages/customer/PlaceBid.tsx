@@ -5,15 +5,42 @@ import { useRouter } from 'expo-router';
 export default function PlaceBid() {
   const router = useRouter();
 
-  const handlePlaceBid = () => {
-    // You can pass bid details as params if needed
-    router.push('/pages/customer/BidConfirmation');
-  };
-
   const [bid, setBid] = useState('');
   const [weight, setWeight] = useState('');
   const [dimensions, setDimensions] = useState('');
   const [type, setType] = useState('Small Package');
+  // TODO: Replace with actual customerId and routeId from context or navigation params
+  const customerId = '70ba4867-edcb-4628-b614-7bb60e935862';
+  const routeId = 'ROUTE_ID_HERE'; // Replace with actual routeId
+  const API_BASE_URL = 'http://localhost:8080/api';
+
+  const handlePlaceBid = async () => {
+    if (!bid || !weight || !dimensions || !type) {
+      alert('Please fill in all fields.');
+      return;
+    }
+    try {
+      const bidData = {
+        amount: parseFloat(bid),
+        weight: parseFloat(weight),
+        dimensions,
+        parcelType: type,
+        customerId,
+        routeId,
+      };
+      const res = await fetch(`${API_BASE_URL}/bids`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bidData),
+      });
+      if (!res.ok) throw new Error('Failed to place bid');
+      router.push('/pages/customer/MyBids');
+    } catch (err) {
+      let message = 'Could not place bid';
+      if (err instanceof Error) message = err.message;
+      alert(message);
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
