@@ -15,11 +15,12 @@ import java.util.UUID;
 @Table(name = "admin_actions")
 public class AdminAction {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(name = "admin_id", nullable = false)
-    private UUID adminId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "admin_id", nullable = false)
+    private Profile admin;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "entity_type", nullable = false, columnDefinition = "admin_entity_type")

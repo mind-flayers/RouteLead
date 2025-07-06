@@ -8,6 +8,7 @@ import com.example.be.model.RouteSegment;
 import com.example.be.types.RouteStatus;
 import com.example.be.repository.ReturnRouteRepository;
 import com.example.be.repository.RouteSegmentRepository;
+import com.example.be.repository.ProfileRepository;
 import com.example.be.util.LatLng;
 import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.GeocodingResult;
@@ -31,6 +32,7 @@ public class RouteService {
     private final RouteSegmentRepository segRepo;
     private final GoogleMapsClient maps;
     private final PolylineService polyService;
+    private final ProfileRepository profileRepo;
 
     @Transactional
     public void createRoute(CreateRouteDto dto) throws Exception {
@@ -39,7 +41,7 @@ public class RouteService {
 
         // 1) persist route entity
         ReturnRoute route = new ReturnRoute();
-        route.setDriverId(dto.getDriverId());
+        route.setDriver(profileRepo.findById(dto.getDriverId()).orElseThrow(() -> new RuntimeException("Driver not found")));
         route.setOriginLat(dto.getOriginLat());
         route.setOriginLng(dto.getOriginLng());
         route.setDestinationLat(dto.getDestinationLat());
@@ -57,7 +59,7 @@ public class RouteService {
         
         // Use native SQL with proper enum casting
         routeRepo.insertRouteWithEnum(
-            route.getDriverId(),
+            route.getDriver().getId(),
             route.getOriginLat(),
             route.getOriginLng(),
             route.getDestinationLat(),
@@ -148,7 +150,7 @@ public class RouteService {
     private RouteSegmentDto convertToDto(RouteSegment segment) {
         RouteSegmentDto dto = new RouteSegmentDto();
         dto.setId(segment.getId());
-        dto.setRouteId(segment.getRouteId());
+        dto.setRouteId(segment.getRoute() != null ? segment.getRoute().getId() : null);
         dto.setSegmentIndex(segment.getSegmentIndex());
         dto.setTownName(segment.getTownName());
         dto.setStartLat(segment.getStartLat());

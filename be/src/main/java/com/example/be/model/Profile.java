@@ -1,13 +1,19 @@
 package com.example.be.model;
 
 import com.example.be.types.UserRole;
+import com.example.be.types.GenderEnum;
+import com.example.be.types.VerificationStatusEnum;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 @Getter
@@ -43,6 +49,39 @@ public class Profile {
 
     @Column(name = "is_verified", nullable = false)
     private Boolean isVerified = false;
+
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "gender", columnDefinition = "gender_enum")
+    private GenderEnum gender;
+
+    @Column(name = "address_line_1")
+    private String addressLine1;
+
+    @Column(name = "address_line_2")
+    private String addressLine2;
+
+    @Column(name = "city")
+    private String city;
+
+    @Column(name = "bank_account_details")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> bankAccountDetails;
+
+    @Column(name = "driver_license_number")
+    private String driverLicenseNumber;
+
+    @Column(name = "license_expiry_date")
+    private LocalDate licenseExpiryDate;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status", columnDefinition = "verification_status_enum")
+    private VerificationStatusEnum verificationStatus;
+
+    @Column(name = "face_photo_url")
+    private String facePhotoUrl;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -100,4 +139,34 @@ public class Profile {
     
     public Boolean getIsVerified() { return isVerified; }
     public void setIsVerified(Boolean isVerified) { this.isVerified = isVerified; }
+    
+    public LocalDate getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+    
+    public GenderEnum getGender() { return gender; }
+    public void setGender(GenderEnum gender) { this.gender = gender; }
+    
+    public String getAddressLine1() { return addressLine1; }
+    public void setAddressLine1(String addressLine1) { this.addressLine1 = addressLine1; }
+    
+    public String getAddressLine2() { return addressLine2; }
+    public void setAddressLine2(String addressLine2) { this.addressLine2 = addressLine2; }
+    
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+    
+    public Map<String, Object> getBankAccountDetails() { return bankAccountDetails; }
+    public void setBankAccountDetails(Map<String, Object> bankAccountDetails) { this.bankAccountDetails = bankAccountDetails; }
+    
+    public String getDriverLicenseNumber() { return driverLicenseNumber; }
+    public void setDriverLicenseNumber(String driverLicenseNumber) { this.driverLicenseNumber = driverLicenseNumber; }
+    
+    public LocalDate getLicenseExpiryDate() { return licenseExpiryDate; }
+    public void setLicenseExpiryDate(LocalDate licenseExpiryDate) { this.licenseExpiryDate = licenseExpiryDate; }
+    
+    public VerificationStatusEnum getVerificationStatus() { return verificationStatus; }
+    public void setVerificationStatus(VerificationStatusEnum verificationStatus) { this.verificationStatus = verificationStatus; }
+    
+    public String getFacePhotoUrl() { return facePhotoUrl; }
+    public void setFacePhotoUrl(String facePhotoUrl) { this.facePhotoUrl = facePhotoUrl; }
 } 

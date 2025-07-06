@@ -12,20 +12,23 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "route_segments")
+@Table(name = "route_segments", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"route_id", "segment_index"})
+})
 public class RouteSegment {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(name = "route_id", nullable = false)
-    private UUID routeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "route_id", nullable = false)
+    private ReturnRoute route;
 
     @Column(name = "segment_index", nullable = false)
     private Integer segmentIndex;
 
     @Column(name = "town_name", nullable = false)
-    private String townName;
+    private String townName = "Unknown Location";
 
     @Column(name = "start_lat", nullable = false, precision = 10, scale = 8)
     private BigDecimal startLat;

@@ -28,7 +28,7 @@ public class RouteSegmentService {
     private RouteSegmentDto toDto(RouteSegment segment) {
         RouteSegmentDto dto = new RouteSegmentDto();
         dto.setId(segment.getId());
-        dto.setRouteId(segment.getRouteId());
+        dto.setRouteId(segment.getRoute() != null ? segment.getRoute().getId() : null);
         dto.setSegmentIndex(segment.getSegmentIndex());
         dto.setStartLat(segment.getStartLat());
         dto.setStartLng(segment.getStartLng());

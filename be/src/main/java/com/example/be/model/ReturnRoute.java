@@ -17,11 +17,12 @@ import java.util.UUID;
 @Table(name = "return_routes")
 public class ReturnRoute {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(name = "driver_id", nullable = false)
-    private UUID driverId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "driver_id", nullable = false)
+    private Profile driver;
 
     @Column(name = "origin_lat", nullable = false, precision = 10, scale = 8)
     private BigDecimal originLat;
@@ -47,9 +48,9 @@ public class ReturnRoute {
     @Column(name = "suggested_price_max", nullable = false, precision = 10, scale = 2)
     private BigDecimal suggestedPriceMax;
 
-    @Convert(converter = com.example.be.config.RouteStatusConverter.class)
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, columnDefinition = "route_status")
-    private RouteStatus status = RouteStatus.OPEN;
+    private RouteStatus status = RouteStatus.INITIATED;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -68,7 +69,7 @@ public class ReturnRoute {
             updatedAt = ZonedDateTime.now();
         }
         if (status == null) {
-            status = RouteStatus.OPEN;
+            status = RouteStatus.INITIATED;
         }
         if (detourToleranceKm == null) {
             detourToleranceKm = BigDecimal.ZERO;

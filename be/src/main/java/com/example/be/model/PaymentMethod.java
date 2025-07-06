@@ -1,8 +1,5 @@
 package com.example.be.model;
 
-import com.example.be.types.NotificationType;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,8 +11,8 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "notifications")
-public class Notification {
+@Table(name = "payment_methods")
+public class PaymentMethod {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
@@ -24,16 +21,20 @@ public class Notification {
     @JoinColumn(name = "user_id", nullable = false)
     private Profile user;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "type", nullable = false, columnDefinition = "notification_type")
-    private NotificationType type;
+    @Column(name = "method_type", nullable = false)
+    private String methodType;
 
-    @Column(name = "payload", nullable = false, columnDefinition = "jsonb")
-    @Convert(converter = com.example.be.model.PayloadJsonbConverter.class)
-    private Object payload;
+    @Column(name = "last_four")
+    private String lastFour;
 
-    @Column(name = "is_read", nullable = false)
-    private Boolean isRead = false;
+    @Column(name = "card_brand")
+    private String cardBrand;
+
+    @Column(name = "is_default", nullable = false)
+    private Boolean isDefault = false;
+
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -44,8 +45,11 @@ public class Notification {
         if (createdAt == null) {
             createdAt = ZonedDateTime.now();
         }
-        if (isRead == null) {
-            isRead = false;
+        if (isDefault == null) {
+            isDefault = false;
+        }
+        if (isActive == null) {
+            isActive = true;
         }
     }
 } 

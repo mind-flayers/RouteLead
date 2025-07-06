@@ -6,9 +6,12 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -17,11 +20,12 @@ import java.util.UUID;
 @Table(name = "parcel_requests")
 public class ParcelRequest {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(name = "customer_id", nullable = false)
-    private UUID customerId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Profile customer;
 
     @Column(name = "pickup_lat", nullable = false, precision = 10, scale = 8)
     private BigDecimal pickupLat;
@@ -54,6 +58,22 @@ public class ParcelRequest {
     @Column(name = "status", nullable = false, columnDefinition = "parcel_status")
     private ParcelStatus status = ParcelStatus.OPEN;
 
+    @Column(name = "pickup_contact_name")
+    private String pickupContactName;
+
+    @Column(name = "pickup_contact_phone")
+    private String pickupContactPhone;
+
+    @Column(name = "delivery_contact_name")
+    private String deliveryContactName;
+
+    @Column(name = "delivery_contact_phone")
+    private String deliveryContactPhone;
+
+    @Column(name = "parcel_photos")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<String> parcelPhotos = List.of();
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;
@@ -72,6 +92,9 @@ public class ParcelRequest {
         }
         if (status == null) {
             status = ParcelStatus.OPEN;
+        }
+        if (parcelPhotos == null) {
+            parcelPhotos = List.of();
         }
     }
 

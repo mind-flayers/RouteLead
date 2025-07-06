@@ -4,9 +4,12 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+import java.util.Map;
 import java.util.UUID;
 
 @Getter
@@ -15,11 +18,12 @@ import java.util.UUID;
 @Table(name = "price_predictions")
 public class PricePrediction {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(name = "route_id", nullable = false)
-    private UUID routeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "route_id", nullable = false)
+    private ReturnRoute route;
 
     @Column(name = "min_price", nullable = false, precision = 10, scale = 2)
     private BigDecimal minPrice;
@@ -30,8 +34,9 @@ public class PricePrediction {
     @Column(name = "model_version", nullable = false)
     private String modelVersion;
 
-    @Column(name = "features", nullable = false, columnDefinition = "jsonb")
-    private String features;
+    @Column(name = "features", nullable = false)
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> features;
 
     @CreationTimestamp
     @Column(name = "generated_at", nullable = false, updatable = false)

@@ -1,6 +1,5 @@
 package com.example.be.model;
 
-import com.example.be.types.ReviewRole;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,35 +11,26 @@ import java.util.UUID;
 @Getter
 @Setter
 @Entity
-@Table(name = "reviews")
-public class Review {
+@Table(name = "conversations")
+public class Conversation {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trip_id", nullable = false)
-    private ReturnRoute trip;
+    @JoinColumn(name = "bid_id")
+    private Bid bid;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reviewer_id", nullable = false)
-    private Profile reviewer;
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Profile customer;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reviewee_id", nullable = false)
-    private Profile reviewee;
+    @JoinColumn(name = "driver_id", nullable = false)
+    private Profile driver;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false, columnDefinition = "review_role")
-    private ReviewRole role;
-
-    @Column(name = "rating", nullable = false)
-    @jakarta.validation.constraints.Min(1)
-    @jakarta.validation.constraints.Max(5)
-    private Short rating;
-
-    @Column(name = "comment")
-    private String comment;
+    @Column(name = "last_message_at")
+    private ZonedDateTime lastMessageAt;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
