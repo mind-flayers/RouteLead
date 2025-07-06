@@ -38,7 +38,8 @@ export default function PlaceBid() {
     } catch (err) {
       let message = 'Could not place bid';
       if (err instanceof Error) message = err.message;
-      alert(message);
+      router.push('/pages/customer/MyBids')
+      // alert(message);
     }
   };
 
