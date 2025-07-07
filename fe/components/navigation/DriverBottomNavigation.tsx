@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Link, usePathname, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import NavigationErrorBoundary from './NavigationErrorBoundary';
-import { useNavigationDebounce } from '../../hooks/useNavigationDebounce';
+import { useOptimizedNavigation } from '../../hooks/useOptimizedNavigation';
 
 interface NavItem {
   href: string;
@@ -53,7 +53,7 @@ const navItems: NavItem[] = [
 
 const DriverBottomNavigation: React.FC = () => {
   const router = useRouter();
-  const { debouncedNavigate } = useNavigationDebounce(300);
+  const { optimizedNavigate } = useOptimizedNavigation(50); // Reduced from 300ms to 50ms
   let pathname: string = '';
   
   try {
@@ -93,14 +93,14 @@ const DriverBottomNavigation: React.FC = () => {
   }, []);
 
   const handleNavigation = useCallback((href: string) => {
-    debouncedNavigate(() => {
+    optimizedNavigate(() => {
       try {
         router.push(href as any);
       } catch (error) {
         console.warn('Navigation error:', error);
       }
     });
-  }, [router, debouncedNavigate]);
+  }, [router, optimizedNavigate]);
 
   const renderNavItem = useCallback((item: NavItem) => {
     const isActive = pathname === item.href;

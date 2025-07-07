@@ -1,39 +1,45 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import { useOptimizedDataFetch } from '@/hooks/useOptimizedDataFetch';
 import { supabase } from '@/lib/supabase';
 
 const Dashboard = () => {
   const router = useRouter();
-  const [userName, setUserName] = useState('Mishaf Hasan'); // Default name
+  
+  // Optimized data fetching with caching
+  const fetchUserProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', user.id)
+        .single();
 
-  useEffect(() => {
-    const fetchUserName = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('first_name, last_name')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching profile:', error);
-        } else if (data) {
-          setUserName(`${data.first_name || ''} ${data.last_name || ''}`.trim());
-        }
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return 'Mishaf Hasan'; // Default fallback
+      } else if (data) {
+        return `${data.first_name || ''} ${data.last_name || ''}`.trim();
       }
-    };
+    }
+    return 'Mishaf Hasan';
+  };
 
-    fetchUserName();
-  }, []);
+  const { data: userName, loading } = useOptimizedDataFetch(
+    fetchUserProfile,
+    [],
+    'user-profile'
+  );
 
-  // Data for the KPI cards for easier management
-  const kpiData = [
+  // Memoized KPI data for better performance
+  const kpiData = useMemo(() => [
     {
       title: "Today's\nEarnings",
       icon: <FontAwesome5 name="wallet" size={20} color="#f97316" />,
@@ -58,7 +64,7 @@ const Dashboard = () => {
       value: "24",
       subtext: "Deliveries this month"
     }
-  ];
+  ], []);
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -70,9 +76,10 @@ const Dashboard = () => {
         <Text className="text-xl font-bold">Dashboard</Text>
         <Link href="/pages/driver/Profile" className="items-center">
           <View className="flex-row items-center">
-            <Image
+            <OptimizedImage
               source={require('../../../assets/images/profile_placeholder.jpeg')}
               className="w-8 h-8 rounded-full mr-2"
+              fallbackSource={require('../../../assets/images/profile_placeholder.jpeg')}
             />
           </View>
         </Link>
@@ -81,7 +88,7 @@ const Dashboard = () => {
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
         {/* Welcome Section */}
         <View className="mb-4 items-center">
-          <Text className="text-2xl font-bold mb-1">Welcome, {userName}!</Text>
+          <Text className="text-2xl font-bold mb-1">Welcome, {loading ? 'Loading...' : userName || 'Driver'}!</Text>
           <Text className="text-gray-600">Ready for your next route?</Text>
         </View>
 

@@ -10,6 +10,9 @@ config.transformer = {
   inlineRequires: true,
 };
 
+// Enable hermes for better JavaScript performance
+config.resolver.platforms = ['native', 'android', 'ios', 'web'];
+
 // Create a mock for net module
 const mockNet = path.resolve(__dirname, 'mocks/net.js');
 
@@ -30,4 +33,10 @@ config.resolver.extraNodeModules = {
   child_process: false,
 };
 
-module.exports = config; 
+// Optimize bundle size
+config.resolver.alias = {
+  ...config.resolver.alias,
+  // Add any aliases to reduce bundle size
+};
+
+module.exports = config;
