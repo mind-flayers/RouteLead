@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import '../global.css';
 import { AuthProvider } from '../lib/auth';
+import { cacheService } from '../services/cacheService';
 
 export {
   ErrorBoundary,
@@ -30,9 +31,23 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded) {
+      // Initialize cache service when app is ready
+      cacheService.initialize().then(() => {
+        console.log('Cache service initialized');
+      }).catch((error) => {
+        console.error('Failed to initialize cache service:', error);
+      });
+      
       SplashScreen.hideAsync();
     }
   }, [loaded]);
+
+  // Cleanup cache service when app unmounts
+  useEffect(() => {
+    return () => {
+      cacheService.cleanup();
+    };
+  }, []);
 
   if (!loaded) {
     return null;
