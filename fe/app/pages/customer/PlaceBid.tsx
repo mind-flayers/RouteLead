@@ -5,26 +5,35 @@ import { useRouter } from 'expo-router';
 export default function PlaceBid() {
   const router = useRouter();
 
+  // Simulate driver's fixed price (replace with prop or API as needed)
+  const fixedPrice = 1000; // Example: 1000. Replace with actual value.
+
   const [bid, setBid] = useState('');
   const [weight, setWeight] = useState('');
-  const [dimensions, setDimensions] = useState('');
-  const [type, setType] = useState('Small Package');
+  const [length, setLength] = useState('');
+  const [width, setWidth] = useState('');
+  const [height, setHeight] = useState('');
+  const [description, setDescription] = useState('');
   // TODO: Replace with actual customerId and routeId from context or navigation params
   const customerId = '70ba4867-edcb-4628-b614-7bb60e935862';
   const routeId = 'ROUTE_ID_HERE'; // Replace with actual routeId
   const API_BASE_URL = 'http://localhost:8080/api';
 
   const handlePlaceBid = async () => {
-    if (!bid || !weight || !dimensions || !type) {
+    if (!bid || !weight || !length || !width || !height || !description) {
       alert('Please fill in all fields.');
+      return;
+    }
+    if (parseFloat(bid) > fixedPrice) {
+      alert(`Bid amount cannot exceed the driver's fixed price: ${fixedPrice}`);
       return;
     }
     try {
       const bidData = {
         amount: parseFloat(bid),
         weight: parseFloat(weight),
-        dimensions,
-        parcelType: type,
+        dimensions: `${length}×${width}×${height}`,
+        description,
         customerId,
         routeId,
       };
@@ -49,12 +58,16 @@ export default function PlaceBid() {
       <Text style={styles.title}>Place Your Bid</Text>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Bid Amount</Text>
+        <Text style={styles.label}>Bid Amount (Driver's Fixed Price: {fixedPrice})</Text>
         <TextInput
           value={bid}
-          onChangeText={setBid}
+          onChangeText={text => {
+            // Only allow up to fixedPrice
+            if (!text || parseFloat(text) <= fixedPrice) setBid(text);
+          }}
           keyboardType="numeric"
-          placeholder="e.g., 500.00"
+          placeholder={`Enter your bid (up to ${fixedPrice})`}
+          placeholderTextColor="#555"
           style={styles.input}
         />
       </View>
@@ -66,21 +79,43 @@ export default function PlaceBid() {
           value={weight}
           onChangeText={setWeight}
           keyboardType="numeric"
-          placeholder="e.g., 5"
+          placeholder="Enter weight in kg (e.g., 5)"
+          placeholderTextColor="#555"
           style={styles.input}
         />
         <Text style={styles.label}>Dimensions (cm)</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <TextInput
+            value={length}
+            onChangeText={setLength}
+            keyboardType="numeric"
+            placeholder="Length (cm)"
+            placeholderTextColor="#555"
+            style={[styles.input, { flex: 1, marginRight: 4 }]}
+          />
+          <TextInput
+            value={width}
+            onChangeText={setWidth}
+            keyboardType="numeric"
+            placeholder="Width (cm)"
+            placeholderTextColor="#555"
+            style={[styles.input, { flex: 1, marginHorizontal: 2 }]}
+          />
+          <TextInput
+            value={height}
+            onChangeText={setHeight}
+            keyboardType="numeric"
+            placeholder="Height (cm)"
+            placeholderTextColor="#555"
+            style={[styles.input, { flex: 1, marginLeft: 4 }]}
+          />
+        </View>
+        <Text style={styles.label}>Description</Text>
         <TextInput
-          value={dimensions}
-          onChangeText={setDimensions}
-          placeholder="e.g., 30×20×15"
-          style={styles.input}
-        />
-        <Text style={styles.label}>Parcel Type</Text>
-        <TextInput
-          value={type}
-          onChangeText={setType}
-          placeholder="e.g., Small Package"
+          value={description}
+          onChangeText={setDescription}
+          placeholder="Describe your parcel (e.g., Fragile electronics, books, etc.)"
+          placeholderTextColor="#555"
           style={styles.input}
         />
       </View>
