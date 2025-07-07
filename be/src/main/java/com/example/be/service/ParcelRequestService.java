@@ -22,7 +22,7 @@ public class ParcelRequestService {
     @Transactional
     public void createNative(ParcelRequest pr) {
         repo.insertParcelRequestWithEnum(
-            pr.getCustomerId(),
+            pr.getCustomer() != null ? pr.getCustomer().getId() : null,
             pr.getPickupLat(),
             pr.getPickupLng(),
             pr.getDropoffLat(),

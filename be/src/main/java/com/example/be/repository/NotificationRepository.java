@@ -1,6 +1,7 @@
 package com.example.be.repository;
 
 import com.example.be.model.Notification;
+import com.example.be.model.Profile;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -13,6 +14,8 @@ import java.util.UUID;
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, UUID> {
     List<Notification> findByUserId(UUID userId);
+
+    List<Notification> findByUser(Profile user);
 
     @Modifying
     @Query("UPDATE Notification n SET n.isRead = :isRead WHERE n.id = :id")

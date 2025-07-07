@@ -26,7 +26,7 @@ public class PricePredictionService {
         }
         PricePredictionDto dto = new PricePredictionDto();
         dto.setId(prediction.getId());
-        dto.setRouteId(prediction.getRouteId());
+        dto.setRouteId(prediction.getRoute() != null ? prediction.getRoute().getId() : null);
         dto.setMinPrice(prediction.getMinPrice());
         dto.setMaxPrice(prediction.getMaxPrice());
         dto.setModelVersion(prediction.getModelVersion());

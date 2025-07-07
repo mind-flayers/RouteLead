@@ -19,14 +19,16 @@ import java.util.UUID;
 @Table(name = "bids")
 public class Bid {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(name = "request_id", nullable = false)
-    private UUID requestId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "request_id", nullable = false)
+    private ParcelRequest request;
 
-    @Column(name = "route_id", nullable = false)
-    private UUID routeId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "route_id", nullable = false)
+    private ReturnRoute route;
 
     @Column(name = "start_index", nullable = false)
     private Integer startIndex;
@@ -40,6 +42,15 @@ public class Bid {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, columnDefinition = "bid_status")
     private BidStatus status = BidStatus.PENDING;
+
+    @Column(name = "pickup_time")
+    private ZonedDateTime pickupTime;
+
+    @Column(name = "delivery_time")
+    private ZonedDateTime deliveryTime;
+
+    @Column(name = "special_instructions")
+    private String specialInstructions;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

@@ -5,6 +5,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.UUID;
+import java.util.Map;
 
 @Data
 public class PricePredictionDto {
@@ -13,7 +14,7 @@ public class PricePredictionDto {
     private BigDecimal minPrice;
     private BigDecimal maxPrice;
     private String modelVersion;
-    private String features;
+    private Map<String, Object> features;
     private ZonedDateTime generatedAt;
 }
 
@@ -21,7 +22,7 @@ public class PricePredictionDto {
 class PricePredictionRequestDto {
     private UUID routeId;
     private String modelVersion;
-    private String features;
+    private Map<String, Object> features;
 }
 
 @Data

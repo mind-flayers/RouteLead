@@ -2,7 +2,9 @@ package com.example.be.service;
 
 import com.example.be.dto.VehicleRequestDto;
 import com.example.be.model.Vehicle;
+import com.example.be.model.Profile;
 import com.example.be.repository.VehicleRepository;
+import com.example.be.repository.ProfileRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,10 +18,12 @@ import java.util.UUID;
 public class VehicleService {
 
     private final VehicleRepository vehicleRepository;
+    private final ProfileRepository profileRepository;
 
     @Autowired
-    public VehicleService(VehicleRepository vehicleRepository) {
+    public VehicleService(VehicleRepository vehicleRepository, ProfileRepository profileRepository) {
         this.vehicleRepository = vehicleRepository;
+        this.profileRepository = profileRepository;
     }
 
     public List<Vehicle> getAllVehicles() {
@@ -47,7 +51,9 @@ public class VehicleService {
             System.out.println("Service: Creating vehicle from request DTO");
             Vehicle vehicle = new Vehicle();
             System.out.println("Service: Setting driver ID: " + requestDto.getDriverId());
-            vehicle.setDriverId(requestDto.getDriverId());
+            Profile driver = profileRepository.findById(requestDto.getDriverId())
+                .orElseThrow(() -> new RuntimeException("Driver not found with id: " + requestDto.getDriverId()));
+            vehicle.setDriver(driver);
             System.out.println("Service: Setting color: " + requestDto.getColor());
             vehicle.setColor(requestDto.getColor());
             System.out.println("Service: Setting make: " + requestDto.getMake());

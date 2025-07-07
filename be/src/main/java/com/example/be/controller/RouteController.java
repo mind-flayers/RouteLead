@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.Map;
 import java.util.HashMap;
+import com.example.be.model.Profile;
+import com.example.be.repository.ProfileRepository;
 
 @Slf4j
 @RestController
@@ -30,6 +32,7 @@ public class RouteController {
     private final RouteService service;
     private final ReturnRouteRepository routeRepo;
     private final PricePredictionService pricePredictionService;
+    private final ProfileRepository profileRepository;
 
     @GetMapping("/{routeId}")
     public ResponseEntity<?> getRouteById(@PathVariable UUID routeId) {
@@ -93,11 +96,12 @@ public class RouteController {
     @PostMapping("/test")
     public ResponseEntity<String> testCreate(@RequestBody CreateRouteDto dto) {
         log.info("POST /api/routes/test - Testing basic route creation");
-        
         try {
             // Create a simple route object
             ReturnRoute route = new ReturnRoute();
-            route.setDriverId(dto.getDriverId());
+            Profile driver = profileRepository.findById(dto.getDriverId())
+                .orElseThrow(() -> new RuntimeException("Driver not found with id: " + dto.getDriverId()));
+            route.setDriver(driver);
             route.setOriginLat(dto.getOriginLat());
             route.setOriginLng(dto.getOriginLng());
             route.setDestinationLat(dto.getDestinationLat());
@@ -107,15 +111,13 @@ public class RouteController {
             route.setSuggestedPriceMin(dto.getSuggestedPriceMin());
             route.setSuggestedPriceMax(dto.getSuggestedPriceMax());
             route.setStatus(RouteStatus.OPEN);
-            
             // Set timestamps manually since we're using native SQL
             java.time.ZonedDateTime now = java.time.ZonedDateTime.now();
             route.setCreatedAt(now);
             route.setUpdatedAt(now);
-            
             // Try to save using native SQL with proper enum casting
             routeRepo.insertRouteWithEnum(
-                route.getDriverId(),
+                route.getDriver().getId(),
                 route.getOriginLat(),
                 route.getOriginLng(),
                 route.getDestinationLat(),
@@ -128,9 +130,7 @@ public class RouteController {
                 route.getCreatedAt(),
                 route.getUpdatedAt()
             );
-            
             return ResponseEntity.ok("Route created successfully!");
-            
         } catch (Exception e) {
             log.error("Error creating route: ", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

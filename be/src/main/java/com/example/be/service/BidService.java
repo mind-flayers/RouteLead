@@ -36,8 +36,8 @@ public class BidService {
         for (com.example.be.model.Bid bid : bids) {
             BidDto dto = new BidDto();
             dto.setId(bid.getId());
-            dto.setRequestId(bid.getRequestId());
-            dto.setRouteId(bid.getRouteId());
+            dto.setRequestId(bid.getRequest() != null ? bid.getRequest().getId() : null);
+            dto.setRouteId(bid.getRoute() != null ? bid.getRoute().getId() : null);
             dto.setStartIndex(bid.getStartIndex());
             dto.setEndIndex(bid.getEndIndex());
             dto.setOfferedPrice(bid.getOfferedPrice());
@@ -56,8 +56,8 @@ public class BidService {
         for (com.example.be.model.Bid bid : bids) {
             BidDto dto = new BidDto();
             dto.setId(bid.getId());
-            dto.setRequestId(bid.getRequestId());
-            dto.setRouteId(bid.getRouteId());
+            dto.setRequestId(bid.getRequest() != null ? bid.getRequest().getId() : null);
+            dto.setRouteId(bid.getRoute() != null ? bid.getRoute().getId() : null);
             dto.setStartIndex(bid.getStartIndex());
             dto.setEndIndex(bid.getEndIndex());
             dto.setOfferedPrice(bid.getOfferedPrice());
@@ -80,8 +80,8 @@ public class BidService {
         logger.info("Bid found: {}", bid);
         BidDto dto = new BidDto();
         dto.setId(bid.getId());
-        dto.setRequestId(bid.getRequestId());
-        dto.setRouteId(bid.getRouteId());
+        dto.setRequestId(bid.getRequest() != null ? bid.getRequest().getId() : null);
+        dto.setRouteId(bid.getRoute() != null ? bid.getRoute().getId() : null);
         dto.setStartIndex(bid.getStartIndex());
         dto.setEndIndex(bid.getEndIndex());
         dto.setOfferedPrice(bid.getOfferedPrice());
@@ -98,8 +98,8 @@ public class BidService {
         for (Bid bid : bids) {
             BidDto dto = new BidDto();
             dto.setId(bid.getId());
-            dto.setRequestId(bid.getRequestId());
-            dto.setRouteId(bid.getRouteId());
+            dto.setRequestId(bid.getRequest() != null ? bid.getRequest().getId() : null);
+            dto.setRouteId(bid.getRoute() != null ? bid.getRoute().getId() : null);
             dto.setStartIndex(bid.getStartIndex());
             dto.setEndIndex(bid.getEndIndex());
             dto.setOfferedPrice(bid.getOfferedPrice());
@@ -133,8 +133,8 @@ public class BidService {
         ).orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR, "Bid creation failed"));
         BidDto dto = new BidDto();
         dto.setId(savedBid.getId());
-        dto.setRequestId(savedBid.getRequestId());
-        dto.setRouteId(savedBid.getRouteId());
+        dto.setRequestId(savedBid.getRequest() != null ? savedBid.getRequest().getId() : null);
+        dto.setRouteId(savedBid.getRoute() != null ? savedBid.getRoute().getId() : null);
         dto.setStartIndex(savedBid.getStartIndex());
         dto.setEndIndex(savedBid.getEndIndex());
         dto.setOfferedPrice(savedBid.getOfferedPrice());
@@ -158,8 +158,8 @@ public class BidService {
         
         BidDto dto = new BidDto();
         dto.setId(bid.getId());
-        dto.setRequestId(bid.getRequestId());
-        dto.setRouteId(bid.getRouteId());
+        dto.setRequestId(bid.getRequest() != null ? bid.getRequest().getId() : null);
+        dto.setRouteId(bid.getRoute() != null ? bid.getRoute().getId() : null);
         dto.setStartIndex(bid.getStartIndex());
         dto.setEndIndex(bid.getEndIndex());
         dto.setOfferedPrice(bid.getOfferedPrice());

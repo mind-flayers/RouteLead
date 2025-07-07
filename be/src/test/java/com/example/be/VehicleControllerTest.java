@@ -3,6 +3,7 @@ package com.example.be;
 import com.example.be.controller.VehicleController;
 import com.example.be.dto.VehicleRequestDto;
 import com.example.be.model.Vehicle;
+import com.example.be.model.Profile;
 import com.example.be.service.VehicleService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -61,7 +62,9 @@ public class VehicleControllerTest {
 
         Vehicle createdVehicle = new Vehicle();
         createdVehicle.setId(1L);
-        createdVehicle.setDriverId(requestDto.getDriverId());
+        Profile mockDriver = new Profile();
+        mockDriver.setId(requestDto.getDriverId());
+        createdVehicle.setDriver(mockDriver);
         createdVehicle.setMake(requestDto.getMake());
         createdVehicle.setModel(requestDto.getModel());
         createdVehicle.setYearOfManufacture(requestDto.getYearOfManufacture());
