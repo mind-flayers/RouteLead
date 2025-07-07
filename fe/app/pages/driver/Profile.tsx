@@ -7,6 +7,7 @@ import PrimaryCard from '../../../components/ui/PrimaryCard';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
+import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
 
 const Profile = () => {
   const navigation = useNavigation();
@@ -204,48 +205,7 @@ const Profile = () => {
       </ScrollView>
 
       {/* Bottom Navigation Bar */}
-      <View className="flex-row justify-between items-center bg-white border-t border-gray-200 px-2 py-2 absolute bottom-0 w-full" style={{ minHeight: 60 }}>
-        <Link href="/pages/driver/Dashboard" asChild>
-          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
-            <View className="items-center justify-center">
-              <Ionicons name="home" size={22} color="gray" />
-              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Home</Text>
-            </View>
-          </TouchableOpacity>
-        </Link>
-        <Link href="/pages/driver/MyRoutes" asChild>
-          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
-            <View className="items-center justify-center">
-              <MaterialCommunityIcons name="truck-delivery" size={22} color="gray" />
-              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Routes</Text>
-            </View>
-          </TouchableOpacity>
-        </Link>
-        <Link href="/pages/driver/MyEarnings" asChild>
-          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
-            <View className="items-center justify-center">
-              <FontAwesome5 name="dollar-sign" size={22} color="gray" />
-              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Earnings</Text>
-            </View>
-          </TouchableOpacity>
-        </Link>
-        <Link href="/pages/driver/ChatList" asChild>
-          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
-            <View className="items-center justify-center">
-              <Ionicons name="chatbubbles" size={22} color="gray" />
-              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Chats</Text>
-            </View>
-          </TouchableOpacity>
-        </Link>
-        <Link href="/pages/driver/Profile" asChild>
-          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
-            <View className="items-center justify-center">
-              <Ionicons name="person" size={22} color="#F97316" />
-              <Text className="text-orange-500 text-xs mt-1" numberOfLines={1}>Profile</Text>
-            </View>
-          </TouchableOpacity>
-        </Link>
-      </View>
+      <DriverBottomNavigation />
     </SafeAreaView>
   );
 };

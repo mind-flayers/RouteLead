@@ -5,6 +5,7 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo
 import { Link, useRouter } from 'expo-router';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import PrimaryCard from '@/components/ui/PrimaryCard';
+import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
 
 const MyEarnings = () => {
   const router = useRouter();
@@ -119,83 +120,44 @@ const MyEarnings = () => {
         </Link>
       </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
-        {/* Total Balance Card */}
-        <PrimaryCard style={{ marginBottom: 24 }}>
-          <Text className="text-gray-600 text-base mb-2">Your Total Balance</Text>
-          <View className="flex-row items-center mb-4">
-            <FontAwesome5 name="dollar-sign" size={24} color="#f97316" />
-            <Text className="text-3xl font-bold ml-2">LKR 23500.75</Text>
-          </View>
-          <PrimaryButton
-            title="Withdraw Funds"
-            onPress={() => router.push('/pages/driver/WithdrawalSuccess')}
-          />
-        </PrimaryCard>
+      <View style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 100 }}>
+          {/* Total Balance Card */}
+          <PrimaryCard style={{ marginBottom: 24 }}>
+            <Text className="text-gray-600 text-base mb-2">Your Total Balance</Text>
+            <View className="flex-row items-center mb-4">
+              <FontAwesome5 name="dollar-sign" size={24} color="#f97316" />
+              <Text className="text-3xl font-bold ml-2">LKR 23500.75</Text>
+            </View>
+            <PrimaryButton
+              title="Withdraw Funds"
+              onPress={() => router.push('/pages/driver/WithdrawalSuccess')}
+            />
+          </PrimaryCard>
 
-        {/* Transaction History */}
-        <Text className="text-xl font-bold mb-4">Transaction History</Text>
-        <View className="space-y-4">
-          {transactionHistory.map((item) => (
-            <TouchableOpacity key={item.id} className="flex-row items-center justify-between">
-              <View className="flex-row items-center">
-                {getIcon(item.type, item.isCredit)}
-                <View>
-                  <Text className="font-semibold">{item.description}</Text>
-                  <Text className="text-gray-500 text-sm">{item.date}</Text>
+          {/* Transaction History */}
+          <Text className="text-xl font-bold mb-4">Transaction History</Text>
+          <View className="space-y-4">
+            {transactionHistory.map((item) => (
+              <TouchableOpacity key={item.id} className="flex-row items-center justify-between">
+                <View className="flex-row items-center">
+                  {getIcon(item.type, item.isCredit)}
+                  <View>
+                    <Text className="font-semibold">{item.description}</Text>
+                    <Text className="text-gray-500 text-sm">{item.date}</Text>
+                  </View>
                 </View>
-              </View>
-              <Text className={`font-bold ${item.isCredit ? 'text-green-600' : 'text-red-600'}`}>
-                {item.isCredit ? `+$${item.amount}` : `-$${item.amount}`}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
+                <Text className={`font-bold ${item.isCredit ? 'text-green-600' : 'text-red-600'}`}>
+                  {item.isCredit ? `+$${item.amount}` : `-$${item.amount}`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
 
       {/* Bottom Navigation Bar */}
-      <View className="flex-row justify-between items-center bg-white border-t border-gray-200 px-2 py-2 absolute bottom-0 w-full" style={{ minHeight: 60 }}>
-        <Link href="/pages/driver/Dashboard" asChild>
-          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
-            <View className="items-center justify-center">
-              <Ionicons name="home" size={22} color="gray" />
-              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Home</Text>
-            </View>
-          </TouchableOpacity>
-        </Link>
-        <Link href="/pages/driver/MyRoutes" asChild>
-          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
-            <View className="items-center justify-center">
-              <MaterialCommunityIcons name="truck-delivery" size={22} color="gray" />
-              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Routes</Text>
-            </View>
-          </TouchableOpacity>
-        </Link>
-        <Link href="/pages/driver/MyEarnings" asChild>
-          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
-            <View className="items-center justify-center">
-              <FontAwesome5 name="dollar-sign" size={22} color="#F97316" />
-              <Text className="text-orange-500 text-xs mt-1" numberOfLines={1}>Earnings</Text>
-            </View>
-          </TouchableOpacity>
-        </Link>
-        <Link href="/pages/driver/ChatList" asChild>
-          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
-            <View className="items-center justify-center">
-              <Ionicons name="chatbubbles" size={22} color="gray" />
-              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Chats</Text>
-            </View>
-          </TouchableOpacity>
-        </Link>
-        <Link href="/pages/driver/Profile" asChild>
-          <TouchableOpacity className="flex-1 items-center justify-center py-1" style={{ minHeight: 56 }}>
-            <View className="items-center justify-center">
-              <Ionicons name="person" size={22} color="gray" />
-              <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>Profile</Text>
-            </View>
-          </TouchableOpacity>
-        </Link>
-      </View>
+      <DriverBottomNavigation />
     </SafeAreaView>
   );
 };
