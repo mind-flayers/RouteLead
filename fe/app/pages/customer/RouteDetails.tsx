@@ -1,9 +1,12 @@
 import React from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 
 export default function RouteDetails() {
+  const params = useLocalSearchParams();
+  const pickup = params.pickup as string || 'Warehouse District, Northwood';
+  const dropoff = params.dropoff as string || 'Downtown Retail Park, City Center';
   return (
     <ScrollView className="flex-1 bg-white px-6 pt-12">
       {/* Header */}
@@ -31,11 +34,11 @@ export default function RouteDetails() {
         <Text className="text-base font-semibold mb-2">Route Overview</Text>
         <View className="mb-2">
           <Text className="text-gray-700 font-semibold">Origin</Text>
-          <Text className="text-sm text-gray-600">Warehouse District, Northwood</Text>
+          <Text className="text-sm text-gray-600">{pickup}</Text>
         </View>
         <View className="mb-2">
           <Text className="text-gray-700 font-semibold">Destination</Text>
-          <Text className="text-sm text-gray-600">Downtown Retail Park, City Center</Text>
+          <Text className="text-sm text-gray-600">{dropoff}</Text>
         </View>
         <View className="flex-row justify-between mt-2">
           <View>
