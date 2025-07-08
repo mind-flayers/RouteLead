@@ -126,48 +126,60 @@ const Dashboard = () => {
         <Text className="text-xl font-bold mb-4">Recent Activities</Text>
         <View className="space-y-4">
           {/* Activity 1 */}
-          <Link href="/pages/driver/DeliverySummary" className="flex-row items-center justify-between">
-            <View className="flex-row items-center">
-              <View className="bg-blue-100 p-3 rounded-full mr-3">
-                <MaterialCommunityIcons name="truck-delivery-outline" size={24} color="#3b82f6" />
-              </View>
-              <View>
-                <Text className="font-semibold">Route Completion:</Text>
-                <Text className="text-gray-700">Puttalam to Mannar</Text>
-                <Text className="text-gray-500 text-sm">April 20, 2025</Text>
+          <Link href="/pages/driver/DeliverySummary" className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center flex-1">
+                <View className="bg-blue-100 p-3 rounded-full mr-3">
+                  <MaterialCommunityIcons name="truck-delivery-outline" size={24} color="#3b82f6" />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-semibold text-gray-800">Route Completion:</Text>
+                  <Text className="text-gray-700 mb-1">Puttalam to Mannar</Text>
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-gray-500 text-sm">April 20, 2025 • 2:30 PM</Text>
+                    <Text className="text-green-600 font-bold">+LKR 550.00</Text>
+                  </View>
+                </View>
               </View>
             </View>
-            <Text className="text-green-600 font-bold">+LKR 550.00</Text>
           </Link>
 
           {/* Activity 2 */}
-          <Link href="/pages/driver/WithdrawalDetails" className="flex-row items-center justify-between">
-            <View className="flex-row items-center">
-              <View className="bg-red-100 p-3 rounded-full mr-3">
-                <MaterialCommunityIcons name="bank-transfer-out" size={24} color="#ef4444" />
-              </View>
-              <View>
-                <Text className="font-semibold">Bank Transfer to Account</Text>
-                <Text className="text-gray-700">****1234</Text>
-                <Text className="text-gray-500 text-sm">April 18, 2025</Text>
+          <Link href="/pages/driver/WithdrawalDetails" className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center flex-1">
+                <View className="bg-red-100 p-3 rounded-full mr-3">
+                  <MaterialCommunityIcons name="bank-transfer-out" size={24} color="#ef4444" />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-semibold text-gray-800">Bank Transfer to Account</Text>
+                  <Text className="text-gray-700 mb-1">****1234</Text>
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-gray-500 text-sm">April 18, 2025 • 11:45 AM</Text>
+                    <Text className="text-red-600 font-bold">-LKR 500.00</Text>
+                  </View>
+                </View>
               </View>
             </View>
-            <Text className="text-red-600 font-bold">-LKR 500.00</Text>
           </Link>
 
           {/* Activity 3 */}
-          <Link href="/pages/driver/DeliverySummary" className="flex-row items-center justify-between">
-            <View className="flex-row items-center">
-              <View className="bg-blue-100 p-3 rounded-full mr-3">
-                <MaterialCommunityIcons name="truck-delivery-outline" size={24} color="#3b82f6" />
-              </View>
-              <View>
-                <Text className="font-semibold">Route Completion:</Text>
-                <Text className="text-gray-700">Colombo to Badulla</Text>
-                <Text className="text-gray-500 text-sm">April 15, 2025</Text>
+          <Link href="/pages/driver/DeliverySummary" className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center flex-1">
+                <View className="bg-blue-100 p-3 rounded-full mr-3">
+                  <MaterialCommunityIcons name="truck-delivery-outline" size={24} color="#3b82f6" />
+                </View>
+                <View className="flex-1">
+                  <Text className="font-semibold text-gray-800">Route Completion:</Text>
+                  <Text className="text-gray-700 mb-1">Colombo to Badulla</Text>
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-gray-500 text-sm">April 15, 2025 • 6:15 PM</Text>
+                    <Text className="text-green-600 font-bold">+LKR 850.50</Text>
+                  </View>
+                </View>
               </View>
             </View>
-            <Text className="text-green-600 font-bold">+LKR 850.50</Text>
           </Link>
         </View>
       </ScrollView>

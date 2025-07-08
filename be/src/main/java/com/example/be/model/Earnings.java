@@ -37,7 +37,7 @@ public class Earnings {
     private BigDecimal netAmount;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, columnDefinition = "earnings_status_enum")
+    @Column(name = "status", nullable = false)
     private EarningsStatusEnum status = EarningsStatusEnum.PENDING;
 
     @Column(name = "earned_at", nullable = false)
