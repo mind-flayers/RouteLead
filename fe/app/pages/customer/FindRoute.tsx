@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Dimensions } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Dimensions, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Location from 'expo-location';
@@ -110,6 +110,27 @@ export default function FindRouteScreen() {
     setSelectedLocation(null);
   };
 
+  const mockRoutes = [
+    {
+      origin: 'Colombo',
+      destination: 'Badulla',
+      departureDate: '2025-10-26T09:00:00',
+      timeline: '02 D | 02:56:48 H',
+      driverName: 'John Doe',
+      driverRating: '4.8',
+      driverPhoto: 'https://randomuser.me/api/portraits/men/1.jpg',
+    },
+    {
+      origin: 'Galle',
+      destination: 'Matara',
+      departureDate: '2025-11-02T08:00:00',
+      timeline: '01 D | 12:34:56 H',
+      driverName: 'Jane Smith',
+      driverRating: '4.9',
+      driverPhoto: 'https://randomuser.me/api/portraits/women/2.jpg',
+    },
+  ];
+
   const renderMap = () => {
     return (
       <View className="flex-1 bg-gradient-to-br from-blue-50 to-blue-100 relative">
@@ -210,39 +231,47 @@ export default function FindRouteScreen() {
             <Ionicons name="close" size={24} color="#666" />
           </TouchableOpacity>
         </View>
-        
         <ScrollView className="p-4">
           <Text className="text-sm text-gray-500 mb-4">
-            Showing routes from <Text className="font-semibold">{pickup}</Text> to{' '}
-            <Text className="font-semibold">{dropoff}</Text>
+            Showing routes to <Text className="font-semibold">{dropoff}</Text>
           </Text>
 
-          {[
-            { from: 'Colombo', to: 'Kandy', price: 'Rs 1200', distance: '115 km', time: '3h 15m', size: 'Small Box', driver: 'John Doe', rating: '4.8' },
-            { from: 'Galle', to: 'Matara', price: 'Rs 900', distance: '65 km', time: '1h 30m', size: 'Medium Crate', driver: 'Jane Smith', rating: '4.9' },
-          ].map((route, index) => (
-            <TouchableOpacity 
-              key={index} 
-              className="bg-gray-50 p-4 rounded-lg mb-3 border border-gray-200"
+          {mockRoutes.map((route, index) => (
+            <TouchableOpacity
+              key={index}
+              className="bg-white rounded-lg p-4 mb-3 border-l-4"
+              style={{ borderLeftColor: '#FFA726' }}
               onPress={() => router.push('/pages/customer/RouteDetails')}
             >
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="font-semibold text-base">{route.from} ➜ {route.to}</Text>
-                <Text className="text-lg font-bold" style={{ color: colors.royalOrange }}>{route.price}</Text>
+              <View className="flex-row items-center mb-1">
+                <Ionicons name="location-outline" size={16} color="#555" />
+                <Text className="ml-2 font-semibold">{route.origin}</Text>
               </View>
-              <Text className="text-sm text-gray-600 mb-1">{route.distance} • {route.time}</Text>
-              <Text className="text-xs text-gray-500 mb-2">{route.size}</Text>
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center">
-                  <View className="w-8 h-8 bg-blue-500 rounded-full justify-center items-center mr-2">
-                    <Text className="text-white font-bold text-xs">{route.driver.split(' ').map(n => n[0]).join('')}</Text>
+              <View className="flex-row items-center mb-1">
+                <Ionicons name="arrow-down" size={16} color="#555" />
+                <Text className="ml-2 font-bold">{route.destination}</Text>
+              </View>
+              <View className="flex-row items-center mb-1">
+                <Ionicons name="calendar-outline" size={16} color="#555" />
+                <Text className="ml-2">{new Date(route.departureDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</Text>
+              </View>
+              <View className="flex-row items-center mb-2">
+                <Ionicons name="time-outline" size={16} color="#555" />
+                <Text className="ml-2">{route.timeline}</Text>
+              </View>
+              <View className="flex-row items-center mt-2">
+                {route.driverPhoto ? (
+                  <Image source={{ uri: route.driverPhoto }} style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }} />
+                ) : (
+                  <View style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8, backgroundColor: '#ccc', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+                      {route.driverName ? route.driverName.split(' ').map(n => n[0]).join('') : '?'}
+                    </Text>
                   </View>
-                  <Text className="text-sm font-medium">{route.driver}</Text>
-                </View>
-                <View className="flex-row items-center">
-                  <Ionicons name="star" size={16} color="#FFA500" />
-                  <Text className="text-sm ml-1">{route.rating}</Text>
-                </View>
+                )}
+                <Text className="font-medium">{route.driverName}</Text>
+                <Ionicons name="star" size={16} color="#FFA500" style={{ marginLeft: 8 }} />
+                <Text className="ml-1">{route.driverRating}</Text>
               </View>
             </TouchableOpacity>
           ))}
