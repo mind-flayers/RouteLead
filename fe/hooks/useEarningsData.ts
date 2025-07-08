@@ -21,16 +21,14 @@ export const useEarningsData = (driverId: string) => {
       }
       setError(null);
 
-      const [summaryData, historyData, bidsData, routesCount] = await Promise.all([
+      const [summaryData, historyData, routesCount] = await Promise.all([
         ApiService.getEarningsSummary(driverId),
         ApiService.getEarningsHistory(driverId),
-        ApiService.getPendingBids(driverId),
         ApiService.getCompletedRoutesCount(driverId),
       ]);
 
       setSummary(summaryData);
       setHistory(historyData);
-      setPendingBids(bidsData);
       setCompletedRoutes(routesCount);
     } catch (err) {
       console.error('Error fetching earnings data:', err);
@@ -53,7 +51,7 @@ export const useEarningsData = (driverId: string) => {
       setHistory(prev => 
         prev.map(item => 
           item.id === earningsId 
-            ? { ...item, status: newStatus, updatedAt: updatedEarnings.updatedAt }
+            ? { ...item, status: newStatus, earnedAt: updatedEarnings.earnedAt }
             : item
         )
       );

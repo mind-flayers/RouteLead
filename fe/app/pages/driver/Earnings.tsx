@@ -193,7 +193,7 @@ const EarningsPage = () => {
                         </Text>
                       )}
                       <Text className="text-gray-500 text-sm">
-                        {formatDateTime(earning.createdAt)}
+                        {formatDateTime(earning.earnedAt)}
                       </Text>
                     </View>
 

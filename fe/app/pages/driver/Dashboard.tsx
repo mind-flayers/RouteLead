@@ -74,10 +74,8 @@ const Dashboard = () => {
       {
         title: "Pending Bids",
         icon: <FontAwesome5 name="list-alt" size={20} color="#f97316" />,
-        value: pendingBids.length.toString(),
-        subtext: `${pendingBids.filter(bid => 
-          new Date(bid.createdAt).toDateString() === new Date().toDateString()
-        ).length} new bids today`
+        value: summary.pendingBidsCount.toString(),
+        subtext: "Bids awaiting acceptance"
       },
       {
         title: "Weekly Total\nEarnings",
@@ -100,7 +98,7 @@ const Dashboard = () => {
     
     // Get the most recent 3 earnings entries
     return history
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime())
       .slice(0, 3)
       .map((earning) => ({
         id: earning.id,
@@ -108,7 +106,7 @@ const Dashboard = () => {
         title: 'Route Completion:',
         subtitle: earning.routeDescription || `${earning.fromLocation} to ${earning.toLocation}`,
         amount: earning.netAmount,
-        date: formatDateTime(earning.createdAt),
+        date: formatDateTime(earning.earnedAt),
         icon: <MaterialCommunityIcons name="truck-delivery-outline" size={24} color="#3b82f6" />,
         iconBg: 'bg-blue-100',
         amountColor: 'text-green-600',

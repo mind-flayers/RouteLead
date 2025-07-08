@@ -26,6 +26,7 @@ public class EarningsDto {
     private BigDecimal netAmount;
     private EarningsStatusEnum status;
     private ZonedDateTime earnedAt;
+    private ZonedDateTime updatedAt;
     
     // Additional route and bid information for dashboard display
     private String originLocation;

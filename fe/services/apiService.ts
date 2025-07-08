@@ -53,6 +53,7 @@ export interface EarningsSummary {
   availableBalance: number;
   pendingAmount: number;
   totalEarnings: number;
+  pendingBidsCount: number;
 }
 
 export interface EarningsHistory {
@@ -63,7 +64,7 @@ export interface EarningsHistory {
   appFee: number;
   netAmount: number;
   status: 'PENDING' | 'AVAILABLE' | 'WITHDRAWN';
-  createdAt: string;
+  earnedAt: string;
   updatedAt: string;
   customerName?: string;
   customerPhone?: string;
@@ -110,103 +111,49 @@ export class ApiService {
   
   // Earnings API
   static async getEarningsSummary(driverId: string): Promise<EarningsSummary> {
-    try {
-      console.log(`Fetching earnings summary from: ${API_BASE_URL}/earnings/summary?driverId=${driverId}`);
-      const response = await fetch(
-        `${API_BASE_URL}/earnings/summary?driverId=${driverId}`,
-        {
-          method: 'GET',
-          headers: await getAuthHeaders(),
-        }
-      );
-      console.log('Earnings summary response status:', response.status);
-      return await handleApiResponse(response);
-    } catch (error) {
-      console.error('Error fetching earnings summary:', error);
-      // Return mock data as fallback
-      return {
-        driverId,
-        todayEarnings: 1850.00,
-        weeklyEarnings: 15450.50,
-        availableBalance: 850.00,
-        pendingAmount: 1000.00,
-        totalEarnings: 15450.50,
-      };
-    }
+    console.log(`Fetching earnings summary from: ${API_BASE_URL}/earnings/summary?driverId=${driverId}`);
+    const response = await fetch(
+      `${API_BASE_URL}/earnings/summary?driverId=${driverId}`,
+      {
+        method: 'GET',
+        headers: await getAuthHeaders(),
+      }
+    );
+    console.log('Earnings summary response status:', response.status);
+    const json = await handleApiResponse(response);
+    return json.data;
   }
 
   static async getEarningsHistory(
     driverId: string, 
     status?: 'PENDING' | 'AVAILABLE' | 'WITHDRAWN'
   ): Promise<EarningsHistory[]> {
-    try {
-      let url = `${API_BASE_URL}/earnings/history?driverId=${driverId}`;
-      if (status) {
-        url += `&status=${status}`;
-      }
-      
-      console.log(`Fetching earnings history from: ${url}`);
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: await getAuthHeaders(),
-      });
-      console.log('Earnings history response status:', response.status);
-      return await handleApiResponse(response);
-    } catch (error) {
-      console.error('Error fetching earnings history:', error);
-      // Return mock data as fallback
-      return [
-        {
-          id: '1',
-          driverId,
-          bidId: 'bid-1',
-          grossAmount: 550.00,
-          appFee: 50.00,
-          netAmount: 500.00,
-          status: 'AVAILABLE',
-          createdAt: '2025-04-20T14:30:00Z',
-          updatedAt: '2025-04-20T14:30:00Z',
-          customerName: 'John Doe',
-          customerPhone: '+94771234567',
-          routeDescription: 'Puttalam to Mannar',
-          fromLocation: 'Puttalam',
-          toLocation: 'Mannar',
-        },
-        {
-          id: '2',
-          driverId,
-          bidId: 'bid-2',
-          grossAmount: 900.00,
-          appFee: 50.00,
-          netAmount: 850.00,
-          status: 'AVAILABLE',
-          createdAt: '2025-04-15T18:15:00Z',
-          updatedAt: '2025-04-15T18:15:00Z',
-          customerName: 'Jane Smith',
-          customerPhone: '+94772345678',
-          routeDescription: 'Colombo to Badulla',
-          fromLocation: 'Colombo',
-          toLocation: 'Badulla',
-        },
-      ];
+    let url = `${API_BASE_URL}/earnings/history?driverId=${driverId}`;
+    if (status) {
+      url += `&status=${status}`;
     }
+    
+    console.log(`Fetching earnings history from: ${url}`);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: await getAuthHeaders(),
+    });
+    console.log('Earnings history response status:', response.status);
+    const json = await handleApiResponse(response);
+    return json.data || [];
   }
 
   static async updateEarningsStatus(earningsId: string, status: 'PENDING' | 'AVAILABLE' | 'WITHDRAWN'): Promise<EarningsHistory> {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/earnings/${earningsId}/status`,
-        {
-          method: 'PATCH',
-          headers: await getAuthHeaders(),
-          body: JSON.stringify({ status }),
-        }
-      );
-      return await handleApiResponse(response);
-    } catch (error) {
-      console.error('Error updating earnings status:', error);
-      throw error;
-    }
+    const response = await fetch(
+      `${API_BASE_URL}/earnings/${earningsId}/status`,
+      {
+        method: 'PATCH',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify({ status }),
+      }
+    );
+    const json = await handleApiResponse(response);
+    return json.data;
   }
 
   // Bids API (mock for now)
@@ -270,8 +217,13 @@ export const formatCurrency = (amount: number | undefined | null): string => {
   return `LKR ${amount.toFixed(2)}`;
 };
 
-export const formatDate = (dateString: string): string => {
+export const formatDate = (dateString: string | undefined | null): string => {
+  if (!dateString) return 'N/A';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    console.warn('Invalid date string for formatDate:', dateString);
+    return 'Invalid Date';
+  }
   return date.toLocaleDateString('en-LK', {
     year: 'numeric',
     month: 'short',
@@ -279,8 +231,13 @@ export const formatDate = (dateString: string): string => {
   });
 };
 
-export const formatDateTime = (dateString: string): string => {
+export const formatDateTime = (dateString: string | undefined | null): string => {
+  if (!dateString) return 'N/A';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    console.warn('Invalid date string for formatDateTime:', dateString);
+    return 'Invalid Date';
+  }
   return date.toLocaleDateString('en-LK', {
     year: 'numeric',
     month: 'short',
