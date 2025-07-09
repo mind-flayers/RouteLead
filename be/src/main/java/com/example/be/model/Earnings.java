@@ -45,7 +45,7 @@ public class Earnings {
     @CreationTimestamp
     private ZonedDateTime earnedAt;
 
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "updated_at")
     @UpdateTimestamp
     private ZonedDateTime updatedAt;
 
@@ -55,16 +55,8 @@ public class Earnings {
         if (earnedAt == null) {
             earnedAt = now;
         }
-        if (updatedAt == null) {
-            updatedAt = now;
-        }
         if (status == null) {
             status = EarningsStatusEnum.PENDING;
         }
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = ZonedDateTime.now();
     }
 } 
