@@ -59,7 +59,7 @@ const dummyRoutes = [
     timeline: '02 D | 02:56:48 H',
     bids: 7,
     highestBid: 250.0,
-    driverName: 'kamal Jayasinghe',
+    driverName: 'Kasun Perera',
     driverPhoto: 'https://randomuser.me/api/portraits/men/1.jpg',
   },
   {
