@@ -66,4 +66,10 @@ public interface BidRepository extends JpaRepository<Bid, UUID> {
             "WHERE rr.driver_id = :driverId AND b.status = CAST(:status AS bid_status) " +
             "ORDER BY b.created_at DESC", nativeQuery = true)
     List<Object[]> findBidHistoryByDriverIdAndStatus(@Param("driverId") UUID driverId, @Param("status") String status);
+
+    // Count pending bids for a specific driver
+    @Query(value = "SELECT COUNT(*) FROM bids b " +
+            "INNER JOIN return_routes rr ON b.route_id = rr.id " +
+            "WHERE rr.driver_id = :driverId AND b.status = CAST(:status AS bid_status)", nativeQuery = true)
+    int countByRouteDriverIdAndStatus(@Param("driverId") UUID driverId, @Param("status") String status);
 }

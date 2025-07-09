@@ -764,6 +764,378 @@
           }
         }
       ]
+    },
+    {
+      "name": "📊 EARNINGS Management APIs",
+      "item": [
+        {
+          "name": "Create Earnings (Simple)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"driverId\": \"{{driverId}}\",\n    \"bidId\": \"{{bidId}}\",\n    \"amount\": 300.00,\n    \"description\": \"Manual earnings entry\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/earnings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "earnings"]
+            },
+            "description": "💰 **Create Earnings (Simple Method)**\n\nCreate earnings using simplified amount field (appFee defaults to 0)\n\n**Request Fields:**\n• driverId: Driver UUID (required)\n• bidId: Associated bid UUID (optional)\n• amount: Total earnings amount\n• description: Optional description\n\n**Test Data:**\n• Use driverId: {{driverId}}\n• Optional bidId: {{bidId}}\n\n**Auto-saves:** earningsId to collection variables"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Earnings created successfully\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "// Auto-extract earnings ID",
+                  "if (pm.response.code === 201) {",
+                  "    try {",
+                  "        const responseJson = pm.response.json();",
+                  "        if (responseJson.data && responseJson.data.id) {",
+                  "            pm.collectionVariables.set('earningsId', responseJson.data.id);",
+                  "            console.log('📝 Auto-saved earningsId:', responseJson.data.id);",
+                  "        }",
+                  "    } catch (e) {",
+                  "        console.log('Could not extract earnings ID');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Earnings (Detailed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"driverId\": \"{{driverId}}\",\n    \"bidId\": \"{{bidId}}\",\n    \"grossAmount\": 450.00,\n    \"appFee\": 45.00\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/earnings",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "earnings"]
+            },
+            "description": "💰 **Create Earnings (Detailed Method)**\n\nCreate earnings with detailed breakdown of gross amount and app fee\n\n**Request Fields:**\n• driverId: Driver UUID (required)\n• bidId: Associated bid UUID (optional)\n• grossAmount: Total amount before fees\n• appFee: Application/platform fee\n\n**Calculation:** netAmount = grossAmount - appFee\n\n**Example:** grossAmount: 450.00, appFee: 45.00 → netAmount: 405.00"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Earnings created successfully\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Net amount calculated correctly\", function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    if (responseJson.data) {",
+                  "        const expected = responseJson.data.grossAmount - responseJson.data.appFee;",
+                  "        pm.expect(responseJson.data.netAmount).to.equal(expected);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Earnings Summary (Dashboard KPIs)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/earnings/summary?driverId={{driverId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "earnings", "summary"],
+              "query": [
+                {
+                  "key": "driverId",
+                  "value": "{{driverId}}"
+                }
+              ]
+            },
+            "description": "📊 **Earnings Summary (Dashboard KPIs)**\n\nGet earnings summary for driver dashboard including:\n\n**KPIs Returned:**\n• todayEarnings: Total earnings for today\n• weeklyEarnings: Total earnings for last 7 days\n• availableBalance: Earnings with AVAILABLE status\n• monthlyCompletedDeliveries: Count of earnings in last 30 days\n• pendingBidsCount: Number of pending bids for the driver\n• Growth percentages (todayGrowthPercentage, weeklyGrowthPercentage)\n\n**Use Case:** Powers the dashboard KPI cards in Dashboard.tsx"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Summary retrieved successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Summary contains required KPIs\", function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    if (responseJson.data) {",
+                  "        pm.expect(responseJson.data).to.have.property('todayEarnings');",
+                  "        pm.expect(responseJson.data).to.have.property('weeklyEarnings');",
+                  "        pm.expect(responseJson.data).to.have.property('availableBalance');",
+                  "        pm.expect(responseJson.data).to.have.property('monthlyCompletedDeliveries');",
+                  "        pm.expect(responseJson.data).to.have.property('pendingBidsCount');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Earnings History (All)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/earnings/history?driverId={{driverId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "earnings", "history"],
+              "query": [
+                {
+                  "key": "driverId",
+                  "value": "{{driverId}}"
+                }
+              ]
+            },
+            "description": "📋 **Earnings History (All Records)**\n\nGet complete earnings history for a driver with rich details:\n\n**Response Includes:**\n• Basic earnings info (amounts, status, dates)\n• Customer information (firstName + lastName)\n• Route details (origin/destination coordinates)\n• Parcel description\n• Offered price from bid\n\n**Use Case:** Powers the activity feed and earnings list in Dashboard.tsx"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"History retrieved successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"History contains earnings data\", function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('data');",
+                  "    pm.expect(responseJson).to.have.property('count');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Earnings History (By Status)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/earnings/history?driverId={{driverId}}&status=PENDING",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "earnings", "history"],
+              "query": [
+                {
+                  "key": "driverId",
+                  "value": "{{driverId}}"
+                },
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            },
+            "description": "🔍 **Earnings History (Filtered by Status)**\n\nFilter earnings history by status\n\n**Valid Status Values:**\n• PENDING: Earnings awaiting processing\n• AVAILABLE: Ready for withdrawal\n• WITHDRAWN: Already withdrawn by driver\n\n**Use Case:** Filter earnings by status in dashboard\n\n**Test Other Statuses:** Change status query parameter to AVAILABLE or WITHDRAWN"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Filtered history retrieved successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"All results match the requested status\", function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    const requestedStatus = pm.request.url.query.get('status');",
+                  "    if (responseJson.data && responseJson.data.length > 0) {",
+                  "        responseJson.data.forEach(earning => {",
+                  "            pm.expect(earning.status).to.equal(requestedStatus);",
+                  "        });",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Earnings Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"status\": \"AVAILABLE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/earnings/{{earningsId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "earnings", "{{earningsId}}", "status"]
+            },
+            "description": "🔄 **Update Earnings Status**\n\nUpdate the status of an earnings record\n\n**Status Transitions:**\n• PENDING → AVAILABLE (Release for withdrawal)\n• AVAILABLE → WITHDRAWN (Mark as withdrawn)\n\n**Request Body:**\n• status: New status value (PENDING, AVAILABLE, WITHDRAWN)\n\n**Use Case:** Admin operations, automatic status updates after delivery completion\n\n**Note:** Uses native SQL to handle PostgreSQL enum casting properly\n\n**Requirement:** Must have earningsId in collection variables (auto-set by create earnings)"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status updated successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response contains updated earnings\", function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson).to.have.property('data');",
+                  "    pm.expect(responseJson.data).to.have.property('id');",
+                  "    pm.expect(responseJson.data).to.have.property('status');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Earnings by Bid ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/earnings/bid/{{bidId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "earnings", "bid", "{{bidId}}"]
+            },
+            "description": "🎯 **Get Earnings by Bid ID**\n\nGet earnings record associated with a specific bid\n\n**Use Cases:**\n• Check if earnings have been created for a completed delivery\n• Link bid completion to earnings generation\n• Verify payment status for specific jobs\n\n**Test Bid ID:** Uses {{bidId}} from collection variables\n\n**Response:** Returns earnings data with customer and route information if found"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Request completed successfully\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 404]);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test(\"Earnings found for bid\", function () {",
+                  "        const responseJson = pm.response.json();",
+                  "        pm.expect(responseJson).to.have.property('data');",
+                  "        pm.expect(responseJson.data).to.have.property('bidId');",
+                  "    });",
+                  "} else if (pm.response.code === 404) {",
+                  "    pm.test(\"No earnings found for bid (expected)\", function () {",
+                  "        pm.expect(pm.response.code).to.equal(404);",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ],
+      "description": "## 📊 Earnings Management APIs\n\nComplete set of APIs for managing driver earnings in the RouteLead platform.\n\n### 🚀 Features:\n• ✅ **Create Earnings**: Both simple and detailed input formats\n• ✅ **Dashboard KPIs**: Summary data for driver dashboard\n• ✅ **Earnings History**: Complete transaction history with rich details\n• ✅ **Status Management**: Update earnings status (PENDING → AVAILABLE → WITHDRAWN)\n• ✅ **Bid Integration**: Link earnings to specific delivery bids\n\n### 🔧 Technical Notes:\n• Uses native SQL queries for PostgreSQL enum compatibility\n• Supports both Timestamp and Instant types\n• Includes comprehensive validation and error handling\n• Rich responses with customer and route information\n\n### 🧪 Testing Order:\n1. **Create Earnings** (Simple or Detailed) → Auto-saves earningsId\n2. **Get Summary** to see updated KPIs\n3. **Get History** to verify creation\n4. **Update Status** to AVAILABLE\n5. **Get Summary** again to see availableBalance change\n6. **Get by Bid ID** to verify bid-earnings link\n\n### 📋 Real Test Data:\n• **Driver ID:** {{driverId}} (Christan The Daddy)\n• **Bid ID:** {{bidId}} (ACCEPTED, $450)\n• **Earnings ID:** {{earningsId}} (Auto-populated after creation)\n\n### 💡 Implementation Date:\n**July 8, 2025** - Complete backend implementation with PostgreSQL enum support and real data integration.",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// Validate earnings-specific variables",
+              "const requiredVars = ['driverId', 'bidId'];",
+              "let missingVars = [];",
+              "",
+              "requiredVars.forEach(varName => {",
+              "    const value = pm.collectionVariables.get(varName);",
+              "    if (!value || value.includes('your-') || value === '') {",
+              "        missingVars.push(varName);",
+              "    }",
+              "});",
+              "",
+              "if (missingVars.length > 0) {",
+              "    console.warn('⚠️  Missing earnings variables:', missingVars.join(', '));",
+              "    console.warn('Check collection variables for driverId and bidId');",
+              "} else {",
+              "    console.log('✅ Earnings variables configured:');",
+              "    console.log('Driver ID:', pm.collectionVariables.get('driverId'));",
+              "    console.log('Bid ID:', pm.collectionVariables.get('bidId'));",
+              "    const earningsId = pm.collectionVariables.get('earningsId');",
+              "    if (earningsId) {",
+              "        console.log('Earnings ID:', earningsId);",
+              "    }",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
     }
   ],
   "variable": [
@@ -807,6 +1179,18 @@
       "value": "",
       "type": "string",
       "description": "Will be populated after creating a vehicle"
+    },
+    {
+      "key": "bidId",
+      "value": "722d67db-97b3-4258-84b5-944b6a780125",
+      "type": "string",
+      "description": "Real bid ID from database (ACCEPTED status, $450 amount)"
+    },
+    {
+      "key": "earningsId",
+      "value": "",
+      "type": "string",
+      "description": "Will be auto-populated after creating earnings via API"
     }
   ]
 }

@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
@@ -37,19 +38,33 @@ public class Earnings {
     private BigDecimal netAmount;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, columnDefinition = "earnings_status_enum")
+    @Column(name = "status", nullable = false)
     private EarningsStatusEnum status = EarningsStatusEnum.PENDING;
 
-    @Column(name = "earned_at", nullable = false)
+    @Column(name = "earned_at", nullable = false, updatable = false)
+    @CreationTimestamp
     private ZonedDateTime earnedAt;
+
+    @Column(name = "updated_at", nullable = false)
+    @UpdateTimestamp
+    private ZonedDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {
+        ZonedDateTime now = ZonedDateTime.now();
         if (earnedAt == null) {
-            earnedAt = ZonedDateTime.now();
+            earnedAt = now;
+        }
+        if (updatedAt == null) {
+            updatedAt = now;
         }
         if (status == null) {
             status = EarningsStatusEnum.PENDING;
         }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = ZonedDateTime.now();
     }
 } 

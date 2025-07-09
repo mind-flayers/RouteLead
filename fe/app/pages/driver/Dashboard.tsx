@@ -1,70 +1,133 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
-import { useOptimizedDataFetch } from '@/hooks/useOptimizedDataFetch';
-import { supabase } from '@/lib/supabase';
+import { useEarningsData, useDriverInfo } from '@/hooks/useEarningsData';
+import { formatCurrency, formatDateTime, EarningsHistory } from '@/services/apiService';
 
 const Dashboard = () => {
   const router = useRouter();
   
-  // Optimized data fetching with caching
-  const fetchUserProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('first_name, last_name')
-        .eq('id', user.id)
-        .single();
+  // Get driver information
+  const { driverId, driverName, loading: driverLoading } = useDriverInfo();
+  
+  // Get earnings data using the custom hook
+  const {
+    summary,
+    history,
+    pendingBids,
+    completedRoutes,
+    loading: earningsLoading,
+    error,
+    refreshing,
+    refreshData,
+    getPercentageChange,
+  } = useEarningsData(driverId);
 
-      if (error) {
-        console.error('Error fetching profile:', error);
-        return 'Mishaf Hasan'; // Default fallback
-      } else if (data) {
-        return `${data.first_name || ''} ${data.last_name || ''}`.trim();
-      }
+  // Memoized KPI data based on real API data
+  const kpiData = useMemo(() => {
+    if (!summary) {
+      // Loading state with placeholder values
+      return [
+        {
+          title: "Today's\nEarnings",
+          icon: <FontAwesome5 name="wallet" size={20} color="#f97316" />,
+          value: "Loading...",
+          subtext: "Fetching data..."
+        },
+        {
+          title: "Pending Bids",
+          icon: <FontAwesome5 name="list-alt" size={20} color="#f97316" />,
+          value: "...",
+          subtext: "Loading bids..."
+        },
+        {
+          title: "Weekly Total\nEarnings",
+          icon: <FontAwesome5 name="dollar-sign" size={20} color="#f97316" />,
+          value: "Loading...",
+          subtext: "Calculating..."
+        },
+        {
+          title: "Routes\nCompleted",
+          icon: <AntDesign name="checkcircle" size={20} color="#f97316" />,
+          value: "...",
+          subtext: "This month"
+        }
+      ];
     }
-    return 'Mishaf Hasan';
+
+    // Calculate percentage changes (using mock comparison for now)
+    const todayChange = getPercentageChange(summary.todayEarnings, summary.todayEarnings * 0.9);
+    const weeklyChange = getPercentageChange(summary.weeklyEarnings, summary.weeklyEarnings * 0.92);
+
+    return [
+      {
+        title: "Today's\nEarnings",
+        icon: <FontAwesome5 name="wallet" size={20} color="#f97316" />,
+        value: formatCurrency(summary.todayEarnings),
+        subtext: `${todayChange >= 0 ? '+' : ''}${(todayChange || 0).toFixed(1)}% from yesterday`
+      },
+      {
+        title: "Pending Bids",
+        icon: <FontAwesome5 name="list-alt" size={20} color="#f97316" />,
+        value: summary.pendingBidsCount.toString(),
+        subtext: "Bids awaiting acceptance"
+      },
+      {
+        title: "Weekly Total\nEarnings",
+        icon: <FontAwesome5 name="dollar-sign" size={20} color="#f97316" />,
+        value: formatCurrency(summary.weeklyEarnings),
+        subtext: `${weeklyChange >= 0 ? '+' : ''}${(weeklyChange || 0).toFixed(1)}% from last week`
+      },
+      {
+        title: "Available\nBalance",
+        icon: <AntDesign name="checkcircle" size={20} color="#f97316" />,
+        value: formatCurrency(summary.availableBalance),
+        subtext: "Ready for withdrawal"
+      }
+    ];
+  }, [summary, pendingBids, getPercentageChange]);
+
+  // Memoized recent activities from earnings history
+  const recentActivities = useMemo(() => {
+    if (!history.length) return [];
+    
+    // Get the most recent 3 earnings entries
+    return history
+      .sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime())
+      .slice(0, 3)
+      .map((earning) => ({
+        id: earning.id,
+        type: 'route_completion',
+        title: 'Route Completion:',
+        subtitle: earning.routeDescription || `${earning.fromLocation} to ${earning.toLocation}`,
+        amount: earning.netAmount,
+        date: formatDateTime(earning.earnedAt),
+        icon: <MaterialCommunityIcons name="truck-delivery-outline" size={24} color="#3b82f6" />,
+        iconBg: 'bg-blue-100',
+        amountColor: 'text-green-600',
+        earning,
+      }));
+  }, [history]);
+
+  // Handle earnings status update
+  const handleStatusUpdate = async (earningsId: string, newStatus: 'AVAILABLE' | 'WITHDRAWN') => {
+    try {
+      // await updateEarningsStatus(earningsId, newStatus);
+      Alert.alert('Success', `Earnings status updated to ${newStatus}`);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update earnings status');
+    }
   };
 
-  const { data: userName, loading } = useOptimizedDataFetch(
-    fetchUserProfile,
-    [],
-    'user-profile'
-  );
-
-  // Memoized KPI data for better performance
-  const kpiData = useMemo(() => [
-    {
-      title: "Today's\nEarnings",
-      icon: <FontAwesome5 name="wallet" size={20} color="#f97316" />,
-      value: "LKR 1850.00",
-      subtext: "+12.5% from yesterday"
-    },
-    {
-      title: "Pending Bids",
-      icon: <FontAwesome5 name="list-alt" size={20} color="#f97316" />,
-      value: "7",
-      subtext: "2 new bids today"
-    },
-    {
-      title: "Weekly Total\nEarnings",
-      icon: <FontAwesome5 name="dollar-sign" size={20} color="#f97316" />,
-      value: "LKR 15450.50",
-      subtext: "+8.1% from last week"
-    },
-    {
-      title: "Routes\nCompleted",
-      icon: <AntDesign name="checkcircle" size={20} color="#f97316" />,
-      value: "24",
-      subtext: "Deliveries this month"
-    }
-  ], []);
+  // Handle refresh
+  const onRefresh = () => {
+    refreshData();
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-white">
@@ -85,11 +148,24 @@ const Dashboard = () => {
         </Link>
       </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
+      <ScrollView 
+        className="flex-1" 
+        contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Welcome Section */}
         <View className="mb-4 items-center">
-          <Text className="text-2xl font-bold mb-1">Welcome, {loading ? 'Loading...' : userName || 'Driver'}!</Text>
+          <Text className="text-2xl font-bold mb-1">
+            Welcome, {driverLoading ? 'Loading...' : driverName || 'Driver'}!
+          </Text>
           <Text className="text-gray-600">Ready for your next route?</Text>
+          {error && (
+            <Text className="text-red-500 text-sm mt-2">
+              {error}
+            </Text>
+          )}
         </View>
 
         {/* Post New Route Button */}
@@ -123,53 +199,83 @@ const Dashboard = () => {
         </View>
 
         {/* Route Activity Overview */}
-        <Text className="text-xl font-bold mb-4">Recent Activities</Text>
-        <View className="space-y-4">
-          {/* Activity 1 */}
-          <Link href="/pages/driver/DeliverySummary" className="flex-row items-center justify-between">
-            <View className="flex-row items-center">
-              <View className="bg-blue-100 p-3 rounded-full mr-3">
-                <MaterialCommunityIcons name="truck-delivery-outline" size={24} color="#3b82f6" />
-              </View>
-              <View>
-                <Text className="font-semibold">Route Completion:</Text>
-                <Text className="text-gray-700">Puttalam to Mannar</Text>
-                <Text className="text-gray-500 text-sm">April 20, 2025</Text>
-              </View>
-            </View>
-            <Text className="text-green-600 font-bold">+LKR 550.00</Text>
-          </Link>
-
-          {/* Activity 2 */}
-          <Link href="/pages/driver/WithdrawalDetails" className="flex-row items-center justify-between">
-            <View className="flex-row items-center">
-              <View className="bg-red-100 p-3 rounded-full mr-3">
-                <MaterialCommunityIcons name="bank-transfer-out" size={24} color="#ef4444" />
-              </View>
-              <View>
-                <Text className="font-semibold">Bank Transfer to Account</Text>
-                <Text className="text-gray-700">****1234</Text>
-                <Text className="text-gray-500 text-sm">April 18, 2025</Text>
-              </View>
-            </View>
-            <Text className="text-red-600 font-bold">-LKR 500.00</Text>
-          </Link>
-
-          {/* Activity 3 */}
-          <Link href="/pages/driver/DeliverySummary" className="flex-row items-center justify-between">
-            <View className="flex-row items-center">
-              <View className="bg-blue-100 p-3 rounded-full mr-3">
-                <MaterialCommunityIcons name="truck-delivery-outline" size={24} color="#3b82f6" />
-              </View>
-              <View>
-                <Text className="font-semibold">Route Completion:</Text>
-                <Text className="text-gray-700">Colombo to Badulla</Text>
-                <Text className="text-gray-500 text-sm">April 15, 2025</Text>
-              </View>
-            </View>
-            <Text className="text-green-600 font-bold">+LKR 850.50</Text>
-          </Link>
+        <View className="flex-row items-center justify-between mb-4">
+          <Text className="text-xl font-bold">Recent Activities</Text>
+          <TouchableOpacity 
+            onPress={() => router.push('/pages/driver/Earnings')}
+            className="flex-row items-center"
+          >
+            <Text className="text-orange-500 font-medium mr-1">View All</Text>
+            <Ionicons name="chevron-forward" size={16} color="#f97316" />
+          </TouchableOpacity>
         </View>
+        {earningsLoading ? (
+          <View className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+            <Text className="text-gray-500 text-center">Loading activities...</Text>
+          </View>
+        ) : recentActivities.length > 0 ? (
+          <View className="space-y-4">
+            {recentActivities.map((activity) => (
+              <TouchableOpacity
+                key={activity.id}
+                className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm"
+                onPress={() => {
+                  // Navigate to earnings detail or show more info
+                  Alert.alert(
+                    'Earnings Details',
+                    `Amount: ${formatCurrency(activity.amount)}\nStatus: ${activity.earning.status}\nCustomer: ${activity.earning.customerName || 'N/A'}`,
+                    [
+                      { text: 'OK' },
+                      ...(activity.earning.status === 'PENDING' ? [{
+                        text: 'Mark Available',
+                        onPress: () => handleStatusUpdate(activity.id, 'AVAILABLE')
+                      }] : [])
+                    ]
+                  );
+                }}
+              >
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center flex-1">
+                    <View className={`${activity.iconBg} p-3 rounded-full mr-3`}>
+                      {activity.icon}
+                    </View>
+                    <View className="flex-1">
+                      <Text className="font-semibold text-gray-800">{activity.title}</Text>
+                      <Text className="text-gray-700 mb-1">{activity.subtitle}</Text>
+                      <View className="flex-row items-center justify-between">
+                        <Text className="text-gray-500 text-sm">{activity.date}</Text>
+                        <View className="flex-row items-center">
+                          <Text className={`${activity.amountColor} font-bold mr-2`}>
+                            +{formatCurrency(activity.amount)}
+                          </Text>
+                          <View className={`px-2 py-1 rounded-full ${
+                            activity.earning.status === 'AVAILABLE' ? 'bg-green-100' :
+                            activity.earning.status === 'PENDING' ? 'bg-yellow-100' : 'bg-gray-100'
+                          }`}>
+                            <Text className={`text-xs font-medium ${
+                              activity.earning.status === 'AVAILABLE' ? 'text-green-800' :
+                              activity.earning.status === 'PENDING' ? 'text-yellow-800' : 'text-gray-800'
+                            }`}>
+                              {activity.earning.status}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <View className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+            <View className="items-center">
+              <MaterialCommunityIcons name="truck-outline" size={48} color="#d1d5db" />
+              <Text className="text-gray-500 text-center mt-2">No recent activities</Text>
+              <Text className="text-gray-400 text-center text-sm">Complete your first route to see activities here</Text>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* Floating Action Button */}
