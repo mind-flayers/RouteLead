@@ -147,8 +147,6 @@ public class EarningsService {
                 .netAmount(earnings.getNetAmount())
                 .status(earnings.getStatus())
                 .earnedAt(earnings.getEarnedAt())
-                .updatedAt(earnings.getUpdatedAt())
-                .updatedAt(earnings.getUpdatedAt())
                 .build();
     }
     
