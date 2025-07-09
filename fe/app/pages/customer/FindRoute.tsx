@@ -59,7 +59,7 @@ const dummyRoutes = [
     timeline: '02 D | 02:56:48 H',
     bids: 7,
     highestBid: 250.0,
-    driverName: 'John Doe',
+    driverName: 'kamal Jayasinghe',
     driverPhoto: 'https://randomuser.me/api/portraits/men/1.jpg',
   },
   {
@@ -70,7 +70,7 @@ const dummyRoutes = [
     timeline: '01 D | 12:34:56 H',
     bids: 5,
     highestBid: 180.0,
-    driverName: 'Jane Smith',
+    driverName: 'Nimal Perera',
     driverPhoto: 'https://randomuser.me/api/portraits/women/2.jpg',
   },
 ];
