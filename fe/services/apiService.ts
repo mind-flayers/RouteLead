@@ -5,21 +5,21 @@ import { Platform } from 'react-native';
 // For React Native, we need to use the actual IP address instead of localhost
 const getApiBaseUrl = () => {
   if (Platform.OS === 'android') {
-    // For Android emulator, use 10.0.2.2 to access localhost on the host machine
-    // For physical Android device, use your machine's actual IP address
-    return 'http://10.0.2.2:8080/api';
+    // For Android emulator and physical device, use the host machine's IP address
+    // 10.0.2.2 often doesn't work, so we use the actual IP address
+    return 'http://192.168.8.144:8080/api';
   } else if (Platform.OS === 'ios') {
     // For iOS simulator, localhost should work
     // For physical iOS device, use your machine's IP address
-    return 'http://localhost:8080/api';
+    return 'http://192.168.8.144:8080/api';
   } else {
     // For web/other platforms
     return 'http://localhost:8080/api';
   }
 };
 
-// Use actual IP address for all platforms to ensure connectivity
-const API_BASE_URL = 'http://192.168.212.244:8080/api';
+// Use the dynamic API base URL function for all platforms
+const API_BASE_URL = getApiBaseUrl();
 
 // Debug log to show which API URL is being used
 console.log('API Base URL:', API_BASE_URL);
