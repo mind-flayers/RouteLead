@@ -72,10 +72,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Update data is required in the request body.' });
   }
 
+  // Robust mapping: support both camelCase and snake_case
+  const mappedUpdateData: Record<string, any> = { ...updateData };
+  if (updateData.verificationStatus) {
+    mappedUpdateData.verification_status = updateData.verificationStatus;
+    delete mappedUpdateData.verificationStatus;
+  }
+  if (updateData.verification_status) {
+    mappedUpdateData.verification_status = updateData.verification_status;
+  }
+
   try {
     const { data, error } = await adminSupabase
       .from('profiles')
-      .update(updateData)
+      .update(mappedUpdateData)
       .eq('id', id)
       .select();
 
