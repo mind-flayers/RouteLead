@@ -7,7 +7,8 @@ import PrimaryButton from '@/components/ui/PrimaryButton';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
 import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { useEarningsData, useDriverInfo } from '@/hooks/useEarningsData';
-import { formatCurrency, formatDateTime, EarningsHistory } from '@/services/apiService';
+import { useMultipleLocationDescriptions } from '@/hooks/useLocationDescription';
+import { formatCurrency, formatDateTime, getRouteDescription, EarningsHistory, testApiConnection } from '@/services/apiService';
 
 const Dashboard = () => {
   const router = useRouter();
@@ -27,6 +28,10 @@ const Dashboard = () => {
     refreshData,
     getPercentageChange,
   } = useEarningsData(driverId);
+
+  useEffect(() => {
+    testApiConnection();
+  }, []);
 
   // Memoized KPI data based on real API data
   const kpiData = useMemo(() => {
@@ -92,27 +97,40 @@ const Dashboard = () => {
     ];
   }, [summary, pendingBids, getPercentageChange]);
 
-  // Memoized recent activities from earnings history
-  const recentActivities = useMemo(() => {
+  // Get the most recent 3 earnings entries for geocoding
+  const recentEarnings = useMemo(() => {
     if (!history.length) return [];
     
-    // Get the most recent 3 earnings entries
     return history
       .sort((a, b) => new Date(b.earnedAt).getTime() - new Date(a.earnedAt).getTime())
-      .slice(0, 3)
-      .map((earning) => ({
+      .slice(0, 3);
+  }, [history]);
+
+  // Use geocoding hook for location descriptions
+  const locationDescriptions = useMultipleLocationDescriptions(recentEarnings);
+
+  // Memoized recent activities from earnings history
+  const recentActivities = useMemo(() => {
+    if (!recentEarnings.length) return [];
+    
+    return recentEarnings.map((earning, index) => {
+      const locationDesc = locationDescriptions[index];
+      
+      return {
         id: earning.id,
         type: 'route_completion',
         title: 'Route Completion:',
-        subtitle: earning.routeDescription || `${earning.fromLocation} to ${earning.toLocation}`,
+        subtitle: locationDesc?.description || getRouteDescription(earning),
         amount: earning.netAmount,
         date: formatDateTime(earning.earnedAt),
         icon: <MaterialCommunityIcons name="truck-delivery-outline" size={24} color="#3b82f6" />,
         iconBg: 'bg-blue-100',
         amountColor: 'text-green-600',
         earning,
-      }));
-  }, [history]);
+        isLoadingLocation: locationDesc?.isLoading || false,
+      };
+    });
+  }, [recentEarnings, locationDescriptions]);
 
   // Handle earnings status update
   const handleStatusUpdate = async (earningsId: string, newStatus: 'AVAILABLE' | 'WITHDRAWN') => {
@@ -202,7 +220,7 @@ const Dashboard = () => {
         <View className="flex-row items-center justify-between mb-4">
           <Text className="text-xl font-bold">Recent Activities</Text>
           <TouchableOpacity 
-            onPress={() => router.push('/pages/driver/Earnings')}
+            onPress={() => router.push('/pages/driver/MyEarnings')}
             className="flex-row items-center"
           >
             <Text className="text-orange-500 font-medium mr-1">View All</Text>
@@ -241,7 +259,14 @@ const Dashboard = () => {
                     </View>
                     <View className="flex-1">
                       <Text className="font-semibold text-gray-800">{activity.title}</Text>
-                      <Text className="text-gray-700 mb-1">{activity.subtitle}</Text>
+                      <View className="flex-row items-center">
+                        <Text className="text-gray-700 mb-1 flex-1">{activity.subtitle}</Text>
+                        {activity.isLoadingLocation && (
+                          <View className="ml-2">
+                            <Ionicons name="refresh" size={12} color="#9CA3AF" />
+                          </View>
+                        )}
+                      </View>
                       <View className="flex-row items-center justify-between">
                         <Text className="text-gray-500 text-sm">{activity.date}</Text>
                         <View className="flex-row items-center">
