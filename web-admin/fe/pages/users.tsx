@@ -1,83 +1,8 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const NAVY_BLUE = '#1A237E';
 const ROYAL_ORANGE = '#FF8C00';
-const users = [
-	{
-	  id: 'U001',
-	  name: 'Nimal Perera',
-	  email: 'nimal.p@slmail.com',
-	  role: 'Driver',
-	  status: 'Active',
-	  verification: 'Verified',
-	  registered: '2023-01-10',
-	},
-	{
-	  id: 'U002',
-	  name: 'Kavindi Jayasinghe',
-	  email: 'kavindi.j@slmail.com',
-	  role: 'Customer',
-	  status: 'Active',
-	  verification: 'Verified',
-	  registered: '2023-02-12',
-	},
-	{
-	  id: 'U003',
-	  name: 'Suresh Fernando',
-	  email: 'suresh.f@slmail.com',
-	  role: 'Driver',
-	  status: 'Pending',
-	  verification: 'Pending',
-	  registered: '2023-03-01',
-	},
-	{
-	  id: 'U004',
-	  name: 'Ishara Ranasinghe',
-	  email: 'ishara.r@slmail.com',
-	  role: 'Customer',
-	  status: 'Suspended',
-	  verification: 'Verified',
-	  registered: '2023-03-19',
-	},
-	{
-	  id: 'U005',
-	  name: 'Nadeesha Karunaratne',
-	  email: 'nadeesha.k@slmail.com',
-	  role: 'Driver',
-	  status: 'Active',
-	  verification: 'Rejected',
-	  registered: '2023-04-06',
-	},
-	{
-	  id: 'U006',
-	  name: 'Sajith Bandara',
-	  email: 'sajith.b@slmail.com',
-	  role: 'Customer',
-	  status: 'Active',
-	  verification: 'Verified',
-	  registered: '2023-04-20',
-	},
-	{
-	  id: 'U007',
-	  name: 'Thilini Dissanayake',
-	  email: 'thilini.d@slmail.com',
-	  role: 'Driver',
-	  status: 'Blocked',
-	  verification: 'Verified',
-	  registered: '2023-05-02',
-	},
-	{
-	  id: 'U008',
-	  name: 'Mohan de Silva',
-	  email: 'mohan.d@slmail.com',
-	  role: 'Customer',
-	  status: 'Active',
-	  verification: 'Pending',
-	  registered: '2023-05-15',
-	},
-  ];
-  
 
 const statusColors: { [key: string]: string } = {
 	Active: '#22C55E',
@@ -93,13 +18,20 @@ const verificationColors: { [key: string]: string } = {
 };
 
 const roleColors: { [key: string]: string } = {
-	Driver: NAVY_BLUE,
-	Customer: ROYAL_ORANGE,
+	DRIVER: NAVY_BLUE,
+	CUSTOMER: ROYAL_ORANGE,
+	ADMIN: '#7B7B93',
 };
 
-const roleOptions = ['All Roles', 'Driver', 'Customer'];
+const roleOptions = ['All Roles', 'DRIVER', 'CUSTOMER'];
 const statusOptions = ['Active', 'Pending', 'Suspended', 'Blocked'];
 const verificationOptions = ['Verified', 'Pending', 'Rejected'];
+
+const verificationStatusColors: { [key: string]: string } = {
+  APPROVED: NAVY_BLUE,
+  PENDING: ROYAL_ORANGE,
+  REJECTED: '#EF4444',
+};
 
 const labelButtonStyle = (color: string, active: boolean = false): React.CSSProperties => ({
 	background: color + '22',
@@ -173,94 +105,42 @@ const paginationBtnStyle: React.CSSProperties = {
 	cursor: 'pointer',
 };
 
-
-const StatCard: React.FC<{ title: string, value: string, desc: string, color: string }> = ({ title, value, desc, color }) => {
-	const [show, setShow] = useState(false);
-
-	return (
-		<div
-			style={{
-				background: '#fff',
-				borderRadius: 12,
-				boxShadow: '0 2px 12px #0001',
-				padding: '1.2rem 2rem',
-				minWidth: 180,
-				minHeight: 80,
-				display: 'flex',
-				flexDirection: 'column',
-				justifyContent: 'center',
-				gap: 4,
-				position: 'relative',
-				flex: 1,
-				maxWidth: 260,
-			}}
-		>
-			<div style={{ fontWeight: 700, fontSize: 18, color: '#222' }}>{title}</div>
-			<div style={{ fontWeight: 800, fontSize: 26, color }}>{value}</div>
-			<div style={{ fontSize: 13, color: '#7B7B93' }}>{desc}</div>
-			<a
-				style={{
-					color,
-					fontWeight: 600,
-					fontSize: 14,
-					marginTop: 2,
-					cursor: 'pointer',
-					textDecoration: 'none'
-				}}
-				onClick={() => setShow(s => !s)}
-			>
-				View Details
-			</a>
-			{show && (
-				<div style={{
-					position: 'absolute',
-					top: '100%',
-					left: 0,
-					marginTop: 8,
-					background: '#fff',
-					border: `1px solid ${color}33`,
-					borderRadius: 10,
-					boxShadow: '0 4px 24px #0002',
-					padding: '1rem 1.5rem',
-					zIndex: 10,
-					minWidth: 220,
-				}}>
-					<div style={{ fontWeight: 700, color, marginBottom: 6 }}>{title} Details</div>
-					<div style={{ color: '#444', fontSize: 15 }}>
-						{title === 'Total Users' && <>There are <b>{value}</b> users registered in the system.</>}
-						{title === 'Active Drivers' && <>There are <b>{value}</b> drivers currently active.</>}
-						{title === 'Pending Verifications' && <>There are <b>{value}</b> users awaiting verification.</>}
-						{title === 'Blocked Accounts' && <>There are <b>{value}</b> permanently suspended users.</>}
-					</div>
-					<button
-						style={{
-							marginTop: 12,
-							background: color,
-							color: '#fff',
-							border: 'none',
-							borderRadius: 6,
-							padding: '6px 18px',
-							fontWeight: 600,
-							cursor: 'pointer'
-						}}
-						onClick={() => setShow(false)}
-					>
-						Close
-					</button>
-				</div>
-			)}
-		</div>
-	);
-};
-
 const UserManagement: React.FC = () => {
 	const [search, setSearch] = useState('');
 	const [role, setRole] = useState('All Roles');
 	const [status, setStatus] = useState('All Statuses');
 	const [verification, setVerification] = useState('All Verification Statuses');
-	const [userList, setUserList] = useState(users);
+	const [userList, setUserList] = useState<any[]>([]);
+	const [loading, setLoading] = useState(true);
 	const [statusDropdown, setStatusDropdown] = useState<string | null>(null);
 	const [verificationDropdown, setVerificationDropdown] = useState<string | null>(null);
+
+	useEffect(() => {
+		async function fetchUsers() {
+			setLoading(true);
+			try {
+				const res = await fetch('/api/admin/users');
+				const data = await res.json();
+				// Map snake_case to camelCase and exclude admin users
+				setUserList(
+					data
+						.filter((u: any) => u.role !== 'ADMIN') // Exclude admin users
+						.map((u: any) => ({
+							...u,
+							firstName: u.firstName || u.first_name,
+							lastName: u.lastName || u.last_name,
+							phoneNumber: u.phoneNumber || u.phone_number,
+							isVerified: u.isVerified ?? u.is_verified,
+							createdAt: u.createdAt || u.created_at,
+						}))
+				);
+			} catch (err) {
+				setUserList([]);
+			}
+			setLoading(false);
+		}
+		fetchUsers();
+	}, []);
 
 	const handleReset = () => {
 		setSearch('');
@@ -269,40 +149,24 @@ const UserManagement: React.FC = () => {
 		setVerification('All Verification Statuses');
 	};
 
-	const handleStatusChange = (id: string, newStatus: string) => {
-		setUserList(prev =>
-			prev.map(u => u.id === id ? { ...u, status: newStatus } : u)
-		);
-		setStatusDropdown(null);
-	};
-
-	const handleVerificationChange = (id: string, newVerification: string) => {
-		setUserList(prev =>
-			prev.map(u => u.id === id ? { ...u, verification: newVerification } : u)
-		);
-		setVerificationDropdown(null);
-	};
+	// Optionally, you can implement status/verification change logic for real data here
 
 	const filteredUsers = userList.filter((u) => {
+		const name = (u.firstName || '') + ' ' + (u.lastName || '');
 		const matchesSearch =
-			u.name.toLowerCase().includes(search.toLowerCase()) ||
-			u.email.toLowerCase().includes(search.toLowerCase()) ||
-			u.id.toLowerCase().includes(search.toLowerCase());
-
+			name.toLowerCase().includes(search.toLowerCase()) ||
+			(u.email || '').toLowerCase().includes(search.toLowerCase()) ||
+			(u.id || '').toLowerCase().includes(search.toLowerCase());
 		const matchesRole = role === 'All Roles' || u.role === role;
-		const matchesStatus = status === 'All Statuses' || u.status === status;
-		const matchesVerification = verification === 'All Verification Statuses' || u.verification === verification;
-
-		return matchesSearch && matchesRole && matchesStatus && matchesVerification;
+		// You may want to map your real status/verification fields here
+		return matchesSearch && matchesRole;
 	});
-
-
 
 	// Stat counts based on filteredUsers
 	const totalUsers = filteredUsers.length;
-	const activeDrivers = filteredUsers.filter(u => u.role === 'Driver' && u.status === 'Active').length;
-	const pendingVerifications = filteredUsers.filter(u => u.verification === 'Pending').length;
-	const blockedAccounts = filteredUsers.filter(u => u.status === 'Blocked').length;
+	const verifiedDrivers = filteredUsers.filter(u => u.role === 'DRIVER' && u.isVerified).length;
+	const pendingVerifications = filteredUsers.filter(u => u.isVerified === false).length;
+	const blockedAccounts = filteredUsers.filter(u => u.verification_status === 'REJECTED').length;
 
 	return (
 		<div style={{
@@ -312,7 +176,6 @@ const UserManagement: React.FC = () => {
 			margin: '0 auto',
 			boxSizing: 'border-box'
 		}}>
-			{/* Add space above heading */}
 			<div style={{ height: 32 }} />
 			<h1
 				style={{
@@ -328,7 +191,6 @@ const UserManagement: React.FC = () => {
 			<div style={{ color: '#7B7B93', fontSize: 16, marginBottom: 18 }}>
 				Manage, search, and filter all registered users.
 			</div>
-			{/* Stat Cards */}
 			<div
 				style={{
 					display: 'flex',
@@ -339,12 +201,10 @@ const UserManagement: React.FC = () => {
 				}}
 			>
 				<StatCard title="Total Users" value={String(totalUsers)} desc="Overall user count" color={NAVY_BLUE} />
-				<StatCard title="Active Drivers" value={String(activeDrivers)} desc="Drivers currently active" color={ROYAL_ORANGE} />
-				<StatCard title="Pending Verifications" value={String(pendingVerifications)} desc="Documents awaiting review" color={ROYAL_ORANGE} />
+				<StatCard title="Verified Drivers" value={String(verifiedDrivers)} desc="Drivers currently verified" color={ROYAL_ORANGE} />
+				<StatCard title="Pending Verifications" value={String(pendingVerifications)} desc="Users not yet verified" color={ROYAL_ORANGE} />
 				<StatCard title="Blocked Accounts" value={String(blockedAccounts)} desc="Permanently suspended users" color="#EF4444" />
 			</div>
-			{/* Filters and Add User in same row */}
-			{/* Table */}
 			<div style={{
 				background: '#fff',
 				borderRadius: 14,
@@ -388,18 +248,7 @@ const UserManagement: React.FC = () => {
 								<option key={opt} value={opt}>{opt}</option>
 							))}
 						</select>
-						<select style={filterSelectStyle} value={status} onChange={e => setStatus(e.target.value)}>
-							<option value="All Statuses">All Statuses</option>
-							{statusOptions.map(opt => (
-								<option key={opt} value={opt}>{opt}</option>
-							))}
-						</select>
-						<select style={filterSelectStyle} value={verification} onChange={e => setVerification(e.target.value)}>
-							<option value="All Verification Statuses">All Verification Statuses</option>
-							{verificationOptions.map(opt => (
-								<option key={opt} value={opt}>{opt}</option>
-							))}
-						</select>
+						{/* You can add more filters for status/verification if you map those fields */}
 						<button
 							style={{
 								background: '#fff',
@@ -433,109 +282,136 @@ const UserManagement: React.FC = () => {
 						+ Add New User
 					</button>
 				</div>
-
-				<table style={{
-					width: '100%',
-					minWidth: 700,
-					borderCollapse: 'separate',
-					borderSpacing: 0,
-					fontFamily: 'Montserrat, sans-serif'
-				}}>
-					<thead>
-						<tr style={{ color: '#7B7B93', fontWeight: 700, fontSize: 15, textAlign: 'left' }}>
-							<th style={thStyle}>ID</th>
-							<th style={thStyle}>Name</th>
-							<th style={thStyle}>Email</th>
-							<th style={thStyle}>Role</th>
-							<th style={thStyle}>Status</th>
-							<th style={thStyle}>Verification</th>
-							<th style={thStyle}>Registered</th>
-						</tr>
-					</thead>
-					<tbody>
-						{filteredUsers.map((u) => (
-							<tr key={u.id} style={rowStyle}>
-								<td style={cellStyle}>{u.id}</td>
-								<td style={{ ...cellStyle, fontWeight: 600 }}>{u.name}</td>
-								<td style={cellStyle}>{u.email}</td>
-								<td style={cellStyle}>
-									<span style={labelButtonStyle(roleColors[u.role])}>{u.role}</span>
-								</td>
-								<td style={{ ...cellStyle, position: 'relative' }}>
-									<span
-										style={labelButtonStyle(statusColors[u.status], !!(statusDropdown === u.id))}
-										title="Change status"
-										onClick={() => setStatusDropdown(statusDropdown === u.id ? null : u.id)}
-									>
-										{u.status}
-									</span>
-									{statusDropdown === u.id && (
-										<div
-											style={{
-												position: 'absolute',
-												top: 48,
-												left: 0,
-												background: '#fff',
-												border: `1.5px solid ${statusColors[u.status]}33`,
-												borderRadius: 8,
-												boxShadow: '0 4px 24px #0002',
-												zIndex: 20,
-												minWidth: 110,
-												padding: '6px 0'
-											}}
-										>
-											{statusOptions.map(opt => (
-												<div
-													key={opt}
-													style={labelButtonStyle(statusColors[opt], u.status === opt)}
-													onClick={() => handleStatusChange(u.id, opt)}
-												>
-													{opt}
-												</div>
-											))}
-										</div>
-									)}
-								</td>
-								<td style={{ ...cellStyle, position: 'relative' }}>
-									<span
-										style={labelButtonStyle(verificationColors[u.verification], !!(verificationDropdown === u.id))}
-										title="Change verification"
-										onClick={() => setVerificationDropdown(verificationDropdown === u.id ? null : u.id)}
-									>
-										{u.verification}
-									</span>
-									{verificationDropdown === u.id && (
-										<div
-											style={{
-												position: 'absolute',
-												top: 48,
-												left: 0,
-												background: '#fff',
-												border: `1.5px solid ${verificationColors[u.verification]}33`,
-												borderRadius: 8,
-												boxShadow: '0 4px 24px #0002',
-												zIndex: 20,
-												minWidth: 110,
-												padding: '6px 0'
-											}}
-										>
-											{verificationOptions.map(opt => (
-												<div
-													key={opt}
-													style={labelButtonStyle(verificationColors[opt], u.verification === opt)}
-													onClick={() => handleVerificationChange(u.id, opt)}
-												>
-													{opt}
-												</div>
-											))}
-										</div>
-									)}
-								</td>
-								<td style={cellStyle}>{u.registered}</td>
+				{loading ? (
+					<div style={{ padding: 24, textAlign: 'center' }}>Loading users...</div>
+				) : (
+					<table style={{
+						width: '100%',
+						minWidth: 700,
+						borderCollapse: 'separate',
+						borderSpacing: 0,
+						fontFamily: 'Montserrat, sans-serif'
+					}}>
+						<thead>
+							<tr style={{ color: '#7B7B93', fontWeight: 700, fontSize: 15, textAlign: 'left' }}>
+								{/* <th style={thStyle}>ID</th> */}
+								<th style={thStyle}>First Name</th>
+								<th style={thStyle}>Last Name</th>
+								<th style={thStyle}>Email</th>
+								<th style={thStyle}>Phone Number</th>
+								<th style={thStyle}>Role</th>
+								<th style={thStyle}>Verified</th>
+								<th style={thStyle}>Status</th>
+								<th style={thStyle}>Registered</th>
+								<th style={thStyle}>Actions</th>
 							</tr>
-						))}
-					</tbody>
-				</table>
+						</thead>
+						<tbody>
+							{filteredUsers.map((u) => (
+								<tr key={u.id} style={rowStyle}>
+									{/* <td style={cellStyle}>{u.id}</td> */}
+									<td style={cellStyle}>{u.firstName || ''}</td>
+									<td style={cellStyle}>{u.lastName || ''}</td>
+									<td style={cellStyle}>{u.email}</td>
+									<td style={cellStyle}>{u.phoneNumber || ''}</td>
+									<td style={cellStyle}>
+										<span style={labelButtonStyle(roleColors[u.role] || '#7B7B93')}>{u.role}</span>
+									</td>
+									<td style={cellStyle}>
+										<span style={labelButtonStyle(u.isVerified ? NAVY_BLUE : ROYAL_ORANGE)}>
+											{u.isVerified ? 'Verified' : 'Pending'}
+										</span>
+									</td>
+									<td style={cellStyle}>
+										<span style={labelButtonStyle(verificationStatusColors[u.verification_status || 'APPROVED'] || '#7B7B93')}>
+											{u.verification_status || 'APPROVED'}
+										</span>
+									</td>
+									<td style={cellStyle}>{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : ''}</td>
+									<td style={cellStyle}>
+										{u.verification_status === 'REJECTED' ? (
+											<button
+												style={{
+													background: NAVY_BLUE,
+													color: '#fff',
+													border: 'none',
+													borderRadius: 6,
+													padding: '6px 14px',
+													fontWeight: 600,
+													cursor: 'pointer',
+													marginRight: 8,
+												}}
+												onClick={async () => {
+													if (window.confirm('Are you sure you want to unblock this user?')) {
+														await fetch(`/api/admin/users/${u.id}`, {
+															method: 'PUT',
+															headers: { 'Content-Type': 'application/json' },
+															body: JSON.stringify({ verification_status: 'APPROVED' }),
+														});
+														setLoading(true);
+														const res = await fetch('/api/admin/users');
+														const data = await res.json();
+														setUserList(
+															data.map((u: any) => ({
+																...u,
+																firstName: u.firstName || u.first_name,
+																lastName: u.lastName || u.last_name,
+																phoneNumber: u.phoneNumber || u.phone_number,
+																isVerified: u.isVerified ?? u.is_verified,
+																createdAt: u.createdAt || u.created_at,
+															}))
+														);
+														setLoading(false);
+													}
+												}}
+											>
+												Unblock
+											</button>
+										) : (
+											<button
+												style={{
+													background: '#EF4444',
+													color: '#fff',
+													border: 'none',
+													borderRadius: 6,
+													padding: '6px 14px',
+													fontWeight: 600,
+													cursor: 'pointer',
+												}}
+												onClick={async () => {
+													if (window.confirm('Are you sure you want to block this user as fraud?')) {
+														await fetch(`/api/admin/users/${u.id}`, {
+															method: 'PUT',
+															headers: { 'Content-Type': 'application/json' },
+															body: JSON.stringify({ verification_status: 'REJECTED' }),
+														});
+														setLoading(true);
+														const res = await fetch('/api/admin/users');
+														const data = await res.json();
+														setUserList(
+															data.map((u: any) => ({
+																...u,
+																firstName: u.firstName || u.first_name,
+																lastName: u.lastName || u.last_name,
+																phoneNumber: u.phoneNumber || u.phone_number,
+																isVerified: u.isVerified ?? u.is_verified,
+																createdAt: u.createdAt || u.created_at,
+															}))
+														);
+														setLoading(false);
+													}
+												}}
+												disabled={u.verification_status === 'REJECTED'}
+											>
+												Block
+											</button>
+										)}
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				)}
 				<div style={{
 					display: 'flex',
 					justifyContent: 'space-between',
@@ -546,14 +422,13 @@ const UserManagement: React.FC = () => {
 					flexWrap: 'wrap',
 					gap: 8,
 				}}>
-					<span>Showing 1 - {filteredUsers.length} of {users.length} users</span>
+					<span>Showing 1 - {filteredUsers.length} of {userList.length} users</span>
 					<div style={{ display: 'flex', gap: 8 }}>
 						<button style={paginationBtnStyle}>Previous</button>
 						<button style={paginationBtnStyle}>Next</button>
 					</div>
 				</div>
 			</div>
-			{/* Responsive Table Notice */}
 			<div style={{
 				display: 'none',
 				marginTop: 12,
@@ -633,5 +508,26 @@ select option:checked, select option:focus {
 		</div>
 	);
 };
+
+// Dummy StatCard for completeness
+const StatCard = ({ title, value, desc, color }: { title: string, value: string, desc: string, color: string }) => (
+	<div style={{
+		background: '#F8F6F4',
+		borderRadius: 12,
+		padding: '1.2rem 1.5rem',
+		minWidth: 180,
+		flex: 1,
+		boxShadow: '0 1px 6px #0001',
+		display: 'flex',
+		flexDirection: 'column',
+		alignItems: 'flex-start',
+		justifyContent: 'center',
+		marginBottom: 8,
+	}}>
+		<div style={{ fontWeight: 700, fontSize: 16, color }}>{title}</div>
+		<div style={{ fontWeight: 800, fontSize: 28, color, margin: '6px 0' }}>{value}</div>
+		<div style={{ color: '#7B7B93', fontSize: 13 }}>{desc}</div>
+	</div>
+);
 
 export default UserManagement;

@@ -1,342 +1,259 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Dimensions, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import * as Location from 'expo-location';
+import { WebView } from 'react-native-webview';
 
-const { width, height } = Dimensions.get('window');
+const GOOGLE_MAPS_APIKEY = 'AIzaSyDj2o9cWpgCtIM2hUP938Ppo31-gvap1ig'; // Replace with your real key
+
+interface LatLng {
+  latitude: number;
+  longitude: number;
+}
+
+interface Route {
+  id: string;
+  origin: string;
+  destination: string;
+  driverName: string;
+  departureTime: string;
+  // Add other fields as needed
+}
+
+const SRI_LANKA_BOUNDS = {
+  minLat: 5.9167,
+  maxLat: 9.8500,
+  minLng: 79.6500,
+  maxLng: 81.9000,
+};
+function isInSriLanka(lat: number, lng: number) {
+  return (
+    lat >= SRI_LANKA_BOUNDS.minLat &&
+    lat <= SRI_LANKA_BOUNDS.maxLat &&
+    lng >= SRI_LANKA_BOUNDS.minLng &&
+    lng <= SRI_LANKA_BOUNDS.maxLng
+  );
+}
+
+const getMapHtml = (
+  pickup: LatLng | null,
+  dropoff: LatLng | null,
+  step: 'pickup' | 'dropoff' | 'done'
+): string => `
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>html, body, #map { height: 100%; margin: 0; padding: 0; }</style>
+      <script src="https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_APIKEY}"></script>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script>
+        var map = new google.maps.Map(document.getElementById('map'), {
+          center: { lat: 6.9271, lng: 79.8612 },
+          zoom: 8,
+        });
+        ${pickup ? `var pickupMarker = new google.maps.Marker({ position: { lat: ${pickup.latitude}, lng: ${pickup.longitude} }, map: map, label: 'P' });` : ''}
+        ${dropoff ? `var dropoffMarker = new google.maps.Marker({ position: { lat: ${dropoff.latitude}, lng: ${dropoff.longitude} }, map: map, label: 'D' });` : ''}
+        map.addListener('click', function(e) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ lat: e.latLng.lat(), lng: e.latLng.lng() }));
+        });
+      </script>
+    </body>
+  </html>
+`;
+
+// Dummy data for available routes
+const dummyRoutes = [
+  {
+    id: '1',
+    origin: 'Colombo',
+    destination: 'Badulla',
+    departureDate: '2025-10-26T09:00:00',
+    timeline: '02 D | 02:56:48 H',
+    bids: 7,
+    highestBid: 250.0,
+    driverName: 'Kasun Perera',
+    driverPhoto: 'https://randomuser.me/api/portraits/men/1.jpg',
+  },
+  {
+    id: '2',
+    origin: 'Galle',
+    destination: 'Matara',
+    departureDate: '2025-11-02T08:00:00',
+    timeline: '01 D | 12:34:56 H',
+    bids: 5,
+    highestBid: 180.0,
+    driverName: 'Nimal Perera',
+    driverPhoto: 'https://randomuser.me/api/portraits/women/2.jpg',
+  },
+];
 
 export default function FindRouteScreen() {
-  const [pickup, setPickup] = useState('');
-  const [dropoff, setDropoff] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [currentLocation, setCurrentLocation] = useState<Location.LocationObject | null>(null);
-  const [hasLocationPermission, setHasLocationPermission] = useState(false);
+  const [step, setStep] = useState<'pickup' | 'dropoff' | 'done'>('pickup');
+  const [pickupCoord, setPickupCoord] = useState<LatLng | null>(null);
+  const [dropoffCoord, setDropoffCoord] = useState<LatLng | null>(null);
   const [showRoutes, setShowRoutes] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<'pickup' | 'dropoff' | null>(null);
+  const [routes, setRoutes] = useState<Route[]>([]);
+  const [loadingRoutes, setLoadingRoutes] = useState(false);
+  const [showRegionWarning, setShowRegionWarning] = useState(false);
 
-  // Theme colors
-  const colors = {
-    navyBlue: '#1e3a8a',
-    royalOrange: '#ff6b35',
-    lightNavy: '#3b82f6',
-    lightOrange: '#ff8c42',
-    darkNavy: '#1e40af',
-    darkOrange: '#e55a2b'
-  };
-
-  useEffect(() => {
-    requestLocationPermission();
-  }, []);
-
-  const requestLocationPermission = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        setHasLocationPermission(true);
-        getCurrentLocation();
-      }
-    } catch (error) {
-      console.log('Error requesting location permission:', error);
-    }
-  };
-
-  const getCurrentLocation = async () => {
-    try {
-      const location = await Location.getCurrentPositionAsync({});
-      setCurrentLocation(location);
-    } catch (error) {
-      console.log('Error getting current location:', error);
-    }
-  };
-
-  const handleUseCurrentLocation = async () => {
-    if (!hasLocationPermission) {
-      Alert.alert('Location Permission', 'Please enable location services to use current location');
+  const handleMapMessage = (event: any) => {
+    const { lat, lng } = JSON.parse(event.nativeEvent.data);
+    if (!isInSriLanka(lat, lng)) {
+      setShowRegionWarning(true);
       return;
     }
-    
-    if (currentLocation) {
-      try {
-        const reverseGeocode = await Location.reverseGeocodeAsync({
-          latitude: currentLocation.coords.latitude,
-          longitude: currentLocation.coords.longitude,
-        });
-        
-        if (reverseGeocode.length > 0) {
-          const address = reverseGeocode[0];
-          const locationName = `${address.street || ''} ${address.city || ''} ${address.region || ''}`.trim();
-          setPickup(locationName || 'Current Location');
-        } else {
-          setPickup('Current Location');
-        }
-      } catch (error) {
-        setPickup('Current Location');
-      }
-    } else {
-      await getCurrentLocation();
+    if (step === 'pickup') {
+      setPickupCoord({ latitude: lat, longitude: lng });
+      setStep('dropoff');
+    } else if (step === 'dropoff') {
+      setDropoffCoord({ latitude: lat, longitude: lng });
+      setStep('done');
     }
   };
 
-  const handleSearchRoutes = () => {
-    if (!pickup.trim() || !dropoff.trim()) {
-      Alert.alert('Missing Information', 'Please select both pickup and dropoff locations');
-      return;
-    }
-    
-    setIsSearching(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsSearching(false);
-      setShowRoutes(true);
-    }, 1500);
-  };
-
-  const clearLocations = () => {
-    setPickup('');
-    setDropoff('');
+  const handleReset = () => {
+    setPickupCoord(null);
+    setDropoffCoord(null);
+    setStep('pickup');
     setShowRoutes(false);
   };
 
-  const handleLocationSelect = (type: 'pickup' | 'dropoff') => {
-    setSelectedLocation(type);
-    // This would open a location picker/map modal
-    // For now, we'll simulate location selection
-    if (type === 'pickup') {
-      setPickup('Selected Pickup Location');
-    } else {
-      setDropoff('Selected Dropoff Location');
+  const handleSearch = async () => {
+    setShowRoutes(true);
+    setLoadingRoutes(true);
+    try {
+      // Replace with your real API endpoint and parameters
+      const response = await fetch(
+        `https://your-api.com/routes?pickupLat=${pickupCoord?.latitude}&pickupLng=${pickupCoord?.longitude}&dropoffLat=${dropoffCoord?.latitude}&dropoffLng=${dropoffCoord?.longitude}`
+      );
+      const data = await response.json();
+      setRoutes(data.routes); // Adjust according to your API response
+    } catch (error) {
+      // Handle error
+      setRoutes([]);
     }
-    setSelectedLocation(null);
-  };
-
-  const mockRoutes = [
-    {
-      origin: 'Colombo',
-      destination: 'Badulla',
-      departureDate: '2025-10-26T09:00:00',
-      timeline: '02 D | 02:56:48 H',
-      driverName: 'John Doe',
-      driverRating: '4.8',
-      driverPhoto: 'https://randomuser.me/api/portraits/men/1.jpg',
-    },
-    {
-      origin: 'Galle',
-      destination: 'Matara',
-      departureDate: '2025-11-02T08:00:00',
-      timeline: '01 D | 12:34:56 H',
-      driverName: 'Jane Smith',
-      driverRating: '4.9',
-      driverPhoto: 'https://randomuser.me/api/portraits/women/2.jpg',
-    },
-  ];
-
-  const renderMap = () => {
-    return (
-      <View className="flex-1 bg-gradient-to-br from-blue-50 to-blue-100 relative">
-        {/* Map Background with Grid */}
-        <View className="flex-1">
-          {/* Map Grid Pattern */}
-          <View className="absolute inset-0 opacity-10">
-            {Array.from({ length: 20 }).map((_, i) => (
-              <View key={i} className="absolute w-full h-px bg-gray-400" style={{ top: i * 40 }} />
-            ))}
-            {Array.from({ length: 15 }).map((_, i) => (
-              <View key={i} className="absolute h-full w-px bg-gray-400" style={{ left: i * 40 }} />
-            ))}
-          </View>
-          
-          {/* Route Line */}
-          {pickup && dropoff && (
-            <View className="absolute w-full h-full justify-center items-center">
-              <View className="w-6 h-6 bg-green-500 rounded-full absolute left-8 top-20 shadow-lg" />
-              <View className="w-6 h-6 bg-red-500 rounded-full absolute right-8 bottom-20 shadow-lg" />
-              <View className="absolute w-48 h-1 bg-gray-400 transform rotate-45 shadow" />
-            </View>
-          )}
-          
-          {/* Map Controls */}
-          <View className="absolute top-4 right-4">
-            <TouchableOpacity 
-              className="bg-white p-3 rounded-full shadow-lg"
-              onPress={handleUseCurrentLocation}
-            >
-              <Ionicons name="locate" size={24} color={colors.navyBlue} />
-            </TouchableOpacity>
-          </View>
-          
-          {/* Center Map Icon */}
-          <View className="absolute inset-0 justify-center items-center">
-            <Ionicons name="map" size={48} color={colors.navyBlue} />
-            <Text className="text-gray-600 mt-4 font-medium text-lg">Interactive Map</Text>
-            <Text className="text-gray-400 text-center mt-2 px-8">
-              {pickup && dropoff ? 'Route preview available' : 'Tap on map to select locations'}
-            </Text>
-          </View>
-        </View>
-      </View>
-    );
-  };
-
-  const renderLocationCards = () => {
-    return (
-      <View className="absolute top-4 left-4 right-4">
-        {/* Pickup Card */}
-        <TouchableOpacity 
-          className="bg-white rounded-lg p-4 mb-3 shadow-lg border-l-4"
-          style={{ borderLeftColor: colors.royalOrange }}
-          onPress={() => handleLocationSelect('pickup')}
-        >
-          <View className="flex-row items-center">
-            <View className="w-3 h-3 rounded-full mr-3" style={{ backgroundColor: colors.royalOrange }}></View>
-            <View className="flex-1">
-              <Text className="text-sm font-medium text-gray-700">Pickup Location</Text>
-              <Text className="text-sm text-gray-500 mt-1">
-                {pickup || 'Tap to select pickup location'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.navyBlue} />
-          </View>
-        </TouchableOpacity>
-
-        {/* Dropoff Card */}
-        <TouchableOpacity 
-          className="bg-white rounded-lg p-4 shadow-lg border-l-4"
-          style={{ borderLeftColor: colors.royalOrange }}
-          onPress={() => handleLocationSelect('dropoff')}
-        >
-          <View className="flex-row items-center">
-            <View className="w-3 h-3 rounded-full mr-3" style={{ backgroundColor: colors.royalOrange }}></View>
-            <View className="flex-1">
-              <Text className="text-sm font-medium text-gray-700">Dropoff Location</Text>
-              <Text className="text-sm text-gray-500 mt-1">
-                {dropoff || 'Tap to select dropoff location'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.navyBlue} />
-          </View>
-        </TouchableOpacity>
-      </View>
-    );
-  };
-
-  const renderRoutesBottomSheet = () => {
-    if (!showRoutes) return null;
-
-    return (
-      <View className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl max-h-96">
-        <View className="flex-row items-center justify-between p-4 border-b border-gray-200">
-          <Text className="text-lg font-semibold text-gray-800">Available Routes</Text>
-          <TouchableOpacity onPress={() => setShowRoutes(false)}>
-            <Ionicons name="close" size={24} color="#666" />
-          </TouchableOpacity>
-        </View>
-        <ScrollView className="p-4">
-          <Text className="text-sm text-gray-500 mb-4">
-            Showing routes to <Text className="font-semibold">{dropoff}</Text>
-          </Text>
-
-          {mockRoutes.map((route, index) => (
-            <TouchableOpacity
-              key={index}
-              className="bg-white rounded-lg p-4 mb-3 border-l-4"
-              style={{ borderLeftColor: '#FFA726' }}
-              onPress={() => router.push('/pages/customer/RouteDetails')}
-            >
-              <View className="flex-row items-center mb-1">
-                <Ionicons name="location-outline" size={16} color="#555" />
-                <Text className="ml-2 font-semibold">{route.origin}</Text>
-              </View>
-              <View className="flex-row items-center mb-1">
-                <Ionicons name="arrow-down" size={16} color="#555" />
-                <Text className="ml-2 font-bold">{route.destination}</Text>
-              </View>
-              <View className="flex-row items-center mb-1">
-                <Ionicons name="calendar-outline" size={16} color="#555" />
-                <Text className="ml-2">{new Date(route.departureDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</Text>
-              </View>
-              <View className="flex-row items-center mb-2">
-                <Ionicons name="time-outline" size={16} color="#555" />
-                <Text className="ml-2">{route.timeline}</Text>
-              </View>
-              <View className="flex-row items-center mt-2">
-                {route.driverPhoto ? (
-                  <Image source={{ uri: route.driverPhoto }} style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }} />
-                ) : (
-                  <View style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8, backgroundColor: '#ccc', alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>
-                      {route.driverName ? route.driverName.split(' ').map(n => n[0]).join('') : '?'}
-                    </Text>
-                  </View>
-                )}
-                <Text className="font-medium">{route.driverName}</Text>
-                <Ionicons name="star" size={16} color="#FFA500" style={{ marginLeft: 8 }} />
-                <Text className="ml-1">{route.driverRating}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-    );
+    setLoadingRoutes(false);
   };
 
   return (
-    <View className="flex-1 bg-white">
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
       {/* Header */}
-      <View 
-        className="flex-row items-center justify-between px-4 py-4 border-b border-gray-200"
-        style={{ backgroundColor: colors.navyBlue }}
-      >
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#1e3a8a' }}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text className="text-lg font-semibold text-white">Find Route</Text>
-        <TouchableOpacity onPress={clearLocations}>
+        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 18 }}>Find Route</Text>
+        <TouchableOpacity onPress={handleReset}>
           <Ionicons name="close" size={24} color="white" />
         </TouchableOpacity>
       </View>
 
-      {/* Main Map Area */}
-      <View className="flex-1 relative">
-        {renderMap()}
-        {renderLocationCards()}
-        
-        {/* Search Button - Floating */}
-        {pickup && dropoff && !showRoutes && (
-          <View className="absolute bottom-6 left-4 right-4">
+      {/* Instructions */}
+      <View style={{ padding: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#eee' }}>
+        <Text style={{ fontWeight: 'bold', color: '#1e3a8a' }}>
+          {step === 'pickup' && 'Tap on the map to select Pickup location'}
+          {step === 'dropoff' && 'Tap on the map to select Dropoff location'}
+          {step === 'done' && 'Pickup and Dropoff selected'}
+        </Text>
+      </View>
+
+      {/* Map WebView */}
+      <WebView
+        source={{ html: getMapHtml(pickupCoord, dropoffCoord, step) }}
+        style={{ flex: 1 }}
+        onMessage={handleMapMessage}
+      />
+
+      {/* Search Button */}
+      {step === 'done' && !showRoutes && (
+        <View style={{ padding: 12 }}>
+          <TouchableOpacity
+            style={{ backgroundColor: '#ff6b35', borderRadius: 8, padding: 16, alignItems: 'center' }}
+            onPress={handleSearch}
+          >
+            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Search Routes</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Address display */}
+      <View style={{ padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#eee' }}>
+        <Text style={{ fontWeight: 'bold', color: '#1e3a8a' }}>
+          Pickup: <Text style={{ color: '#333' }}>{pickupCoord ? `${pickupCoord.latitude}, ${pickupCoord.longitude}` : 'Select on map'}</Text>
+        </Text>
+        <Text style={{ fontWeight: 'bold', color: '#ff6b35', marginTop: 4 }}>
+          Dropoff: <Text style={{ color: '#333' }}>{dropoffCoord ? `${dropoffCoord.latitude}, ${dropoffCoord.longitude}` : 'Select on map'}</Text>
+        </Text>
+      </View>
+
+      {/* Available Routes */}
+      {showRoutes && (
+        <View style={{ padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#eee' }}>
+          <Text style={{ fontWeight: 'bold', color: '#1e3a8a', marginBottom: 8 }}>Available Routes:</Text>
+          {dummyRoutes.map(route => (
             <TouchableOpacity
-              onPress={handleSearchRoutes}
-              disabled={isSearching}
-              style={{
-                backgroundColor: isSearching ? '#d1d5db' : colors.royalOrange,
-                borderRadius: 12,
-                paddingVertical: 16,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                elevation: 8,
-              }}
+              key={route.id}
+              style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 8, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#eee', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 2, elevation: 1 }}
+              onPress={() => router.push('/pages/customer/RouteDetails')}
             >
-              <View className="flex-row items-center justify-center">
-                {isSearching ? (
-                  <>
-                    <Ionicons name="search" size={20} color="#666" />
-                    <Text className="text-gray-600 font-semibold ml-2">Searching Routes...</Text>
-                  </>
-                ) : (
-                  <>
-                    <Ionicons name="search" size={20} color="white" />
-                    <Text className="text-white font-semibold ml-2">Search Routes</Text>
-                  </>
-                )}
+              <Image source={{ uri: route.driverPhoto }} style={{ width: 48, height: 48, borderRadius: 24, marginRight: 12 }} />
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                  <Ionicons name="location-outline" size={14} color="#555" />
+                  <Text style={{ marginLeft: 4, fontWeight: 'bold', color: '#222' }}>{route.origin}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                  <Ionicons name="arrow-down" size={14} color="#555" />
+                  <Text style={{ marginLeft: 4, fontWeight: 'bold', color: '#222' }}>{route.destination}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                  <Ionicons name="calendar-outline" size={14} color="#555" />
+                  <Text style={{ marginLeft: 4, color: '#444' }}>{new Date(route.departureDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                  <Ionicons name="time-outline" size={14} color="#555" />
+                  <Text style={{ marginLeft: 4, color: '#444' }}>{route.timeline}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                  <Ionicons name="person" size={14} color="#555" />
+                  <Text style={{ marginLeft: 4, color: '#444' }}>{route.driverName}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                  <Ionicons name="pricetag" size={14} color="#555" />
+                  <Text style={{ marginLeft: 4, color: '#444' }}>{route.bids} Bids | Highest: <Text style={{ color: '#ff6b35', fontWeight: 'bold' }}>LKR {route.highestBid.toFixed(2)}</Text></Text>
+                </View>
               </View>
             </TouchableOpacity>
+          ))}
+        </View>
+      )}
+      {showRegionWarning && (
+        <View style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 10
+        }}>
+          <View style={{
+            backgroundColor: 'white', borderRadius: 16, padding: 24, alignItems: 'center', width: '80%'
+          }}>
+            <Ionicons name="warning" size={48} color="#ff6b35" style={{ marginBottom: 12 }} />
+            <Text style={{ fontWeight: 'bold', fontSize: 20, textAlign: 'center', marginBottom: 8 }}>
+              Sorry we can’t provide services for the selected region
+            </Text>
+            <Text style={{ color: '#888', textAlign: 'center', marginBottom: 20 }}>
+              Please select a serviceable region
+            </Text>
+            <TouchableOpacity
+              style={{ backgroundColor: '#1e3a8a', borderRadius: 8, paddingVertical: 12, paddingHorizontal: 32 }}
+              onPress={() => setShowRegionWarning(false)}
+            >
+              <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Got it</Text>
+            </TouchableOpacity>
           </View>
-        )}
-        
-        {renderRoutesBottomSheet()}
-      </View>
+        </View>
+      )}
     </View>
   );
 }

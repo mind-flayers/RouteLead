@@ -24,19 +24,19 @@ export default function WonBids() {
         <View className="bg-white rounded-xl p-4 mb-4 shadow-sm">
           <View className="flex-row items-center mb-2">
             <MaterialIcons name="location-on" size={18} color="#4CAF50" />
-            <Text className="font-semibold ml-1">New York, NY</Text>
+            <Text className="font-semibold ml-1">Kandy</Text>
             <Ionicons name="arrow-forward" size={16} color="#888" style={{marginHorizontal: 4}} />
-            <Text className="font-semibold ml-1">Boston, MA</Text>
+            <Text className="font-semibold ml-1">Badulle</Text>
             <Text className="ml-auto text-xs text-gray-400">3h 30m</Text>
           </View>
           <View className="flex-row items-center justify-between mt-2">
             <View>
               <Text className="text-xs text-gray-400">Your Bid</Text>
-              <Text className="text-xl font-bold text-[#4CAF50]">$220</Text>
+              <Text className="text-xl font-bold text-[#4CAF50]">LKR 2220</Text>
             </View>
             <View>
               <Text className="text-xs text-gray-400 text-right">Est. Route Price</Text>
-              <Text className="text-lg font-bold text-gray-700">$250</Text>
+              <Text className="text-lg font-bold text-gray-700">LKR 2250</Text>
             </View>
           </View>
            <TouchableOpacity

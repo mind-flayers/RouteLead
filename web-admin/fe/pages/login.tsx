@@ -1,11 +1,93 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
+import { useRouter } from 'next/router';
 
-const themeColor = "#FF8C00"; // RouteLead theme orange
+const themeColor = "#FF8C00";
+const NAVY_BLUE = '#1A237E';
 
 const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.signOut(); // Clear any cached session on mount
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    console.log('=== LOGIN FORM SUBMITTED ===');
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    
+    console.log('Login attempt with:', { email, password: password ? '***' : 'empty' });
+    
+    if (!email || !password) {
+      setError('Please enter both email and password.');
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      // Sign in with Supabase
+      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      
+      if (authError) {
+        console.error('Auth error:', authError);
+        
+        // Handle specific error cases
+        if (authError.message === 'Email not confirmed') {
+          setError('Email not confirmed. Please check your email and click the confirmation link, or contact an administrator to verify your account.');
+        } else if (authError.message === 'Invalid login credentials') {
+          setError('Invalid email or password. Please check your credentials and try again.');
+        } else {
+          setError(authError.message);
+        }
+        
+        setLoading(false);
+        return;
+      }
+      
+      console.log('Auth successful, user:', data.user?.id);
+      
+      // Fetch user profile to check role
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single();
+        
+      console.log('Profile data:', profile, 'Profile error:', profileError);
+      
+      if (profileError) {
+        console.error('Profile error:', profileError);
+        setError('Error fetching user profile.');
+        await supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
+      
+      if (profile?.role !== 'ADMIN') {
+        console.log('User role is not ADMIN:', profile?.role);
+        setError('You are not authorized as an admin.');
+        await supabase.auth.signOut();
+        setLoading(false);
+        return;
+      }
+      
+      console.log('Login successful, redirecting to dashboard');
+      // Redirect to admin dashboard
+      window.location.href = '/dashboard';
+    } catch (error) {
+      console.error('Unexpected error:', error);
+      setError('An unexpected error occurred.');
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={styles.bg}>
@@ -23,13 +105,15 @@ const Login: React.FC = () => {
           </div>
           <h2 style={styles.title}>Admin Login</h2>
           <div style={styles.subtitle}>Access your RouteLead admin panel</div>
-          <form style={styles.form}>
+          <form style={styles.form} onSubmit={handleLogin}>
             <label style={styles.label}>Username or Email</label>
             <input
               style={styles.input}
               type="text"
               placeholder="admin@routelead.com"
               autoComplete="username"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
             />
             <label style={{ ...styles.label, marginTop: 18 }}>Password</label>
             <div style={styles.passwordWrap}>
@@ -38,6 +122,8 @@ const Login: React.FC = () => {
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••"
                 autoComplete="current-password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
               />
               <span
                 style={styles.eye}
@@ -49,19 +135,27 @@ const Login: React.FC = () => {
                 {showPassword ? (
                   // Eye open
                   <svg width="20" height="20" fill="none">
-                    <ellipse cx="10" cy="10" rx="7" ry="5" stroke="#BDBDBD" strokeWidth="2"/>
-                    <circle cx="10" cy="10" r="2" fill="#BDBDBD"/>
+                    <ellipse cx="10" cy="10" rx="7" ry="5" stroke="#BDBDBD" strokeWidth="2" />
+                    <circle cx="10" cy="10" r="2" fill="#BDBDBD" />
                   </svg>
                 ) : (
                   // Eye closed
                   <svg width="20" height="20" fill="none">
-                    <ellipse cx="10" cy="10" rx="7" ry="5" stroke="#BDBDBD" strokeWidth="2"/>
-                    <line x1="4" y1="16" x2="16" y2="4" stroke="#BDBDBD" strokeWidth="2"/>
+                    <ellipse cx="10" cy="10" rx="7" ry="5" stroke="#BDBDBD" strokeWidth="2" />
+                    <line x1="4" y1="16" x2="16" y2="4" stroke="#BDBDBD" strokeWidth="2" />
                   </svg>
                 )}
               </span>
             </div>
-            <button type="submit" style={styles.loginBtn}>Login</button>
+            <button
+              type="submit"
+              style={styles.loginBtn}
+              disabled={loading || !email || !password}
+              onClick={() => console.log('Button clicked!')}
+            >
+              {loading ? 'Logging in...' : 'Login'}
+            </button>
+            {error && <div style={{ color: 'red', marginTop: 12 }}>{error}</div>}
           </form>
           <div style={styles.forgot}>
             <a href="#" style={styles.forgotLink}>Forgot Password?</a>
@@ -199,29 +293,26 @@ const styles: { [key: string]: React.CSSProperties } = {
     textAlign: 'center',
   },
   forgotLink: {
-    color: '#7B7B93',
-    fontSize: 15,
+    color: themeColor,
     textDecoration: 'none',
-    fontWeight: 500,
+    fontWeight: 600,
+    fontSize: 14,
     cursor: 'pointer',
   },
   right: {
     flex: 1,
+    background: '#F8F6F4',
     position: 'relative',
-    minHeight: 500,
-    background: '#F7F7FA',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 12,
-    padding: 0,
-    overflow: 'hidden',
+    minHeight: 500,
   },
   coverImg: {
     width: '100%',
     height: '100%',
     objectFit: 'cover',
+    borderRadius: 0,
     position: 'absolute',
     left: 0,
     top: 0,
@@ -230,34 +321,21 @@ const styles: { [key: string]: React.CSSProperties } = {
   rightOverlay: {
     position: 'relative',
     zIndex: 1,
+    padding: '0 32px',
     width: '100%',
     textAlign: 'center',
-    color: '#fff',
-    background: 'rgba(34,34,34,0.32)',
-    padding: '60px 24px 40px 24px',
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 12,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 500,
   },
   welcomeTitle: {
-    fontWeight: 700,
+    fontWeight: 800,
     fontSize: 26,
-    color: '#fff',
-    marginTop: 0,
-    textAlign: 'center',
-    textShadow: '0 2px 8px #0004',
+    color: NAVY_BLUE,
+    marginBottom: 8,
+    marginTop: 60,
   },
   welcomeDesc: {
-    color: '#fff',
+    color: '#7B7B93',
     fontSize: 16,
-    marginTop: 12,
-    textAlign: 'center',
-    maxWidth: 320,
-    textShadow: '0 2px 8px #0004',
+    marginBottom: 0,
   },
 };
 

@@ -4,7 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEarningsData, useDriverInfo } from '@/hooks/useEarningsData';
-import { formatCurrency, formatDateTime, EarningsHistory } from '@/services/apiService';
+import { useMultipleLocationDescriptions } from '@/hooks/useLocationDescription';
+import { formatCurrency, formatDateTime, getRouteDescription, EarningsHistory } from '@/services/apiService';
 
 const EarningsPage = () => {
   const router = useRouter();
@@ -28,6 +29,9 @@ const EarningsPage = () => {
     if (selectedFilter === 'ALL') return history;
     return getEarningsByStatus(selectedFilter);
   }, [history, selectedFilter, getEarningsByStatus]);
+
+  // Use geocoding hook for location descriptions
+  const locationDescriptions = useMultipleLocationDescriptions(filteredEarnings);
 
   // Handle status update
   const handleStatusUpdate = async (earningsId: string, newStatus: 'AVAILABLE' | 'WITHDRAWN') => {
@@ -160,8 +164,10 @@ const EarningsPage = () => {
             </View>
           ) : filteredEarnings.length > 0 ? (
             <View className="space-y-3">
-              {filteredEarnings.map((earning) => {
+              {filteredEarnings.map((earning, index) => {
                 const statusStyle = getStatusBadgeStyle(earning.status);
+                const locationDesc = locationDescriptions[index];
+                
                 return (
                   <View
                     key={earning.id}
@@ -184,9 +190,16 @@ const EarningsPage = () => {
                     </View>
 
                     <View className="border-t border-gray-100 pt-3">
-                      <Text className="font-medium text-gray-800 mb-1">
-                        {earning.routeDescription || `${earning.fromLocation} → ${earning.toLocation}`}
-                      </Text>
+                      <View className="flex-row items-center">
+                        <Text className="font-medium text-gray-800 mb-1 flex-1">
+                          {locationDesc?.description || getRouteDescription(earning)}
+                        </Text>
+                        {locationDesc?.isLoading && (
+                          <View className="ml-2">
+                            <Ionicons name="refresh" size={14} color="#9CA3AF" />
+                          </View>
+                        )}
+                      </View>
                       {earning.customerName && (
                         <Text className="text-gray-600 text-sm mb-1">
                           Customer: {earning.customerName}
