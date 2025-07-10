@@ -23,7 +23,7 @@ const roleColors: { [key: string]: string } = {
 	ADMIN: '#7B7B93',
 };
 
-const roleOptions = ['All Roles', 'DRIVER', 'CUSTOMER', 'ADMIN'];
+const roleOptions = ['All Roles', 'DRIVER', 'CUSTOMER'];
 const statusOptions = ['Active', 'Pending', 'Suspended', 'Blocked'];
 const verificationOptions = ['Verified', 'Pending', 'Rejected'];
 
@@ -121,16 +121,18 @@ const UserManagement: React.FC = () => {
 			try {
 				const res = await fetch('/api/admin/users');
 				const data = await res.json();
-				// Map snake_case to camelCase
+				// Map snake_case to camelCase and exclude admin users
 				setUserList(
-					data.map((u: any) => ({
-						...u,
-						firstName: u.firstName || u.first_name,
-						lastName: u.lastName || u.last_name,
-						phoneNumber: u.phoneNumber || u.phone_number,
-						isVerified: u.isVerified ?? u.is_verified,
-						createdAt: u.createdAt || u.created_at,
-					}))
+					data
+						.filter((u: any) => u.role !== 'ADMIN') // Exclude admin users
+						.map((u: any) => ({
+							...u,
+							firstName: u.firstName || u.first_name,
+							lastName: u.lastName || u.last_name,
+							phoneNumber: u.phoneNumber || u.phone_number,
+							isVerified: u.isVerified ?? u.is_verified,
+							createdAt: u.createdAt || u.created_at,
+						}))
 				);
 			} catch (err) {
 				setUserList([]);
