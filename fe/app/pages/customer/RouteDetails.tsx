@@ -38,9 +38,6 @@ export default function RouteDetails() {
             className="w-full h-40 rounded-lg"
             resizeMode="cover"
           />
-          <TouchableOpacity className="absolute bottom-2 right-2 bg-black px-3 py-1 rounded-full">
-            <Text className="text-white text-xs">View on Map</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Route Information Card */}
@@ -108,15 +105,13 @@ export default function RouteDetails() {
             <View className="w-16 h-16 bg-blue-500 rounded-full justify-center items-center">
               <Text className="text-white font-bold text-xl">JD</Text>
             </View>
-            <Text className="mt-2 font-semibold text-base">John Doe</Text>
+            <Text className="mt-2 font-semibold text-base">Kasun Perera</Text>
             <View className="flex-row items-center mt-1">
               <Ionicons name="star" size={16} color="#FFA500" />
               <Text className="ml-1 text-sm text-gray-700">(4.8) 287 reviews</Text>
             </View>
           </View>
-          <Text className="text-sm text-gray-600 text-center">
-            Reliable and experienced driver with 5 years of safe delivery service. Specializes in fragile and temperature-controlled cargo.
-          </Text>
+          
         </PrimaryCard>
 
         {/* Action Buttons */}

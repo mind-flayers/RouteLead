@@ -147,10 +147,7 @@ public class EarningsService {
                 .netAmount(earnings.getNetAmount())
                 .status(earnings.getStatus())
                 .earnedAt(earnings.getEarnedAt())
-                .updatedAt(earnings.getUpdatedAt())
-                .updatedAt(earnings.getUpdatedAt())
-                .originLocation(earnings.getBid().getRequest().getPickupLat() + ", " + earnings.getBid().getRequest().getPickupLng())
-                .destinationLocation(earnings.getBid().getRequest().getDropoffLat() + ", " + earnings.getBid().getRequest().getDropoffLng())
+
                 .build();
     }
     
