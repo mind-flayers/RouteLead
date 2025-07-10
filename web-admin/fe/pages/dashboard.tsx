@@ -1,5 +1,5 @@
 'use client'
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 
 const NAVBAR_HEIGHT = 64;
@@ -22,51 +22,6 @@ import {
 } from 'chart.js';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend, Title);
-
-const barData = {
-  labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-  datasets: [
-    {
-      label: 'User Growth',
-      data: [120, 190, 170, 220, 200, 250],
-      backgroundColor: '#FF8C00',
-      borderRadius: 8,
-      maxBarThickness: 32,
-    },
-  ],
-};
-
-const barOptions = {
-  responsive: true,
-  plugins: {
-    legend: { display: false },
-    title: { display: false },
-  },
-  scales: {
-    x: { grid: { display: false } },
-    y: { grid: { color: '#F3EDE7' }, beginAtZero: true },
-  },
-};
-
-const pieData = {
-  labels: ['Drivers', 'Customers'],
-  datasets: [
-    {
-      data: [35, 65],
-      backgroundColor: ['#FFD9B3', '#7B7B93'],
-      borderWidth: 0,
-    },
-  ],
-};
-
-const pieOptions = {
-  responsive: true,
-  plugins: {
-    legend: {
-      display: false,
-    },
-  },
-};
 
 const cardStyle: React.CSSProperties = {
   background: '#fff',
@@ -96,26 +51,25 @@ const cardValue: React.CSSProperties = {
   fontFamily: 'Montserrat, Arial, sans-serif',
 };
 
-const incomeData = [
-  { month: 'Jan', income: 8000 },
-  { month: 'Feb', income: 9500 },
-  { month: 'Mar', income: 10200 },
-  { month: 'Apr', income: 11000 },
-  { month: 'May', income: 12000 },
-  { month: 'Jun', income: 12340 },
-];
+const barOptions = {
+  responsive: true,
+  plugins: {
+    legend: { display: false },
+    title: { display: false },
+  },
+  scales: {
+    x: { grid: { display: false } },
+    y: { grid: { color: '#F3EDE7' }, beginAtZero: true },
+  },
+};
 
-const incomeChartData = {
-  labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-  datasets: [
-    {
-      label: 'Monthly Income',
-      data: [8000, 9500, 10200, 11000, 12000, 12340],
-      backgroundColor: '#1A237E',
-      borderRadius: 8,
-      maxBarThickness: 32,
+const pieOptions = {
+  responsive: true,
+  plugins: {
+    legend: {
+      display: false,
     },
-  ],
+  },
 };
 
 const incomeChartOptions = {
@@ -131,6 +85,106 @@ const incomeChartOptions = {
 };
 
 const Dashboard: React.FC = () => {
+  const [users, setUsers] = useState<any[]>([]);
+  const [routes, setRoutes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeRoutes: 0,
+    pendingDisputes: 0,
+    revenue: 0,
+    drivers: 0,
+    customers: 0,
+    admins: 0
+  });
+
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true);
+      try {
+        // Fetch users
+        const usersRes = await fetch('/api/admin/users');
+        const usersData = await usersRes.json();
+        setUsers(usersData);
+
+        // Fetch routes
+        const routesRes = await fetch('/api/admin/routes');
+        const routesData = await routesRes.json();
+        setRoutes(routesData.routes || []);
+
+        // Calculate stats (excluding admins)
+        const nonAdminUsers = usersData.filter((u: any) => u.role !== 'ADMIN');
+        const totalUsers = nonAdminUsers.length;
+        const drivers = nonAdminUsers.filter((u: any) => u.role === 'DRIVER').length;
+        const customers = nonAdminUsers.filter((u: any) => u.role === 'CUSTOMER').length;
+        const activeRoutes = routesData.routes?.length || 0;
+        const pendingDisputes = 0; // TODO: Add disputes API when available
+        const revenue = 0; // TODO: Add revenue calculation when available
+
+        setStats({
+          totalUsers,
+          activeRoutes,
+          pendingDisputes,
+          revenue,
+          drivers,
+          customers,
+          admins: 0
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      }
+      setLoading(false);
+    }
+
+    fetchData();
+  }, []);
+
+  // Prepare chart data based on real data
+  const barData = {
+    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    datasets: [
+      {
+        label: 'User Growth',
+        data: [stats.totalUsers * 0.1, stats.totalUsers * 0.2, stats.totalUsers * 0.3, stats.totalUsers * 0.4, stats.totalUsers * 0.5, stats.totalUsers],
+        backgroundColor: '#FF8C00',
+        borderRadius: 8,
+        maxBarThickness: 32,
+      },
+    ],
+  };
+
+  const pieData = {
+    labels: ['Drivers', 'Customers'],
+    datasets: [
+      {
+        data: [stats.drivers, stats.customers],
+        backgroundColor: ['#FFD9B3', '#7B7B93'],
+        borderWidth: 0,
+      },
+    ],
+  };
+
+  const incomeChartData = {
+    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    datasets: [
+      {
+        label: 'Monthly Income',
+        data: [stats.revenue * 0.1, stats.revenue * 0.2, stats.revenue * 0.3, stats.revenue * 0.4, stats.revenue * 0.5, stats.revenue],
+        backgroundColor: '#1A237E',
+        borderRadius: 8,
+        maxBarThickness: 32,
+      },
+    ],
+  };
+
+  if (loading) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center' }}>
+        <div style={{ fontSize: 18, color: NAVY_BLUE }}>Loading dashboard data...</div>
+      </div>
+    );
+  }
+
   return (
     <div style={{padding: '0 0 2rem 0'}}>
       {/* Add space above heading */}
@@ -156,19 +210,19 @@ const Dashboard: React.FC = () => {
       }}>
         <div style={{ ...cardStyle, flex: 1, minWidth: 180, maxWidth: 300 }}>
           <div style={cardTitle}>Total Users</div>
-          <div style={cardValue}>8</div>
+          <div style={cardValue}>{stats.totalUsers}</div>
         </div>
         <div style={{ ...cardStyle, flex: 1, minWidth: 180, maxWidth: 300 }}>
           <div style={cardTitle}>Active Routes</div>
-          <div style={cardValue}>5</div>
+          <div style={cardValue}>{stats.activeRoutes}</div>
         </div>
         <div style={{ ...cardStyle, flex: 1, minWidth: 180, maxWidth: 300 }}>
           <div style={cardTitle}>Pending Disputes</div>
-          <div style={cardValue}>1</div>
+          <div style={cardValue}>{stats.pendingDisputes}</div>
         </div>
         <div style={{ ...cardStyle, flex: 1, minWidth: 180, maxWidth: 300 }}>
           <div style={cardTitle}>Revenue (This Month)</div>
-          <div style={cardValue}>Rs.1200</div>
+          <div style={cardValue}>Rs.{stats.revenue}</div>
         </div>
       </div>
       {/* Analytics Section: 3 charts in a row */}
