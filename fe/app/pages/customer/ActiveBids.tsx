@@ -22,19 +22,19 @@ export default function ActiveBids() {
         <View className="bg-white rounded-xl p-4 mb-4 shadow-sm">
           <View className="flex-row items-center mb-2">
             <MaterialIcons name="location-on" size={18} color="#FFA726" />
-            <Text className="font-semibold ml-1">Houston, TX</Text>
+            <Text className="font-semibold ml-1">Kandy</Text>
             <Ionicons name="arrow-forward" size={16} color="#888" style={{marginHorizontal: 4}} />
-            <Text className="font-semibold ml-1">Dallas, TX</Text>
+            <Text className="font-semibold ml-1">Badulle</Text>
             <Text className="ml-auto text-xs text-gray-400">4h 00m</Text>
           </View>
           <View className="flex-row items-center justify-between mt-2">
             <View>
               <Text className="text-xs text-gray-400">Your Bid</Text>
-              <Text className="text-xl font-bold text-[#FF9800]">$175</Text>
+              <Text className="text-xl font-bold text-[#FF9800]">LKR 1750</Text>
             </View>
             <View>
               <Text className="text-xs text-gray-400 text-right">Est. Route Price</Text>
-              <Text className="text-lg font-bold text-gray-700">$180</Text>
+              <Text className="text-lg font-bold text-gray-700">LKR 1800</Text>
             </View>
           </View>
           <View className="bg-[#FFFDE7] px-4 py-2 rounded-md mt-4 w-24">

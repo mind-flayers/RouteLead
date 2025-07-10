@@ -16,11 +16,11 @@ export default function BidConfirmation() {
         <Text className="font-semibold mb-2">Bid Details</Text>
         <View className="flex-row justify-between mb-1">
           <Text className="text-gray-500">Bid Amount</Text>
-          <Text className="font-semibold">$150</Text>
+          <Text className="font-semibold">LKR 1500</Text>
         </View>
         <View className="flex-row justify-between mb-1">
           <Text className="text-gray-500">Route</Text>
-          <Text className="font-semibold">New York to Boston</Text>
+          <Text className="font-semibold">Badulla</Text>
         </View>
         <View className="flex-row justify-between mb-1">
           <Text className="text-gray-500">Reference</Text>

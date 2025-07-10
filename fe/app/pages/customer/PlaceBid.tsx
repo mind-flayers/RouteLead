@@ -24,8 +24,8 @@ export default function PlaceBid() {
       alert('Please fill in all fields.');
       return;
     }
-    if (parseFloat(bid) > fixedPrice) {
-      alert(`Bid amount cannot exceed the driver's fixed price: ${fixedPrice}`);
+    if (parseFloat(bid) <= fixedPrice) {
+      alert(`Your bid must be higher than the driver's fixed price: ${fixedPrice}`);
       return;
     }
     try {
@@ -43,11 +43,11 @@ export default function PlaceBid() {
         body: JSON.stringify(bidData),
       });
       if (!res.ok) throw new Error('Failed to place bid');
-      router.push('/pages/customer/MyBids');
+      router.push('/pages/customer/BidConfirmation');
     } catch (err) {
       let message = 'Could not place bid';
       if (err instanceof Error) message = err.message;
-      router.push('/pages/customer/MyBids')
+      router.push('/pages/customer/BidConfirmation')
       // alert(message);
     }
   };
@@ -61,15 +61,17 @@ export default function PlaceBid() {
         <Text style={styles.label}>Bid Amount (Driver's Fixed Price: {fixedPrice})</Text>
         <TextInput
           value={bid}
-          onChangeText={text => {
-            // Only allow up to fixedPrice
-            if (!text || parseFloat(text) <= fixedPrice) setBid(text);
-          }}
+          onChangeText={setBid}
           keyboardType="numeric"
-          placeholder={`Enter your bid (up to ${fixedPrice})`}
+          placeholder={`Enter your bid (above ${fixedPrice})`}
           placeholderTextColor="#555"
           style={styles.input}
         />
+        {bid && parseFloat(bid) <= fixedPrice && (
+          <Text style={{ color: 'red', marginTop: 4 }}>
+            Your bid must be higher than the fixed price ({fixedPrice}).
+          </Text>
+        )}
       </View>
 
       {/* Parcel Details */}
