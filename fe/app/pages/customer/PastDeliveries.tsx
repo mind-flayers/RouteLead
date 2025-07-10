@@ -22,9 +22,9 @@ export default function PastDeliveries() {
       {/* Example Past Delivery Card */}
       <View className="bg-white rounded-2xl p-6 mb-6 border border-[#FF8C00] shadow-sm">
         <Text className="font-bold text-lg mb-1 text-[#0D47A1]">Order #123456</Text>
-        <Text className="text-gray-600 mb-1">Delivered: <Text className="text-[#FF8C00]">July 20, 2024</Text></Text>
+        <Text className="text-gray-600 mb-1">Delivered: <Text className="text-[#FF8C00]">July 20, 2025</Text></Text>
         <Text className="text-gray-600 mb-4">
-          Driver: <Text className="font-semibold text-[#0D47A1]">Evelyn Reed</Text>
+          Driver: <Text className="font-semibold text-[#0D47A1]">Nimal Perera</Text>
         </Text>
         <View className="flex-row justify-between">
           <TouchableOpacity

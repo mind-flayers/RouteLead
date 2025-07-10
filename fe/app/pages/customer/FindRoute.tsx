@@ -20,6 +20,21 @@ interface Route {
   // Add other fields as needed
 }
 
+const SRI_LANKA_BOUNDS = {
+  minLat: 5.9167,
+  maxLat: 9.8500,
+  minLng: 79.6500,
+  maxLng: 81.9000,
+};
+function isInSriLanka(lat: number, lng: number) {
+  return (
+    lat >= SRI_LANKA_BOUNDS.minLat &&
+    lat <= SRI_LANKA_BOUNDS.maxLat &&
+    lng >= SRI_LANKA_BOUNDS.minLng &&
+    lng <= SRI_LANKA_BOUNDS.maxLng
+  );
+}
+
 const getMapHtml = (
   pickup: LatLng | null,
   dropoff: LatLng | null,
@@ -82,9 +97,14 @@ export default function FindRouteScreen() {
   const [showRoutes, setShowRoutes] = useState(false);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [loadingRoutes, setLoadingRoutes] = useState(false);
+  const [showRegionWarning, setShowRegionWarning] = useState(false);
 
   const handleMapMessage = (event: any) => {
     const { lat, lng } = JSON.parse(event.nativeEvent.data);
+    if (!isInSriLanka(lat, lng)) {
+      setShowRegionWarning(true);
+      return;
+    }
     if (step === 'pickup') {
       setPickupCoord({ latitude: lat, longitude: lng });
       setStep('dropoff');
@@ -208,6 +228,30 @@ export default function FindRouteScreen() {
               </View>
             </TouchableOpacity>
           ))}
+        </View>
+      )}
+      {showRegionWarning && (
+        <View style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', zIndex: 10
+        }}>
+          <View style={{
+            backgroundColor: 'white', borderRadius: 16, padding: 24, alignItems: 'center', width: '80%'
+          }}>
+            <Ionicons name="warning" size={48} color="#ff6b35" style={{ marginBottom: 12 }} />
+            <Text style={{ fontWeight: 'bold', fontSize: 20, textAlign: 'center', marginBottom: 8 }}>
+              Sorry we can’t provide services for the selected region
+            </Text>
+            <Text style={{ color: '#888', textAlign: 'center', marginBottom: 20 }}>
+              Please select a serviceable region
+            </Text>
+            <TouchableOpacity
+              style={{ backgroundColor: '#1e3a8a', borderRadius: 8, paddingVertical: 12, paddingHorizontal: 32 }}
+              onPress={() => setShowRegionWarning(false)}
+            >
+              <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Got it</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </View>
