@@ -43,11 +43,11 @@ export default function PlaceBid() {
         body: JSON.stringify(bidData),
       });
       if (!res.ok) throw new Error('Failed to place bid');
-      router.push('/pages/customer/MyBids');
+      router.push('/pages/customer/BidConfirmation');
     } catch (err) {
       let message = 'Could not place bid';
       if (err instanceof Error) message = err.message;
-      router.push('/pages/customer/MyBids')
+      router.push('/pages/customer/BidConfirmation')
       // alert(message);
     }
   };
