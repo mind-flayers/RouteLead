@@ -32,7 +32,7 @@ export default function ActiveBids() {
               <Text className="text-xs text-gray-400">Your Bid</Text>
               <Text className="text-xl font-bold text-[#FF9800]">LKR 1750</Text>
             </View>
-            <View>
+            <View>kkkkkk
               <Text className="text-xs text-gray-400 text-right">Est. Route Price</Text>
               <Text className="text-lg font-bold text-gray-700">LKR 1800</Text>
             </View>
