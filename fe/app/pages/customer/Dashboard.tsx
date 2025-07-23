@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Dimensions } from 'react-native';
 import { FontAwesome, MaterialIcons, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../lib/auth';
 import { router } from 'expo-router';
+import CustomerFooter from '../../../components/navigation/CustomerFooter';
 
 const actions = [
   {
