@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import CustomerFooter from '../../../components/navigation/CustomerFooter';
 
 export default function ActiveBids() {
   return (
-    <View className="flex-1 bg-[#F6F6FA]">
+    <View style={{ flex: 1 }}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 pt-10 pb-4 bg-white shadow">
         <Text className="text-lg font-bold">Active Bids</Text>
@@ -42,6 +43,7 @@ export default function ActiveBids() {
           </View>
         </View>
       </ScrollView>
+      <CustomerFooter activeTab="home" />
     </View>
   );
 }

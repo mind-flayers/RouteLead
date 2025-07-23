@@ -47,17 +47,7 @@ export default function CustomerDashboard() {
       {/* Header */}
       <View className="flex-row justify-between items-center px-6 pt-12 pb-4">
         <Text className="text-xl font-bold tracking-wide">RouteLead</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Ionicons
-            name="notifications-outline"
-            size={22}
-            color="#222"
-            style={{ marginRight: 16 }}
-          />
-          <TouchableOpacity onPress={() => router.push('/pages/customer/Profile')}>
-            <Ionicons name="person-circle-outline" size={28} color="#222" />
-          </TouchableOpacity>
-        </View>
+        {/* Removed profile and notification icons */}
       </View>
 
       {/* Welcome */}
@@ -120,21 +110,7 @@ export default function CustomerDashboard() {
       <View style={{ flex: 1 }} />
 
       {/* Bottom Navigation */}
-      <View className="flex-row justify-around items-center h-16 border-t border-gray-200 bg-white">
-        <View className="items-center">
-          <Ionicons name="home" size={22} color="#FF6600" />
-          <Text className="text-xs mt-1 font-semibold text-black">Home</Text>
-        </View>
-        <View className="items-center">
-          <MaterialIcons name="local-shipping" size={22} color="#888" />
-          <Text className="text-xs mt-1 text-gray-500">Deliveries</Text>
-        </View>
-        <View className="items-center">
-          <Ionicons name="chatbubble-ellipses-outline" size={22} color="#888" />
-          <Text className="text-xs mt-1 text-gray-500">Messages</Text>
-        </View>
-      
-      </View>
+      <CustomerFooter activeTab="home" />
     </View>
   );
 }

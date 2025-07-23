@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, KeyboardAvo
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import CustomerFooter from '../../../components/navigation/CustomerFooter';
 
 const driverName = 'Joshua';
 const driverProfileImage = 'https://randomuser.me/api/portraits/men/32.jpg';
@@ -95,6 +96,7 @@ const Chat = () => {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      <CustomerFooter activeTab="messages" />
     </SafeAreaView>
   );
 };

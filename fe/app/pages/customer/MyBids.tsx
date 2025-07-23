@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView , Modal, Pressable } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import CustomerFooter from '../../../components/navigation/CustomerFooter';
 
 const FILTERS = [
   { label: 'All', value: 'all' },
@@ -26,7 +27,7 @@ export default function MyBids() {const [filter, setFilter] = useState('all');
   }
 };
   return (
-    <View className="flex-1 bg-[#F6F6FA]">
+    <View style={{ flex: 1 }}>
       {/* Header */}
       <View className="flex-row items-center justify-between px-4 pt-10 pb-4 bg-white shadow">
         <Text className="text-lg font-bold">My Bids</Text>
@@ -161,6 +162,7 @@ export default function MyBids() {const [filter, setFilter] = useState('all');
           <Text className="text-xs text-gray-600 mt-1">Tracking</Text>
         </TouchableOpacity>
       </View> */}
+      <CustomerFooter activeTab="home" />
     </View>
   );
 }

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { WebView } from 'react-native-webview';
+import CustomerFooter from '../../../components/navigation/CustomerFooter';
 
 const GOOGLE_MAPS_APIKEY = 'AIzaSyDj2o9cWpgCtIM2hUP938Ppo31-gvap1ig'; // Replace with your real key
 
@@ -315,6 +316,7 @@ export default function FindRouteScreen() {
           </View>
         </View>
       )}
+      <CustomerFooter activeTab="home" />
     </View>
   );
 }
