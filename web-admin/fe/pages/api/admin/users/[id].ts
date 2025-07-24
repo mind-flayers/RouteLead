@@ -84,15 +84,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const { data, error } = await adminSupabase
-      .from('profiles')
+    .from('profiles')
       .update(mappedUpdateData)
-      .eq('id', id)
-      .select();
+    .eq('id', id)
+    .select();
 
-    if (error) {
+  if (error) {
       console.error('Supabase error:', error);
-      return res.status(500).json({ error: error.message });
-    }
+    return res.status(500).json({ error: error.message });
+  }
 
     return res.status(200).json({ user: data && data.length > 0 ? data[0] : null, message: 'Update attempted.' });
   } catch (error) {
