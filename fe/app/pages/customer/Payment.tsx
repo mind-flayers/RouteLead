@@ -18,7 +18,7 @@ export default function Payment() {
     },
     {
       icon: <MaterialCommunityIcons name="email-outline" size={28} color="#6366F1" />,
-      label: 'user@example.com',
+      label: 'sanjika@example.com',
     },
   ];
 
@@ -36,7 +36,7 @@ export default function Payment() {
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
         <View className="items-center mt-8">
           <Text style={styles.totalLabel}>TOTAL</Text>
-          <Text style={styles.totalAmount}>$3,080</Text>
+          <Text style={styles.totalAmount}>LKR 3,080</Text>
         </View>
 
         {/* Payment Methods */}

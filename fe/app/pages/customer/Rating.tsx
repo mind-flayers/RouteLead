@@ -33,7 +33,7 @@ export default function Rating() {
           source={{ uri: 'https://randomuser.me/api/portraits/men/44.jpg' }}
           className="w-16 h-16 rounded-full mb-2"
         />
-        <Text className="font-semibold text-lg">Evelyn Reed</Text>
+        <Text className="font-semibold text-lg">Nimal Perera</Text>
         <Text className="text-gray-500 mb-2">Your Delivery Driver</Text>
         <Text className="text-3xl font-bold text-[#FFA726] mb-1">4.8 <Text className="text-lg text-gray-500">out of 5</Text></Text>
         <View className="flex-row mb-1">

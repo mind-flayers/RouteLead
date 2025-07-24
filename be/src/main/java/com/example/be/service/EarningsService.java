@@ -147,6 +147,7 @@ public class EarningsService {
                 .netAmount(earnings.getNetAmount())
                 .status(earnings.getStatus())
                 .earnedAt(earnings.getEarnedAt())
+
                 .build();
     }
     
@@ -177,10 +178,10 @@ public class EarningsService {
                     .parcelDescription(result[10] != null ? result[10].toString() : null)
                     .customerName(result[11] != null && result[12] != null ? 
                             result[11].toString() + " " + result[12].toString() : null)
-                    .originLocation(result[13] != null && result[14] != null ? 
-                            String.format("%.4f, %.4f", result[13], result[14]) : null)
-                    .destinationLocation(result[15] != null && result[16] != null ? 
-                            String.format("%.4f, %.4f", result[15], result[16]) : null)
+                    .originLocation(result[13] != null && result[14] != null ?
+                            result[13].toString() + ", " + result[14].toString() : null)
+                    .destinationLocation(result[15] != null && result[16] != null ?
+                            result[15].toString() + ", " + result[16].toString() : null)
                     .build();
         } catch (Exception e) {
             log.error("Error converting native result to DTO: {}", e.getMessage());

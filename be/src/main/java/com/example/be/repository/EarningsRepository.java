@@ -57,7 +57,7 @@ public interface EarningsRepository extends JpaRepository<Earnings, UUID> {
            "b.route_id, b.offered_price, " +
            "pr.description as parcel_description, " +
            "p.first_name, p.last_name, " +
-           "rr.origin_lat, rr.origin_lng, rr.destination_lat, rr.destination_lng " +
+           "pr.pickup_lat, pr.pickup_lng, pr.dropoff_lat, pr.dropoff_lng " +
            "FROM earnings e " +
            "LEFT JOIN bids b ON e.bid_id = b.id " +
            "LEFT JOIN parcel_requests pr ON b.request_id = pr.id " +
@@ -72,7 +72,7 @@ public interface EarningsRepository extends JpaRepository<Earnings, UUID> {
            "b.route_id, b.offered_price, " +
            "pr.description as parcel_description, " +
            "p.first_name, p.last_name, " +
-           "rr.origin_lat, rr.origin_lng, rr.destination_lat, rr.destination_lng " +
+           "pr.pickup_lat, pr.pickup_lng, pr.dropoff_lat, pr.dropoff_lng " +
            "FROM earnings e " +
            "LEFT JOIN bids b ON e.bid_id = b.id " +
            "LEFT JOIN parcel_requests pr ON b.request_id = pr.id " +
@@ -87,7 +87,7 @@ public interface EarningsRepository extends JpaRepository<Earnings, UUID> {
            "b.route_id, b.offered_price, " +
            "pr.description as parcel_description, " +
            "p.first_name, p.last_name, " +
-           "rr.origin_lat, rr.origin_lng, rr.destination_lat, rr.destination_lng " +
+           "pr.pickup_lat, pr.pickup_lng, pr.dropoff_lat, pr.dropoff_lng " +
            "FROM earnings e " +
            "LEFT JOIN bids b ON e.bid_id = b.id " +
            "LEFT JOIN parcel_requests pr ON b.request_id = pr.id " +
