@@ -19,7 +19,7 @@ const getApiBaseUrl = () => {
 };
 
 // Use actual IP address for all platforms to ensure connectivity
-const API_BASE_URL = 'https://beb55805c130.ngrok-free.app/api';
+const API_BASE_URL = 'https://49e05d43927f.ngrok-free.app/api';
 
 // Debug log to show which API URL is being used
 console.log('API Base URL:', API_BASE_URL);
@@ -273,7 +273,7 @@ export const formatLocation = async (locationString: string | undefined | null):
   return locationString;
 };
 
-// Synchronous version for immediate display (shows coordinates first, then updates)
+// Synchronous version for immediate display (shows better formatted coordinates first, then updates)
 export const formatLocationSync = (locationString: string | undefined | null): string => {
   if (!locationString) return 'Unknown Location';
   
@@ -282,7 +282,13 @@ export const formatLocationSync = (locationString: string | undefined | null): s
   if (coordMatch) {
     const lat = parseFloat(coordMatch[1]);
     const lng = parseFloat(coordMatch[2]);
-    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    
+    // Provide better immediate display for Sri Lankan coordinates
+    if (lat >= 5.9 && lat <= 9.9 && lng >= 79.5 && lng <= 81.9) {
+      return `Location in Sri Lanka (${lat.toFixed(3)}, ${lng.toFixed(3)})`;
+    }
+    
+    return `Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
   }
   
   return locationString;
