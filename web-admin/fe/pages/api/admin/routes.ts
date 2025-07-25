@@ -27,11 +27,96 @@ async function reverseGeocode(lat: number, lng: number) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method === 'POST') {
+    // POST /api/admin/routes - create a new route
+    const {
+      driver_id,
+      origin_lat,
+      origin_lng,
+      destination_lat,
+      destination_lng,
+      departure_time,
+      detour_tolerance_km,
+      suggested_price_min,
+      suggested_price_max,
+      status
+    } = req.body;
+
+    // Basic validation
+    if (!driver_id || !origin_lat || !origin_lng || !destination_lat || !destination_lng || !departure_time || !status) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const { data, error } = await adminSupabase
+      .from('return_routes')
+      .insert([
+        {
+          driver_id,
+          origin_lat,
+          origin_lng,
+          destination_lat,
+          destination_lng,
+          departure_time,
+          detour_tolerance_km: detour_tolerance_km ?? 0,
+          suggested_price_min: suggested_price_min ?? 0,
+          suggested_price_max: suggested_price_max ?? 0,
+          status,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    // Optionally reverse geocode for the response
+    const origin_name = await reverseGeocode(data.origin_lat, data.origin_lng);
+    const destination_name = await reverseGeocode(data.destination_lat, data.destination_lng);
+    const route = {
+      ...data,
+      origin_name,
+      destination_name,
+    };
+    return res.status(201).json({ route });
+  }
+
   if (req.method !== 'GET') {
-    res.setHeader('Allow', ['GET']);
+    res.setHeader('Allow', ['GET', 'POST']);
     return res.status(405).end(`Method ${req.method} Not Allowed`);
   }
 
+  const { id } = req.query;
+
+  if (id) {
+    // GET /api/admin/routes?id=... (single route)
+    if (typeof id !== 'string') {
+      return res.status(400).json({ error: 'Route ID must be a string' });
+    }
+    const { data, error } = await adminSupabase
+      .from('return_routes')
+      .select(`*, profiles:driver_id (first_name, last_name)`)
+      .eq('id', id)
+      .single();
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+    if (!data) {
+      return res.status(404).json({ error: 'Route not found' });
+    }
+    const origin_name = await reverseGeocode(data.origin_lat, data.origin_lng);
+    const destination_name = await reverseGeocode(data.destination_lat, data.destination_lng);
+    const route = {
+      ...data,
+      driver: data.profiles,
+      profiles: undefined,
+      origin_name,
+      destination_name,
+    };
+    return res.status(200).json({ route });
+  }
+
+  // GET /api/admin/routes (all routes)
   const { data, error } = await adminSupabase
     .from('return_routes')
     .select(`

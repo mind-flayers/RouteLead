@@ -10,10 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-<<<<<<< HEAD
-    "node-fetch": "^3.3.2"
-=======
+    "node-fetch": "^3.3.2",
     "react-native-webview": "^13.15.0"
->>>>>>> 14bb916aeabfa870135707b3c95abd694b275115
   }
 }
