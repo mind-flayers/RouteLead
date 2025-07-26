@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Config } from '@/constants/Config';
 
 export default function PlaceBid() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  
+  // Get route parameters
+  const routeId = params.routeId as string;
+  const origin = params.origin as string;
+  const destination = params.destination as string;
 
   // Simulate driver's fixed price (replace with prop or API as needed)
   const fixedPrice = 1000; // Example: 1000. Replace with actual value.
@@ -14,51 +21,106 @@ export default function PlaceBid() {
   const [width, setWidth] = useState('');
   const [height, setHeight] = useState('');
   const [description, setDescription] = useState('');
-  // TODO: Replace with actual customerId and routeId from context or navigation params
+  const [placingBid, setPlacingBid] = useState(false);
+  
+  // TODO: Replace with actual customerId from context or authentication
   const customerId = '70ba4867-edcb-4628-b614-7bb60e935862';
-  const routeId = 'ROUTE_ID_HERE'; // Replace with actual routeId
-  const API_BASE_URL = 'http://localhost:8080/api';
 
   const handlePlaceBid = async () => {
+    // Validate all required fields
     if (!bid || !weight || !length || !width || !height || !description) {
-      alert('Please fill in all fields.');
+      Alert.alert('Validation Error', 'Please fill in all fields.');
       return;
     }
-    if (parseFloat(bid) <= fixedPrice) {
-      alert(`Your bid must be higher than the driver's fixed price: ${fixedPrice}`);
+    
+    // Validate numeric values
+    const bidAmount = parseFloat(bid);
+    const weightValue = parseFloat(weight);
+    const lengthValue = parseFloat(length);
+    const widthValue = parseFloat(width);
+    const heightValue = parseFloat(height);
+    
+    if (isNaN(bidAmount) || isNaN(weightValue) || isNaN(lengthValue) || isNaN(widthValue) || isNaN(heightValue)) {
+      Alert.alert('Validation Error', 'Please enter valid numeric values for all fields.');
       return;
     }
+    
+    if (bidAmount <= fixedPrice) {
+      Alert.alert('Invalid Bid', `Your bid must be higher than the driver&apos;s fixed price: ${fixedPrice}`);
+      return;
+    }
+    
+    if (weightValue <= 0 || lengthValue <= 0 || widthValue <= 0 || heightValue <= 0) {
+      Alert.alert('Validation Error', 'Weight and dimensions must be greater than 0.');
+      return;
+    }
+    
     try {
-      const bidData = {
-        amount: parseFloat(bid),
-        weight: parseFloat(weight),
-        dimensions: `${length}×${width}×${height}`,
-        description,
-        customerId,
-        routeId,
+      setPlacingBid(true);
+      
+      // Calculate volume from dimensions (convert cm³ to m³)
+      const volumeM3 = (lengthValue * widthValue * heightValue) / 1000000;
+      
+      // Create both request and bid in one call
+      const combinedData = {
+        customerId: customerId,
+        pickupLat: 6.9271, // TODO: Get from route details
+        pickupLng: 79.8612, // TODO: Get from route details
+        dropoffLat: 6.9934, // TODO: Get from route details
+        dropoffLng: 81.0550, // TODO: Get from route details
+        weightKg: weightValue,
+        volumeM3: volumeM3,
+        description: description,
+        maxBudget: bidAmount,
+        pickupContactName: "Customer", // TODO: Get from user profile
+        pickupContactPhone: "+94 999999999", // TODO: Get from user profile
+        deliveryContactName: "Customer", // TODO: Get from user profile
+        deliveryContactPhone: "+94 999999999", // TODO: Get from user profile
+        offeredPrice: bidAmount,
+        specialInstructions: description
       };
-      const res = await fetch(`${API_BASE_URL}/bids`, {
+      
+      console.log('Sending data to backend:', combinedData);
+      
+      const response = await fetch(`${Config.API_BASE}/routes/${routeId}/create-request-and-bid`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bidData),
+        headers: { 
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify(combinedData),
       });
-      if (!res.ok) throw new Error('Failed to place bid');
-      router.push('/pages/customer/BidConfirmation');
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Backend error response:', errorText);
+        throw new Error(`Failed to place bid: ${response.status} - ${errorText}`);
+      }
+      
+      const result = await response.json();
+      Alert.alert('Success!', 'Your bid has been placed successfully.', [
+        { text: 'OK', onPress: () => router.push('/pages/customer/BidConfirmation') }
+      ]);
     } catch (err) {
-      let message = 'Could not place bid';
-      if (err instanceof Error) message = err.message;
-      router.push('/pages/customer/BidConfirmation')
-      // alert(message);
+      console.error('Error placing bid:', err);
+      Alert.alert('Error', 'Failed to place bid. Please try again.');
+    } finally {
+      setPlacingBid(false);
     }
   };
 
   return (
     <ScrollView style={styles.container}>
+      {/* Route Information */}
+      <View style={styles.routeInfo}>
+        <Text style={styles.routeTitle}>Route Details</Text>
+        <Text style={styles.routeText}>{origin} → {destination}</Text>
+      </View>
+      
       {/* Bid Details */}
       <Text style={styles.title}>Place Your Bid</Text>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Bid Amount (Driver's Fixed Price: {fixedPrice})</Text>
+        <Text style={styles.label}>Bid Amount (Driver&apos;s Fixed Price: {fixedPrice})</Text>
         <TextInput
           value={bid}
           onChangeText={setBid}
@@ -123,8 +185,14 @@ export default function PlaceBid() {
       </View>
 
       {/* Submit Button */}
-      <TouchableOpacity style={styles.button} onPress={handlePlaceBid}>
-        <Text style={styles.buttonText}>Place Your Bid</Text>
+      <TouchableOpacity 
+        style={[styles.button, placingBid && styles.buttonDisabled]} 
+        onPress={handlePlaceBid}
+        disabled={placingBid}
+      >
+        <Text style={styles.buttonText}>
+          {placingBid ? 'Placing Bid...' : 'Place Your Bid'}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -141,6 +209,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 16,
+  },
+  routeInfo: {
+    backgroundColor: '#E3F2FD',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  routeTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1976D2',
+    marginBottom: 4,
+  },
+  routeText: {
+    fontSize: 14,
+    color: '#424242',
   },
   section: {
     backgroundColor: '#f3f4f6',
@@ -167,6 +251,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D47A1',
     paddingVertical: 16,
     borderRadius: 6,
+  },
+  buttonDisabled: {
+    backgroundColor: '#9CA3AF',
   },
   buttonText: {
     color: 'white',

@@ -3,6 +3,10 @@ package com.example.be.service;
 import com.example.be.dto.CreateRouteDto;
 import com.example.be.dto.RouteSegmentDto;
 import com.example.be.dto.ReturnRouteUpdateRequestDto;
+import com.example.be.dto.RouteDetailsDto;
+import com.example.be.dto.BidSummaryDto;
+import com.example.be.dto.PricePredictionDto;
+import com.example.be.dto.RouteBidWithRequestDto;
 import com.example.be.model.ReturnRoute;
 import com.example.be.model.RouteSegment;
 import com.example.be.types.RouteStatus;
@@ -20,7 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -33,6 +39,8 @@ public class RouteService {
     private final GoogleMapsClient maps;
     private final PolylineService polyService;
     private final ProfileRepository profileRepo;
+    private final com.example.be.service.ParcelRequestService parcelRequestService;
+    private final com.example.be.service.BidService bidService;
 
     @Transactional
     public void createRoute(CreateRouteDto dto) throws Exception {
@@ -339,5 +347,141 @@ public class RouteService {
         // Delete the route
         routeRepo.delete(route);
         log.info("Route deleted successfully with ID: {}", routeId);
+    }
+
+    @Transactional(readOnly = true)
+    public RouteDetailsDto getRouteDetails(UUID routeId) {
+        log.info("Getting detailed route information for route: {}", routeId);
+        
+        ReturnRoute route = routeRepo.findById(routeId)
+            .orElseThrow(() -> new RuntimeException("Route not found with id: " + routeId));
+        
+        RouteDetailsDto dto = new RouteDetailsDto();
+        
+        // Basic route information
+        dto.setId(route.getId());
+        dto.setOriginLat(route.getOriginLat());
+        dto.setOriginLng(route.getOriginLng());
+        dto.setDestinationLat(route.getDestinationLat());
+        dto.setDestinationLng(route.getDestinationLng());
+        dto.setDepartureTime(route.getDepartureTime());
+        dto.setDetourToleranceKm(route.getDetourToleranceKm());
+        dto.setSuggestedPriceMin(route.getSuggestedPriceMin());
+        dto.setSuggestedPriceMax(route.getSuggestedPriceMax());
+        dto.setStatus(route.getStatus());
+        dto.setCreatedAt(route.getCreatedAt());
+        dto.setUpdatedAt(route.getUpdatedAt());
+        
+        // Driver information
+        if (route.getDriver() != null) {
+            dto.setDriverId(route.getDriver().getId());
+            dto.setDriverName(route.getDriver().getFirstName() + " " + route.getDriver().getLastName());
+            dto.setDriverEmail(route.getDriver().getEmail());
+            dto.setDriverPhone(route.getDriver().getPhoneNumber());
+            dto.setDriverProfilePhoto(route.getDriver().getProfilePhotoUrl());
+        }
+        
+        // Route segments
+        List<RouteSegment> segments = segRepo.findByRouteIdOrderBySegmentIndex(routeId);
+        dto.setSegments(segments.stream().map(this::convertToDto).collect(Collectors.toList()));
+        
+        // Calculate total distance
+        BigDecimal totalDistance = segments.stream()
+            .map(RouteSegment::getDistanceKm)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        dto.setTotalDistance(totalDistance);
+        
+        // Set default values for missing data
+        dto.setTotalBids(0);
+        dto.setHighestBid(BigDecimal.ZERO);
+        dto.setAverageBid(BigDecimal.ZERO);
+        dto.setRecentBids(new ArrayList<>());
+        dto.setDriverRating(4.5); // Default rating
+        dto.setDriverReviewCount(0);
+        dto.setEstimatedDuration("1 hr 45 min"); // Default duration
+        dto.setRouteImage("https://via.placeholder.com/300x150");
+        dto.setRouteTags(List.of("Heavy Cargo", "Fragile Items", "Temperature Sensitive"));
+        
+        // Set default addresses (these would normally come from geocoding)
+        dto.setOriginAddress("Colombo, Sri Lanka");
+        dto.setDestinationAddress("Badulla, Sri Lanka");
+        
+        return dto;
+    }
+
+    @Transactional
+    public Map<String, Object> createRequestAndBid(RouteBidWithRequestDto dto) {
+        log.info("Creating parcel request and bid for route: {}", dto.getRouteId());
+        
+        try {
+            // 1. Create ParcelRequest
+            com.example.be.model.ParcelRequest parcelRequest = new com.example.be.model.ParcelRequest();
+            
+            // Set customer
+            parcelRequest.setCustomer(profileRepo.findById(dto.getCustomerId())
+                    .orElseThrow(() -> new RuntimeException("Customer not found")));
+            
+            // Set parcel details
+            parcelRequest.setPickupLat(dto.getPickupLat());
+            parcelRequest.setPickupLng(dto.getPickupLng());
+            parcelRequest.setDropoffLat(dto.getDropoffLat());
+            parcelRequest.setDropoffLng(dto.getDropoffLng());
+            parcelRequest.setWeightKg(dto.getWeightKg());
+            parcelRequest.setVolumeM3(dto.getVolumeM3());
+            parcelRequest.setDescription(dto.getDescription());
+            parcelRequest.setMaxBudget(dto.getMaxBudget());
+            // Set deadline to 7 days from now if not provided
+            if (dto.getDeadline() != null) {
+                parcelRequest.setDeadline(dto.getDeadline());
+            } else {
+                parcelRequest.setDeadline(ZonedDateTime.now().plusDays(7));
+            }
+            parcelRequest.setPickupContactName(dto.getPickupContactName());
+            parcelRequest.setPickupContactPhone(dto.getPickupContactPhone());
+            parcelRequest.setDeliveryContactName(dto.getDeliveryContactName());
+            parcelRequest.setDeliveryContactPhone(dto.getDeliveryContactPhone());
+            parcelRequest.setStatus(com.example.be.types.ParcelStatus.OPEN);
+            
+            // Set timestamps
+            ZonedDateTime now = ZonedDateTime.now();
+            parcelRequest.setCreatedAt(now);
+            parcelRequest.setUpdatedAt(now);
+            
+            // Save parcel request using native SQL and get the ID directly
+            UUID createdRequestId = parcelRequestService.createNativeAndReturnId(parcelRequest);
+            
+            // 2. Create Bid using the existing BidService
+            com.example.be.dto.BidCreateDto bidCreateDto = new com.example.be.dto.BidCreateDto();
+            bidCreateDto.setRequestId(createdRequestId); // Use the UUID we got
+            bidCreateDto.setRouteId(dto.getRouteId());
+            bidCreateDto.setStartIndex(0);
+            bidCreateDto.setEndIndex(0);
+            bidCreateDto.setOfferedPrice(dto.getOfferedPrice());
+            
+            // Create the bid
+            com.example.be.dto.BidDto createdBid = bidService.createBid(bidCreateDto);
+            
+            // 3. Return combined response
+            Map<String, Object> response = new HashMap<>();
+            response.put("requestId", createdRequestId);
+            response.put("bidId", createdBid.getId());
+            response.put("routeId", dto.getRouteId());
+            response.put("customerId", dto.getCustomerId());
+            response.put("offeredPrice", createdBid.getOfferedPrice());
+            response.put("status", createdBid.getStatus().name());
+            response.put("createdAt", createdBid.getCreatedAt());
+            response.put("message", "Parcel request and bid created successfully!");
+            
+            log.info("Successfully created request and bid. Request ID: {}, Bid ID: {}", 
+                    createdRequestId, createdBid.getId());
+            
+            return response;
+            
+        } catch (Exception e) {
+            log.error("Error creating request and bid: ", e);
+            log.error("DTO details - RouteId: {}, CustomerId: {}, Weight: {}, Volume: {}", 
+                    dto.getRouteId(), dto.getCustomerId(), dto.getWeightKg(), dto.getVolumeM3());
+            throw new RuntimeException("Failed to create request and bid: " + e.getMessage());
+        }
     }
 }

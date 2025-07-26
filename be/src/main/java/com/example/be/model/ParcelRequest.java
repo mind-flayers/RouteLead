@@ -54,7 +54,6 @@ public class ParcelRequest {
     @Column(name = "deadline", nullable = false)
     private ZonedDateTime deadline;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, columnDefinition = "parcel_status")
     private ParcelStatus status = ParcelStatus.OPEN;
 
