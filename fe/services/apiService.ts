@@ -19,7 +19,11 @@ const getApiBaseUrl = () => {
 };
 
 // Use actual IP address for all platforms to ensure connectivity
+<<<<<<< HEAD
+const API_BASE_URL = 'https://57eb020598e0.ngrok-free.app/api';
+=======
 const API_BASE_URL = 'https://beb55805c130.ngrok-free.app/api';
+>>>>>>> 14bb916aeabfa870135707b3c95abd694b275115
 
 // Debug log to show which API URL is being used
 console.log('API Base URL:', API_BASE_URL);

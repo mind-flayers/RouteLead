@@ -114,6 +114,10 @@ const UserManagement: React.FC = () => {
 	const [loading, setLoading] = useState(true);
 	const [statusDropdown, setStatusDropdown] = useState<string | null>(null);
 	const [verificationDropdown, setVerificationDropdown] = useState<string | null>(null);
+	const [editModalOpen, setEditModalOpen] = useState(false);
+	const [editUser, setEditUser] = useState<any | null>(null);
+	const [editForm, setEditForm] = useState<any>({});
+	const [editLoading, setEditLoading] = useState(false);
 
 	useEffect(() => {
 		async function fetchUsers() {
@@ -151,16 +155,24 @@ const UserManagement: React.FC = () => {
 
 	// Optionally, you can implement status/verification change logic for real data here
 
-	const filteredUsers = userList.filter((u) => {
-		const name = (u.firstName || '') + ' ' + (u.lastName || '');
-		const matchesSearch =
-			name.toLowerCase().includes(search.toLowerCase()) ||
-			(u.email || '').toLowerCase().includes(search.toLowerCase()) ||
-			(u.id || '').toLowerCase().includes(search.toLowerCase());
-		const matchesRole = role === 'All Roles' || u.role === role;
-		// You may want to map your real status/verification fields here
-		return matchesSearch && matchesRole;
-	});
+	const filteredUsers = userList
+		.filter((u) => u.role !== 'ADMIN')
+		.filter((u) => {
+			const name = (u.firstName || '') + ' ' + (u.lastName || '');
+			const matchesSearch =
+				name.toLowerCase().includes(search.toLowerCase()) ||
+				(u.email || '').toLowerCase().includes(search.toLowerCase()) ||
+				(u.id || '').toLowerCase().includes(search.toLowerCase());
+			const matchesRole = role === 'All Roles' || u.role === role;
+			// You may want to map your real status/verification fields here
+			return matchesSearch && matchesRole;
+		})
+		.sort((a, b) => {
+			// Blocked users (REJECTED) go last
+			if (a.verification_status === 'REJECTED' && b.verification_status !== 'REJECTED') return 1;
+			if (a.verification_status !== 'REJECTED' && b.verification_status === 'REJECTED') return -1;
+			return 0;
+		});
 
 	// Stat counts based on filteredUsers
 	const totalUsers = filteredUsers.length;
@@ -328,25 +340,48 @@ const UserManagement: React.FC = () => {
 										</span>
 									</td>
 									<td style={cellStyle}>{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : ''}</td>
-									<td style={cellStyle}>
-										{u.verification_status === 'REJECTED' ? (
+									<td style={{ ...cellStyle, minWidth: 180 }}>
+										<div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
 											<button
 												style={{
-													background: NAVY_BLUE,
-													color: '#fff',
+													background: 'none',
 													border: 'none',
-													borderRadius: 6,
-													padding: '6px 14px',
-													fontWeight: 600,
 													cursor: 'pointer',
-													marginRight: 8,
+													padding: 4,
+													verticalAlign: 'middle',
 												}}
+												title="Edit User"
+												onClick={() => {
+													setEditUser(u);
+													setEditForm({
+														firstName: u.firstName || '',
+														lastName: u.lastName || '',
+														email: u.email || '',
+														phoneNumber: u.phoneNumber || '',
+														role: u.role || '',
+														isVerified: !!u.isVerified,
+													});
+													setEditModalOpen(true);
+												}}
+											>
+												{/* Edit (pencil) icon SVG */}
+												<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+													<path d="M4 13.5V16H6.5L14.87 7.63C15.16 7.34 15.16 6.86 14.87 6.57L13.43 5.13C13.14 4.84 12.66 4.84 12.37 5.13L4 13.5ZM16.71 6.04C17.1 5.65 17.1 5.02 16.71 4.63L15.37 3.29C14.98 2.9 14.35 2.9 13.96 3.29L13.13 4.12L15.88 6.87L16.71 6.04Z" fill="#1A237E"/>
+												</svg>
+											</button>
+											<button
+												style={{
+													background: 'none',
+													border: 'none',
+													cursor: 'pointer',
+													padding: 4,
+													verticalAlign: 'middle',
+												}}
+												title="Delete User"
 												onClick={async () => {
-													if (window.confirm('Are you sure you want to unblock this user?')) {
+													if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
 														await fetch(`/api/admin/users/${u.id}`, {
-															method: 'PUT',
-															headers: { 'Content-Type': 'application/json' },
-															body: JSON.stringify({ verification_status: 'APPROVED' }),
+															method: 'DELETE',
 														});
 														setLoading(true);
 														const res = await fetch('/api/admin/users');
@@ -365,47 +400,90 @@ const UserManagement: React.FC = () => {
 													}
 												}}
 											>
-												Unblock
+												{/* Delete (trash) icon SVG */}
+												<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+													<path d="M6 7V15C6 15.55 6.45 16 7 16H13C13.55 16 14 15.55 14 15V7M9 10V13M11 10V13M4 7H16M8 4H12C12.55 4 13 4.45 13 5V6H7V5C7 4.45 7.45 4 8 4Z" stroke="#EF4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+												</svg>
 											</button>
-										) : (
-											<button
-												style={{
-													background: '#EF4444',
-													color: '#fff',
-													border: 'none',
-													borderRadius: 6,
-													padding: '6px 14px',
-													fontWeight: 600,
-													cursor: 'pointer',
-												}}
-												onClick={async () => {
-													if (window.confirm('Are you sure you want to block this user as fraud?')) {
-														await fetch(`/api/admin/users/${u.id}`, {
-															method: 'PUT',
-															headers: { 'Content-Type': 'application/json' },
-															body: JSON.stringify({ verification_status: 'REJECTED' }),
-														});
-														setLoading(true);
-														const res = await fetch('/api/admin/users');
-														const data = await res.json();
-														setUserList(
-															data.map((u: any) => ({
-																...u,
-																firstName: u.firstName || u.first_name,
-																lastName: u.lastName || u.last_name,
-																phoneNumber: u.phoneNumber || u.phone_number,
-																isVerified: u.isVerified ?? u.is_verified,
-																createdAt: u.createdAt || u.created_at,
-															}))
-														);
-														setLoading(false);
-													}
-												}}
-												disabled={u.verification_status === 'REJECTED'}
-											>
-												Block
-											</button>
-										)}
+											{u.verification_status === 'REJECTED' ? (
+												<button
+													style={{
+														background: NAVY_BLUE,
+														color: '#fff',
+														border: 'none',
+														borderRadius: 6,
+														padding: '6px 14px',
+														fontWeight: 600,
+														cursor: 'pointer',
+														minWidth: 70,
+													}}
+													onClick={async () => {
+														if (window.confirm('Are you sure you want to unblock this user?')) {
+															await fetch(`/api/admin/users/${u.id}`, {
+																method: 'PUT',
+																headers: { 'Content-Type': 'application/json' },
+																body: JSON.stringify({ verification_status: 'APPROVED' }),
+															});
+															setLoading(true);
+															const res = await fetch('/api/admin/users');
+															const data = await res.json();
+															setUserList(
+																data.map((u: any) => ({
+																	...u,
+																	firstName: u.firstName || u.first_name,
+																	lastName: u.lastName || u.last_name,
+																	phoneNumber: u.phoneNumber || u.phone_number,
+																	isVerified: u.isVerified ?? u.is_verified,
+																	createdAt: u.createdAt || u.created_at,
+																}))
+															);
+															setLoading(false);
+														}
+													}}
+												>
+													Unblock
+												</button>
+											) : (
+												<button
+													style={{
+														background: '#EF4444',
+														color: '#fff',
+														border: 'none',
+														borderRadius: 6,
+														padding: '6px 14px',
+														fontWeight: 600,
+														cursor: 'pointer',
+														minWidth: 70,
+													}}
+													onClick={async () => {
+														if (window.confirm('Are you sure you want to block this user as fraud?')) {
+															await fetch(`/api/admin/users/${u.id}`, {
+																method: 'PUT',
+																headers: { 'Content-Type': 'application/json' },
+																body: JSON.stringify({ verification_status: 'REJECTED' }),
+															});
+															setLoading(true);
+															const res = await fetch('/api/admin/users');
+															const data = await res.json();
+															setUserList(
+																data.map((u: any) => ({
+																	...u,
+																	firstName: u.firstName || u.first_name,
+																	lastName: u.lastName || u.last_name,
+																	phoneNumber: u.phoneNumber || u.phone_number,
+																	isVerified: u.isVerified ?? u.is_verified,
+																	createdAt: u.createdAt || u.created_at,
+																}))
+															);
+															setLoading(false);
+														}
+													}}
+													disabled={u.verification_status === 'REJECTED'}
+												>
+													Block
+												</button>
+											)}
+										</div>
 									</td>
 								</tr>
 							))}
@@ -505,6 +583,165 @@ select option:checked, select option:focus {
     color: #FF8C00;
 }
 			`}</style>
+
+			{/* Edit User Modal */}
+			{editModalOpen && (
+				<div
+					style={{
+						position: 'fixed',
+						top: 0, left: 0, right: 0, bottom: 0,
+						background: 'rgba(0,0,0,0.18)',
+						zIndex: 1000,
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+					}}
+				>
+					<form
+						onSubmit={async (e) => {
+							e.preventDefault();
+							setEditLoading(true);
+							await fetch(`/api/admin/users/${editUser.id}`, {
+								method: 'PUT',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({
+									first_name: editForm.firstName,
+									last_name: editForm.lastName,
+									email: editForm.email,
+									phone_number: editForm.phoneNumber,
+									role: editForm.role,
+									is_verified: editForm.isVerified,
+								}),
+							});
+							setEditModalOpen(false);
+							setEditUser(null);
+							setEditLoading(false);
+							setLoading(true);
+							const res = await fetch('/api/admin/users');
+							const data = await res.json();
+							setUserList(
+								data.map((u: any) => ({
+									...u,
+									firstName: u.firstName || u.first_name,
+									lastName: u.lastName || u.last_name,
+									phoneNumber: u.phoneNumber || u.phone_number,
+									isVerified: u.isVerified ?? u.is_verified,
+									createdAt: u.createdAt || u.created_at,
+								}))
+							);
+							setLoading(false);
+						}}
+						style={{
+							background: '#fff',
+							borderRadius: 14,
+							boxShadow: '0 4px 24px #0003',
+							padding: '2rem 2.5rem',
+							minWidth: 320,
+							maxWidth: '90vw',
+							display: 'flex',
+							flexDirection: 'column',
+							alignItems: 'center',
+							gap: 18,
+						}}
+					>
+						<div style={{ fontWeight: 700, fontSize: 18, color: NAVY_BLUE, marginBottom: 6 }}>
+							Edit User
+						</div>
+						<div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
+							<label>First Name</label>
+							<input
+								type="text"
+								value={editForm.firstName}
+								onChange={e => setEditForm({ ...editForm, firstName: e.target.value })}
+								style={{ padding: '10px', borderRadius: 8, border: '1.5px solid #E5E7EB', fontSize: 15 }}
+								required
+							/>
+							<label>Last Name</label>
+							<input
+								type="text"
+								value={editForm.lastName}
+								onChange={e => setEditForm({ ...editForm, lastName: e.target.value })}
+								style={{ padding: '10px', borderRadius: 8, border: '1.5px solid #E5E7EB', fontSize: 15 }}
+								required
+							/>
+							<label>Email</label>
+							<input
+								type="email"
+								value={editForm.email}
+								onChange={e => setEditForm({ ...editForm, email: e.target.value })}
+								style={{ padding: '10px', borderRadius: 8, border: '1.5px solid #E5E7EB', fontSize: 15 }}
+								required
+							/>
+							<label>Phone Number</label>
+							<input
+								type="text"
+								value={editForm.phoneNumber}
+								onChange={e => setEditForm({ ...editForm, phoneNumber: e.target.value })}
+								style={{ padding: '10px', borderRadius: 8, border: '1.5px solid #E5E7EB', fontSize: 15 }}
+							/>
+							<label>Role</label>
+							<select
+								value={editForm.role}
+								onChange={e => setEditForm({ ...editForm, role: e.target.value })}
+								style={{ padding: '10px', borderRadius: 8, border: '1.5px solid #E5E7EB', fontSize: 15 }}
+								required
+							>
+								<option value="DRIVER">DRIVER</option>
+								<option value="CUSTOMER">CUSTOMER</option>
+								<option value="ADMIN">ADMIN</option>
+							</select>
+							<label>Verified</label>
+							<select
+								value={editForm.isVerified ? 'true' : 'false'}
+								onChange={e => setEditForm({ ...editForm, isVerified: e.target.value === 'true' })}
+								style={{ padding: '10px', borderRadius: 8, border: '1.5px solid #E5E7EB', fontSize: 15 }}
+								required
+							>
+								<option value="true">Verified</option>
+								<option value="false">Pending</option>
+							</select>
+						</div>
+						<div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+							<button
+								type="button"
+								onClick={() => { setEditModalOpen(false); setEditUser(null); }}
+								style={{
+									background: '#fff',
+									border: `1.5px solid #E5E7EB`,
+									borderRadius: 8,
+									padding: '10px 24px',
+									fontWeight: 600,
+									fontSize: 15,
+									color: NAVY_BLUE,
+									cursor: 'pointer',
+									transition: 'background 0.2s, border 0.2s',
+								}}
+								disabled={editLoading}
+							>
+								Cancel
+							</button>
+							<button
+								type="submit"
+								style={{
+									background: ROYAL_ORANGE,
+									color: '#fff',
+									border: 'none',
+									borderRadius: 8,
+									padding: '10px 24px',
+									fontWeight: 700,
+									fontSize: 15,
+									cursor: 'pointer',
+									boxShadow: '0 2px 8px #FF8C0022',
+									transition: 'background 0.2s, box-shadow 0.2s',
+								}}
+								disabled={editLoading}
+							>
+								{editLoading ? 'Saving...' : 'Save Changes'}
+							</button>
+						</div>
+					</form>
+				</div>
+			)}
 		</div>
 	);
 };
