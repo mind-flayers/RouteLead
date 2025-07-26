@@ -29,17 +29,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // For testing: skip authentication and admin check
   try {
-    const { data, error } = await adminSupabase
-      .from('profiles')
-      .update({ is_verified: status === 'verified' })
-      .eq('id', id)
-      .select();
+  const { data, error } = await adminSupabase
+    .from('profiles')
+    .update({ is_verified: status === 'verified' })
+    .eq('id', id)
+    .select();
 
-    if (error) {
-      return res.status(500).json({ error: error.message });
-    }
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
 
-    return res.status(200).json({ user: data });
+  return res.status(200).json({ user: data });
   } catch (error) {
     return res.status(500).json({ error: 'Internal server error.' });
   }

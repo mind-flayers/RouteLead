@@ -32,12 +32,25 @@ const Navbar: React.FC = () => {
         />
       </div>
       <div style={styles.right}>
-        <span style={styles.bell}>🔔</span>
-        <img
-          src="https://randomuser.me/api/portraits/women/44.jpg"
-          alt="User"
-          style={styles.avatar}
-        />
+        {/* Admin icon instead of image */}
+        <span style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 34,
+          height: 34,
+          borderRadius: '50%',
+          background: '#FF6A00',
+          color: '#fff',
+          fontWeight: 700,
+          fontSize: 22,
+          border: '2px solid #F3EDE7',
+        }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="8" r="4" fill="white"/>
+            <rect x="4" y="16" width="16" height="4" rx="2" fill="white"/>
+          </svg>
+        </span>
       </div>
     </header>
   );
