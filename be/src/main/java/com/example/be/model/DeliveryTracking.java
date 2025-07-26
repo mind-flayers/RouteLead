@@ -6,8 +6,9 @@ import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -22,12 +23,6 @@ public class DeliveryTracking {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bid_id", nullable = false)
     private Bid bid;
-
-    @Column(name = "driver_location_lat", precision = 10, scale = 8)
-    private BigDecimal driverLocationLat;
-
-    @Column(name = "driver_location_lng", precision = 10, scale = 8)
-    private BigDecimal driverLocationLng;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, columnDefinition = "delivery_status_enum")
@@ -45,6 +40,9 @@ public class DeliveryTracking {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;
+
+    @OneToMany(mappedBy = "deliveryTracking", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<DriverLocationUpdate> locationUpdates = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {
