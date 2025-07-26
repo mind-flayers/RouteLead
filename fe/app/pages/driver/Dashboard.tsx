@@ -262,7 +262,8 @@ const Dashboard = () => {
                       <View className="flex-row items-center">
                         <Text className="text-gray-700 mb-1 flex-1">{activity.subtitle}</Text>
                         {activity.isLoadingLocation && (
-                          <View className="ml-2">
+                          <View className="ml-2 flex-row items-center">
+                            <Text className="text-xs text-gray-500 mr-1">Loading...</Text>
                             <Ionicons name="refresh" size={12} color="#9CA3AF" />
                           </View>
                         )}

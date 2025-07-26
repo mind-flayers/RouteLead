@@ -258,7 +258,7 @@ const RouteDashboard = () => {
               {filteredRoutes.map((route) => (
                 <tr key={route.id} style={rowStyle}>
                   <td style={cellStyle}>
-                    {route.driver ? `${route.driver.first_name} ${route.driver.last_name}` : ''}
+                    {route.driver ? `${route.driver?.first_name} ${route.driver?.last_name}` : ''}
                   </td>
                   <td style={cellStyle}>{route.origin || ''}</td>
                   <td style={cellStyle}>{route.destination || ''}</td>
