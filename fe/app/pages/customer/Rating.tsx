@@ -14,6 +14,8 @@ const ratingDistribution = [
 export default function Rating() {
   const [userRating, setUserRating] = useState(0);
   const [feedback, setFeedback] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [submittedReview, setSubmittedReview] = useState<{rating: number, feedback: string}>({rating: 0, feedback: ''});
   const router = useRouter();
 
   return (
@@ -63,42 +65,64 @@ export default function Rating() {
         </View>
       </View>
 
-      {/* User Rating */}
-      <View className="bg-white rounded-xl p-4 mb-4 items-center border border-gray-100">
-        <Text className="font-semibold mb-2">How was your experience?</Text>
-        <View className="flex-row mb-1">
-          {[1,2,3,4,5].map(i => (
-            <TouchableOpacity key={i} onPress={() => setUserRating(i)}>
-              <Ionicons
-                name={userRating >= i ? "star" : "star-outline"}
-                size={32}
-                color="#FFA726"
-              />
-            </TouchableOpacity>
-          ))}
+      {/* Only show the form if not submitted */}
+      {!submitted && (
+        <>
+          {/* User Rating */}
+          <View className="bg-white rounded-xl p-4 mb-4 items-center border border-gray-100">
+            <Text className="font-semibold mb-2">How was your experience?</Text>
+            <View className="flex-row mb-1">
+              {[1,2,3,4,5].map(i => (
+                <TouchableOpacity key={i} onPress={() => setUserRating(i)}>
+                  <Ionicons
+                    name={userRating >= i ? "star" : "star-outline"}
+                    size={32}
+                    color="#FFA726"
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text className="text-xs text-gray-400">Tap to rate</Text>
+          </View>
+
+          {/* Feedback */}
+          <View className="bg-white rounded-xl p-4 mb-4 border border-gray-100">
+            <Text className="font-semibold mb-2">Share your feedback</Text>
+            <TextInput
+              className="bg-gray-100 rounded-md px-3 py-2 h-20 text-base"
+              placeholder="Write your review here... (Optional)"
+              multiline
+              value={feedback}
+              onChangeText={setFeedback}
+            />
+          </View>
+
+          {/* Submit Button */}
+          <TouchableOpacity
+            className="bg-[#FFA726] py-4 rounded-md mb-8"
+            onPress={() => {
+              setSubmitted(true);
+              setSubmittedReview({ rating: userRating, feedback });
+              // Optionally, call your API here
+            }}
+          >
+            <Text className="text-white text-center font-semibold text-base">Submit Review</Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+      {/* Show thank you and review after submission */}
+      {submitted && (
+        <View className="bg-white rounded-xl p-4 mb-4 border border-gray-100 items-center">
+          <Text className="text-lg font-bold text-[#FFA726] mb-2">Thank you for your feedback</Text>
+          <Text className="mb-1">Your Rating: {submittedReview.rating} <Ionicons name="star" size={16} color="#FFA726" /></Text>
+          {submittedReview.feedback ? (
+            <Text className="italic text-gray-600">"{submittedReview.feedback}"</Text>
+          ) : (
+            <Text className="italic text-gray-400">No written feedback.</Text>
+          )}
         </View>
-        <Text className="text-xs text-gray-400">Tap to rate</Text>
-      </View>
-
-      {/* Feedback */}
-      <View className="bg-white rounded-xl p-4 mb-4 border border-gray-100">
-        <Text className="font-semibold mb-2">Share your feedback</Text>
-        <TextInput
-          className="bg-gray-100 rounded-md px-3 py-2 h-20 text-base"
-          placeholder="Write your review here... (Optional)"
-          multiline
-          value={feedback}
-          onChangeText={setFeedback}
-        />
-      </View>
-
-      {/* Submit Button */}
-      <TouchableOpacity
-        className="bg-[#FFA726] py-4 rounded-md mb-8"
-        onPress={() => {/* Submit logic */}}
-      >
-        <Text className="text-white text-center font-semibold text-base">Submit Review</Text>
-      </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }

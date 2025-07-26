@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { WebView } from 'react-native-webview';
+import CustomerFooter from '../../../components/navigation/CustomerFooter';
 
 const GOOGLE_MAPS_APIKEY = 'AIzaSyDj2o9cWpgCtIM2hUP938Ppo31-gvap1ig'; // Replace with your real key
 
@@ -98,8 +99,25 @@ export default function FindRouteScreen() {
   const [routes, setRoutes] = useState<Route[]>([]);
   const [loadingRoutes, setLoadingRoutes] = useState(false);
   const [showRegionWarning, setShowRegionWarning] = useState(false);
+  const [pickupAddress, setPickupAddress] = useState<string | null>(null);
+  const [dropoffAddress, setDropoffAddress] = useState<string | null>(null);
 
-  const handleMapMessage = (event: any) => {
+  async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_APIKEY}`
+      );
+      const data = await response.json();
+      if (data.status === 'OK' && data.results.length > 0) {
+        return data.results[0].formatted_address;
+      }
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  const handleMapMessage = async (event: any) => {
     const { lat, lng } = JSON.parse(event.nativeEvent.data);
     if (!isInSriLanka(lat, lng)) {
       setShowRegionWarning(true);
@@ -107,9 +125,11 @@ export default function FindRouteScreen() {
     }
     if (step === 'pickup') {
       setPickupCoord({ latitude: lat, longitude: lng });
+      setPickupAddress(await reverseGeocode(lat, lng));
       setStep('dropoff');
     } else if (step === 'dropoff') {
       setDropoffCoord({ latitude: lat, longitude: lng });
+      setDropoffAddress(await reverseGeocode(lat, lng));
       setStep('done');
     }
   };
@@ -117,7 +137,23 @@ export default function FindRouteScreen() {
   const handleReset = () => {
     setPickupCoord(null);
     setDropoffCoord(null);
+    setPickupAddress(null);
+    setDropoffAddress(null);
     setStep('pickup');
+    setShowRoutes(false);
+  };
+
+  const handleClearPickup = () => {
+    setPickupCoord(null);
+    setPickupAddress(null);
+    setStep('pickup');
+    setShowRoutes(false);
+  };
+
+  const handleClearDropoff = () => {
+    setDropoffCoord(null);
+    setDropoffAddress(null);
+    setStep('dropoff');
     setShowRoutes(false);
   };
 
@@ -181,12 +217,38 @@ export default function FindRouteScreen() {
 
       {/* Address display */}
       <View style={{ padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderColor: '#eee' }}>
-        <Text style={{ fontWeight: 'bold', color: '#1e3a8a' }}>
-          Pickup: <Text style={{ color: '#333' }}>{pickupCoord ? `${pickupCoord.latitude}, ${pickupCoord.longitude}` : 'Select on map'}</Text>
-        </Text>
-        <Text style={{ fontWeight: 'bold', color: '#ff6b35', marginTop: 4 }}>
-          Dropoff: <Text style={{ color: '#333' }}>{dropoffCoord ? `${dropoffCoord.latitude}, ${dropoffCoord.longitude}` : 'Select on map'}</Text>
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+          <Text style={{ fontWeight: 'bold', color: '#1e3a8a' }}>
+            Pickup: <Text style={{ color: '#333' }}>
+              {pickupAddress
+                ? pickupAddress
+                : pickupCoord
+                ? `${pickupCoord.latitude}, ${pickupCoord.longitude}`
+                : 'Select on map'}
+            </Text>
+          </Text>
+          {pickupCoord && (
+            <TouchableOpacity onPress={handleClearPickup} style={{ marginLeft: 8 }}>
+              <Ionicons name="close-circle" size={20} color="#ff6b35" />
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ fontWeight: 'bold', color: '#ff6b35' }}>
+            Dropoff: <Text style={{ color: '#333' }}>
+              {dropoffAddress
+                ? dropoffAddress
+                : dropoffCoord
+                ? `${dropoffCoord.latitude}, ${dropoffCoord.longitude}`
+                : 'Select on map'}
+            </Text>
+          </Text>
+          {dropoffCoord && (
+            <TouchableOpacity onPress={handleClearDropoff} style={{ marginLeft: 8 }}>
+              <Ionicons name="close-circle" size={20} color="#1e3a8a" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Available Routes */}
@@ -254,6 +316,7 @@ export default function FindRouteScreen() {
           </View>
         </View>
       )}
+      <CustomerFooter activeTab="home" />
     </View>
   );
 }
