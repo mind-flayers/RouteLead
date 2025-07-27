@@ -37,5 +37,26 @@ public class ParcelRequestService {
             pr.getUpdatedAt() != null ? pr.getUpdatedAt() : java.time.ZonedDateTime.now()
         );
     }
+    
+    @Transactional
+    public UUID createNativeAndReturnId(ParcelRequest pr) {
+        return repo.insertParcelRequestWithEnumAndReturnId(
+            pr.getCustomer() != null ? pr.getCustomer().getId() : null,
+            pr.getPickupLat(),
+            pr.getPickupLng(),
+            pr.getDropoffLat(),
+            pr.getDropoffLng(),
+            pr.getWeightKg(),
+            pr.getVolumeM3(),
+            pr.getDescription(),
+            pr.getMaxBudget(),
+            pr.getDeadline(),
+            pr.getStatus().name(),
+            pr.getCreatedAt() != null ? pr.getCreatedAt() : java.time.ZonedDateTime.now(),
+            pr.getUpdatedAt() != null ? pr.getUpdatedAt() : java.time.ZonedDateTime.now()
+        );
+    }
+    
+
     public void delete(UUID id) { repo.deleteById(id); }
 }

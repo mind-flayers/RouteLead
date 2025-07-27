@@ -4,6 +4,10 @@ import com.example.be.dto.CreateRouteDto;
 import com.example.be.dto.RouteSegmentDto;
 import com.example.be.dto.PricePredictionDto;
 import com.example.be.dto.ReturnRouteUpdateRequestDto;
+import com.example.be.dto.RouteDetailsDto;
+import com.example.be.dto.RouteBidCreateDto;
+import com.example.be.dto.RouteBidWithRequestDto;
+import com.example.be.dto.BidDto;
 import com.example.be.model.ReturnRoute;
 import com.example.be.types.RouteStatus;
 import com.example.be.repository.ReturnRouteRepository;
@@ -33,12 +37,204 @@ public class RouteController {
     private final ReturnRouteRepository routeRepo;
     private final PricePredictionService pricePredictionService;
     private final ProfileRepository profileRepository;
+    private final com.example.be.service.BidService bidService;
 
     @GetMapping("/{routeId}")
     public ResponseEntity<?> getRouteById(@PathVariable UUID routeId) {
         return routeRepo.findById(routeId)
             .<ResponseEntity<?>>map(ResponseEntity::ok)
             .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body("Route not found"));
+    }
+
+    @GetMapping("/{routeId}/details")
+    public ResponseEntity<?> getRouteDetails(@PathVariable UUID routeId) {
+        log.info("GET /api/routes/{}/details - Fetching detailed route information", routeId);
+        try {
+            RouteDetailsDto routeDetails = service.getRouteDetails(routeId);
+            return ResponseEntity.ok(routeDetails);
+        } catch (Exception e) {
+            log.error("Error fetching route details: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/api/routes/" + routeId + "/details");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @GetMapping("/test/details")
+    public ResponseEntity<?> getTestRouteDetails() {
+        log.info("GET /api/routes/test/details - Fetching test route details");
+        try {
+            // Hardcoded route ID for testing
+            UUID testRouteId = UUID.fromString("1cc88146-8e0b-41fa-a81a-17168a1407ec");
+            RouteDetailsDto routeDetails = service.getRouteDetails(testRouteId);
+            return ResponseEntity.ok(routeDetails);
+        } catch (Exception e) {
+            log.error("Error fetching test route details: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/api/routes/test/details");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @GetMapping("/mock/details")
+    public ResponseEntity<?> getMockRouteDetails() {
+        log.info("GET /api/routes/mock/details - Fetching mock route details");
+        try {
+            RouteDetailsDto mockData = new RouteDetailsDto();
+            
+            // Set basic route information
+            mockData.setId(UUID.fromString("1cc88146-8e0b-41fa-a81a-17168a1407ec"));
+            mockData.setOriginLat(new java.math.BigDecimal("6.9271"));
+            mockData.setOriginLng(new java.math.BigDecimal("79.8612"));
+            mockData.setOriginAddress("Badulla, Sri Lanka");
+            mockData.setDestinationLat(new java.math.BigDecimal("6.9934"));
+            mockData.setDestinationLng(new java.math.BigDecimal("81.0550"));
+            mockData.setDestinationAddress("Badulla, Sri Lanka");
+            mockData.setDepartureTime(java.time.ZonedDateTime.now().plusDays(1));
+            mockData.setDetourToleranceKm(new java.math.BigDecimal("5.0"));
+            mockData.setSuggestedPriceMin(new java.math.BigDecimal("150.00"));
+            mockData.setSuggestedPriceMax(new java.math.BigDecimal("300.00"));
+            mockData.setStatus(com.example.be.types.RouteStatus.INITIATED);
+            mockData.setCreatedAt(java.time.ZonedDateTime.now().minusHours(2));
+            mockData.setUpdatedAt(java.time.ZonedDateTime.now().minusHours(1));
+            
+            // Driver information
+            mockData.setDriverId(UUID.randomUUID());
+            mockData.setDriverName("Sanjika Pissu");
+            mockData.setDriverEmail("sanjika.pisuda@example.com");
+            mockData.setDriverPhone("+94 999999999");
+            mockData.setDriverProfilePhoto("https://via.placeholder.com/12");
+            mockData.setDriverRating(4.8);
+            mockData.setDriverReviewCount(287);
+            
+            // Vehicle information
+            mockData.setVehicleMake("Toyota");
+            mockData.setVehicleModel("Hilux");
+            mockData.setVehiclePlateNumber("WP-ABC-1234");
+            mockData.setVehicleMaxWeight(new java.math.BigDecimal("1000.00"));
+            mockData.setVehicleMaxVolume(new java.math.BigDecimal("5.0"));
+            
+            // Bid information
+            mockData.setTotalBids(7);
+            mockData.setHighestBid(new java.math.BigDecimal("250.00"));
+            mockData.setAverageBid(new java.math.BigDecimal("200.00"));
+            mockData.setRecentBids(new java.util.ArrayList<>());
+            
+            // Route information
+            mockData.setTotalDistance(new java.math.BigDecimal("45.2"));
+            mockData.setEstimatedDuration("1 hr 45 min");
+            mockData.setRouteImage("https://via.placeholder.com/300x150");
+            mockData.setRouteTags(java.util.List.of("Heavy Cargo", "Fragile Items", "Temperature Sensitive"));
+            
+            // Route segments
+            java.util.List<RouteSegmentDto> segments = new java.util.ArrayList<>();
+            RouteSegmentDto segment1 = new RouteSegmentDto();
+            segment1.setId(UUID.randomUUID());
+            segment1.setRouteId(mockData.getId());
+            segment1.setSegmentIndex(0);
+            segment1.setTownName("Colombo");
+            segment1.setStartLat(new java.math.BigDecimal("6.9271"));
+            segment1.setStartLng(new java.math.BigDecimal("79.8612"));
+            segment1.setEndLat(new java.math.BigDecimal("6.9600"));
+            segment1.setEndLng(new java.math.BigDecimal("80.0000"));
+            segment1.setDistanceKm(new java.math.BigDecimal("15.5"));
+            segments.add(segment1);
+            
+            RouteSegmentDto segment2 = new RouteSegmentDto();
+            segment2.setId(UUID.randomUUID());
+            segment2.setRouteId(mockData.getId());
+            segment2.setSegmentIndex(1);
+            segment2.setTownName("Kandy");
+            segment2.setStartLat(new java.math.BigDecimal("6.9600"));
+            segment2.setStartLng(new java.math.BigDecimal("80.0000"));
+            segment2.setEndLat(new java.math.BigDecimal("6.9934"));
+            segment2.setEndLng(new java.math.BigDecimal("81.0550"));
+            segment2.setDistanceKm(new java.math.BigDecimal("29.7"));
+            segments.add(segment2);
+            
+            mockData.setSegments(segments);
+            
+            return ResponseEntity.ok(mockData);
+        } catch (Exception e) {
+            log.error("Error creating mock route details: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/api/routes/mock/details");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PostMapping("/{routeId}/place-bid")
+    public ResponseEntity<?> placeBidOnRoute(@PathVariable UUID routeId, @RequestBody RouteBidCreateDto bidCreateDto) {
+        log.info("POST /api/routes/{}/place-bid - Placing bid on route", routeId);
+        try {
+            // Set the route ID from the path variable
+            bidCreateDto.setRouteId(routeId);
+            
+            // Create the bid using the BidService
+            BidDto createdBid = bidService.createRouteBid(bidCreateDto);
+            
+            // Create response with additional message
+            Map<String, Object> bidResponse = new HashMap<>();
+            bidResponse.put("id", createdBid.getId());
+            bidResponse.put("routeId", createdBid.getRouteId());
+            bidResponse.put("customerId", bidCreateDto.getCustomerId());
+            bidResponse.put("offeredPrice", createdBid.getOfferedPrice());
+            bidResponse.put("specialInstructions", bidCreateDto.getSpecialInstructions());
+            bidResponse.put("status", createdBid.getStatus().name());
+            bidResponse.put("createdAt", createdBid.getCreatedAt());
+            bidResponse.put("message", "Bid placed successfully!");
+            
+            return ResponseEntity.ok(bidResponse);
+        } catch (Exception e) {
+            log.error("Error placing bid on route: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/api/routes/" + routeId + "/place-bid");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PostMapping("/{routeId}/create-request-and-bid")
+    public ResponseEntity<?> createRequestAndBid(@PathVariable UUID routeId, @RequestBody RouteBidWithRequestDto dto) {
+        log.info("POST /api/routes/{}/create-request-and-bid - Creating request and bid", routeId);
+        try {
+            // Set the route ID from the path variable
+            dto.setRouteId(routeId);
+            
+            // Create both request and bid using the RouteService
+            Map<String, Object> result = service.createRequestAndBid(dto);
+            
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error creating request and bid: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/api/routes/" + routeId + "/create-request-and-bid");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 
     @PostMapping

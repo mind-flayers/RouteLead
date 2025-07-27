@@ -3,3 +3,4 @@ taskkill /PID <PID> /F
 gh auth login
 .\venv\Scripts\Activate.ps1
 uvicorn serve_price_model:app --reload --port 8000
+ngrok http 8080
