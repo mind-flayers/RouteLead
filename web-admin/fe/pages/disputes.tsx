@@ -1,103 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const NAVY_BLUE = '#1A237E';
 const ROYAL_ORANGE = '#FF8C00';
 
-const disputes = [
-	{
-		id: 'D001',
-		claimant: 'Nimali Perera',
-		respondent: 'Suresh Fernando',
-		type: 'Route Deviation',
-		status: 'Open',
-		date: '2023-10-26',
-		description:
-			'Passenger claims the driver took a different route through interior roads, causing delays and higher fare.',
-		claimantRole: 'Customer',
-		respondentRole: 'Driver',
-		claimantAvatar: 'https://randomuser.me/api/portraits/women/21.jpg',
-		respondentAvatar: 'https://randomuser.me/api/portraits/men/22.jpg',
-		valueImpact: 20,
-	},
-	{
-		id: 'D002',
-		claimant: 'Kamal Jayasinghe',
-		respondent: 'Rashmi Nadeeka',
-		type: 'Service Quality',
-		status: 'Pending',
-		date: '2023-10-25',
-		description:
-			'Driver reported that the passenger was rude and caused disturbances during the ride from Kandy to Colombo.',
-		claimantRole: 'Driver',
-		respondentRole: 'Customer',
-		claimantAvatar: 'https://randomuser.me/api/portraits/men/23.jpg',
-		respondentAvatar: 'https://randomuser.me/api/portraits/women/24.jpg',
-		valueImpact: 5,
-	},
-	{
-		id: 'D003',
-		claimant: 'Anusha De Silva',
-		respondent: 'Tharindu Lakmal',
-		type: 'Payment Issue',
-		status: 'Closed',
-		date: '2023-10-24',
-		description:
-			'Customer claims the payment was deducted twice through the mobile app for the same ride.',
-		claimantRole: 'Customer',
-		respondentRole: 'Driver',
-		claimantAvatar: 'https://randomuser.me/api/portraits/women/25.jpg',
-		respondentAvatar: 'https://randomuser.me/api/portraits/men/26.jpg',
-		valueImpact: 10,
-	},
-	{
-		id: 'D004',
-		claimant: 'Nuwan Rajapaksha',
-		respondent: 'Sithara Ranasinghe',
-		type: 'Item Left Behind',
-		status: 'Open',
-		date: '2023-10-23',
-		description:
-			'Driver reported that a phone was left behind in the back seat during a drop-off in Galle.',
-		claimantRole: 'Driver',
-		respondentRole: 'Customer',
-		claimantAvatar: 'https://randomuser.me/api/portraits/men/27.jpg',
-		respondentAvatar: 'https://randomuser.me/api/portraits/women/28.jpg',
-		valueImpact: 0,
-	},
-	{
-		id: 'D005',
-		claimant: 'Malki Jayawardena',
-		respondent: 'Roshan Dissanayake',
-		type: 'False Report',
-		status: 'Pending',
-		date: '2023-10-22',
-		description:
-			'Customer raised concerns that the driver falsely reported a no-show to avoid cancellation penalties.',
-		claimantRole: 'Customer',
-		respondentRole: 'Driver',
-		claimantAvatar: 'https://randomuser.me/api/portraits/women/29.jpg',
-		respondentAvatar: 'https://randomuser.me/api/portraits/men/30.jpg',
-		valueImpact: 0,
-	},
-];
-
-
 const statusColors: { [key: string]: string } = {
-	Open: '#22C55E',
-	Pending: ROYAL_ORANGE,
-	Closed: NAVY_BLUE,
+	Open: '#EF4444', // Red for Open
+	Pending: ROYAL_ORANGE, // Orange for Pending
+	Closed: '#22C55E', // Green for Closed
+	Resolved: NAVY_BLUE, // Navy for Resolved (if exists)
 };
 
 const statusBgColors: { [key: string]: string } = {
-	Open: '#22C55E11',
-	Pending: '#FF8C0011',
-	Closed: '#1A237E11',
+	Open: '#EF444422', // Red bg for Open
+	Pending: '#FF8C0022', // Orange bg for Pending
+	Closed: '#22C55E22', // Green bg for Closed
+	Resolved: '#1A237E22', // Navy bg for Resolved (if exists)
 };
 
-const labelButtonStyle = (color: string, active: boolean = false): React.CSSProperties => ({
-	background: color + '22',
+const labelButtonStyle = (color: string, active: boolean = false, bgColor?: string): React.CSSProperties => ({
+	background: bgColor || color + '22',
 	color,
 	borderRadius: 8,
 	padding: '4px 0',
@@ -157,26 +80,50 @@ const filterSelectStyle: React.CSSProperties = {
 };
 
 const DisputePage: React.FC = () => {
-	const [selected, setSelected] = useState(disputes[0]);
+	const [disputes, setDisputes] = useState<any[]>([]);
+	const [selected, setSelected] = useState<any | null>(null);
 	const [search, setSearch] = useState('');
 	const [filter, setFilter] = useState('All');
+	const [loading, setLoading] = useState(true);
 
-	// Metrics
-	const openCount = disputes.filter((d) => d.status === 'Open').length;
-	const pendingCount = disputes.filter((d) => d.status === 'Pending').length;
-	const closedCount = disputes.filter((d) => d.status === 'Closed').length;
+	useEffect(() => {
+		async function fetchDisputes() {
+			setLoading(true);
+			try {
+				const res = await fetch('/api/admin/disputes');
+				const data = await res.json();
+				setDisputes(data.disputes || []);
+				setSelected((data.disputes && data.disputes[0]) || null);
+			} catch (err) {
+				console.error('Error fetching disputes:', err);
+			}
+			setLoading(false);
+		}
+		fetchDisputes();
+	}, []);
+
+	// Metrics - properly count statuses regardless of case
+	const openCount = disputes.filter((d) => d.status && d.status.toUpperCase() === 'OPEN').length;
+	const pendingCount = disputes.filter((d) => d.status && d.status.toUpperCase() === 'PENDING').length;
+	const closedCount = disputes.filter((d) => d.status && d.status.toUpperCase() === 'CLOSED').length;
 	const valueImpact = disputes.reduce(
 		(sum, d) => sum + (d.valueImpact || 0),
 		0
 	);
 
-	const filteredDisputes = disputes.filter((d) =>
-		(filter === 'All' || d.status === filter) &&
-		(d.id.toLowerCase().includes(search.toLowerCase()) ||
-			d.claimant.toLowerCase().includes(search.toLowerCase()) ||
-			d.respondent.toLowerCase().includes(search.toLowerCase()) ||
-			d.type.toLowerCase().includes(search.toLowerCase()))
-	);
+	const filteredDisputes = disputes.filter((d) => {
+		const statusMatch = filter === 'All' || (d.status && d.status.toUpperCase() === filter.toUpperCase());
+		return statusMatch && (
+			d.id.toLowerCase().includes(search.toLowerCase()) ||
+			(d.claimant_profile?.first_name?.toLowerCase().includes(search.toLowerCase())) ||
+			(d.return_routes?.driver_profile?.first_name?.toLowerCase().includes(search.toLowerCase())) ||
+			(d.type?.toLowerCase().includes(search.toLowerCase()))
+		);
+	});
+
+	if (loading) {
+		return <div style={{ padding: '2rem', textAlign: 'center', color: NAVY_BLUE }}>Loading disputes...</div>;
+	}
 
 	return (
 		<div style={{
@@ -295,7 +242,6 @@ const DisputePage: React.FC = () => {
 					>
 						<thead>
 							<tr style={{ color: '#7B7B93', fontWeight: 700, fontSize: 15, textAlign: 'left' }}>
-								<th style={thStyle}>ID</th>
 								<th style={thStyle}>Claimant</th>
 								<th style={thStyle}>Respondent</th>
 								<th style={thStyle}>Type</th>
@@ -304,31 +250,55 @@ const DisputePage: React.FC = () => {
 							</tr>
 						</thead>
 						<tbody>
-							{filteredDisputes.map((d) => (
-								<tr
-									key={d.id}
-									style={{
-										...rowStyle,
-										cursor: 'pointer',
-										background: selected.id === d.id ? '#F8F6F4' : '#fff',
-										transition: 'background 0.2s',
-									}}
-									onClick={() => setSelected(d)}
-								>
-									<td style={{ ...cellStyle, fontWeight: 700, color: NAVY_BLUE }}>
-										{d.id}
+							{filteredDisputes.map((d) => {
+								const statusKey = (d.status || '').charAt(0).toUpperCase() + (d.status || '').slice(1).toLowerCase();
+								return (
+									<tr
+										key={d.id}
+										style={{
+											...rowStyle,
+											cursor: 'pointer',
+											background: selected.id === d.id ? '#F8F6F4' : '#fff',
+											transition: 'background 0.2s',
+										}}
+										onClick={() => setSelected(d)}
+									>
+										<td style={{ ...cellStyle, fontWeight: 700, color: NAVY_BLUE }}>
+											{d.claimant_profile?.first_name || d.user_id}
+										</td>
+										<td style={{ ...cellStyle, fontWeight: 600, color: '#444' }}>
+											{d.return_routes?.driver_profile?.first_name || 'No Driver'}
+										</td>
+										<td style={cellStyle}>{d.type}</td>
+										<td style={{ ...cellStyle, textAlign: 'center', verticalAlign: 'middle' }}>
+											<span style={{
+												background: statusBgColors[statusKey] || '#eee',
+												color: statusColors[statusKey] || '#222',
+												borderRadius: 8,
+												padding: '4px 0',
+												width: 110,
+												display: 'inline-block',
+												textAlign: 'center',
+												fontWeight: 600,
+												fontSize: 14,
+												userSelect: 'none',
+												border: '2px solid transparent',
+												transition: 'background 0.2s, color 0.2s, border 0.2s',
+												margin: '0 auto',
+											}}>
+												{d.status}
+											</span>
+										</td>
+										<td style={cellStyle}>
+										{d.created_at ? new Date(d.created_at).toLocaleDateString('en-US', {
+											year: 'numeric',
+											month: 'short',
+											day: 'numeric'
+										}) : 'N/A'}
 									</td>
-									<td style={cellStyle}>{d.claimant}</td>
-									<td style={cellStyle}>{d.respondent}</td>
-									<td style={cellStyle}>{d.type}</td>
-									<td style={cellStyle}>
-										<span style={labelButtonStyle(statusColors[d.status])}>
-											{d.status}
-										</span>
-									</td>
-									<td style={cellStyle}>{d.date}</td>
-								</tr>
-							))}
+									</tr>
+								);
+							})}
 						</tbody>
 					</table>
 					<div
@@ -491,306 +461,232 @@ const DisputePage: React.FC = () => {
 						/>
 					</div>
 					{/* Details */}
-					<div
-						style={{
-							background: '#fff',
-							borderRadius: 14,
-							boxShadow: '0 2px 12px #0001',
-							padding: 16,
-							minWidth: 0,
-						}}
-					>
+					{selected && (
 						<div
 							style={{
-								fontWeight: 800,
-								fontSize: 17,
-								color: NAVY_BLUE,
-								marginBottom: 8,
-							}}
-						>
-							Dispute #{selected.id} Details
-						</div>
-						<div
-							style={{
-								color: '#7B7B93',
-								fontSize: 14,
-								marginBottom: 18,
-							}}
-						>
-							Comprehensive view of the selected dispute.
-						</div>
-						{/* Tabs */}
-						<div
-							style={{
-								display: 'flex',
-								gap: 0,
-								borderBottom: '2px solid #F3EDE7',
-								marginBottom: 18,
-								flexWrap: 'wrap',
+								background: '#fff',
+								borderRadius: 14,
+								boxShadow: '0 2px 12px #0001',
+								padding: 16,
+								minWidth: 0,
 							}}
 						>
 							<div
 								style={{
-									padding: '8px 18px',
-									fontWeight: 700,
+									fontWeight: 800,
+									fontSize: 17,
 									color: NAVY_BLUE,
-									borderBottom: `3px solid ${NAVY_BLUE}`,
-									background: '#fff',
-									cursor: 'pointer',
+									marginBottom: 8,
 								}}
 							>
-								Claim Details
+								Dispute #{selected.id} Details
 							</div>
 							<div
 								style={{
-									padding: '8px 18px',
-									fontWeight: 600,
-									color: '#A1A1AA',
-									background: '#fff',
-									cursor: 'not-allowed',
+									color: '#7B7B93',
+									fontSize: 14,
+									marginBottom: 18,
 								}}
 							>
-								Evidence
+								Comprehensive view of the selected dispute.
 							</div>
+							{/* Tabs */}
 							<div
 								style={{
-									padding: '8px 18px',
-									fontWeight: 600,
-									color: '#A1A1AA',
-									background: '#fff',
-									cursor: 'not-allowed',
+									display: 'flex',
+									gap: 0,
+									borderBottom: '2px solid #F3EDE7',
+									marginBottom: 18,
+									flexWrap: 'wrap',
 								}}
 							>
-								Communication Log
-							</div>
-							<div
-								style={{
-									padding: '8px 18px',
-									fontWeight: 600,
-									color: '#A1A1AA',
-									background: '#fff',
-									cursor: 'not-allowed',
-								}}
-							>
-								Resolution
-							</div>
-						</div>
-						{/* Claim Details */}
-						<div
-							style={{
-								display: 'flex',
-								gap: 24,
-								marginBottom: 18,
-								flexWrap: 'wrap',
-							}}
-						>
-							<div style={{ minWidth: 120, flex: 1 }}>
 								<div
 									style={{
+										padding: '8px 18px',
 										fontWeight: 700,
-										color: '#222',
-										fontSize: 15,
-										marginBottom: 4,
+										color: NAVY_BLUE,
+										borderBottom: `3px solid ${NAVY_BLUE}`,
+										background: '#fff',
+										cursor: 'pointer',
 									}}
 								>
-									Claimant
+									Claim Details
 								</div>
 								<div
 									style={{
-										display: 'flex',
-										alignItems: 'center',
-										gap: 10,
+										padding: '8px 18px',
+										fontWeight: 600,
+										color: '#A1A1AA',
+										background: '#fff',
+										cursor: 'not-allowed',
 									}}
 								>
-									<img
-										src={selected.claimantAvatar}
-										alt={selected.claimant}
-										style={{
-											width: 38,
-											height: 38,
-											borderRadius: '50%',
-											objectFit: 'cover',
-											border: '2px solid #F3EDE7',
-										}}
-									/>
-									<div>
-										<div style={{ fontWeight: 600 }}>
-											{selected.claimant}
+									Evidence
+								</div>
+								<div
+									style={{
+										padding: '8px 18px',
+										fontWeight: 600,
+										color: '#A1A1AA',
+										background: '#fff',
+										cursor: 'not-allowed',
+									}}
+								>
+									Communication Log
+								</div>
+								<div
+									style={{
+										padding: '8px 18px',
+										fontWeight: 600,
+										color: '#A1A1AA',
+										background: '#fff',
+										cursor: 'not-allowed',
+									}}
+								>
+									Resolution
+								</div>
+							</div>
+							{/* Claim Details from table data */}
+							<div
+								style={{
+									display: 'flex',
+									gap: 24,
+									marginBottom: 18,
+									flexWrap: 'wrap',
+								}}
+							>
+								<div style={{ minWidth: 120, flex: 1 }}>
+									<div style={{ fontWeight: 700, color: '#222', fontSize: 15, marginBottom: 4 }}>
+										Claimant
+									</div>
+									<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+										<img
+											src={selected.claimantAvatar}
+											alt={selected.profiles?.first_name || selected.user_id}
+											style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: '2px solid #F3EDE7' }}
+										/>						<div>
+							<div style={{ fontWeight: 600 }}>
+								{selected.claimant_profile?.first_name || selected.user_id}
+							</div>
+											<span
+												style={{
+													background: selected.claimantRole === 'Customer' ? ROYAL_ORANGE + '22' : NAVY_BLUE + '22',
+													color: selected.claimantRole === 'Customer' ? ROYAL_ORANGE : NAVY_BLUE,
+													borderRadius: 8,
+													padding: '2px 10px',
+													fontWeight: 600,
+													fontSize: 13,
+													marginTop: 2,
+													display: 'inline-block',
+												}}
+											>
+												{selected.claimantRole}
+											</span>
 										</div>
-										<span
-											style={{
-												background:
-													selected.claimantRole === 'Customer'
-														? ROYAL_ORANGE + '22'
-														: NAVY_BLUE + '22',
-												color:
-													selected.claimantRole === 'Customer'
-														? ROYAL_ORANGE
-														: NAVY_BLUE,
-												borderRadius: 8,
-												padding: '2px 10px',
-												fontWeight: 600,
-												fontSize: 13,
-												marginTop: 2,
-												display: 'inline-block',
-											}}
-										>
-											{selected.claimantRole}
-										</span>
 									</div>
 								</div>
-							</div>
-							<div style={{ minWidth: 120, flex: 1 }}>
-								<div
-									style={{
-										fontWeight: 700,
-										color: '#222',
-										fontSize: 15,
-										marginBottom: 4,
-									}}
-								>
-									Respondent
-								</div>
-								<div
-									style={{
-										display: 'flex',
-										alignItems: 'center',
-										gap: 10,
-									}}
-								>
-									<img
-										src={selected.respondentAvatar}
-										alt={selected.respondent}
-										style={{
-											width: 38,
-											height: 38,
-											borderRadius: '50%',
-											objectFit: 'cover',
-											border: '2px solid #F3EDE7',
-										}}
-									/>
-									<div>
-										<div style={{ fontWeight: 600 }}>
-											{selected.respondent}
-										</div>
-										<span
-											style={{
-												background:
-													selected.respondentRole === 'Customer'
-														? ROYAL_ORANGE + '22'
-														: NAVY_BLUE + '22',
-												color:
-													selected.respondentRole === 'Customer'
-														? ROYAL_ORANGE
-														: NAVY_BLUE,
-												borderRadius: 8,
-												padding: '2px 10px',
-												fontWeight: 600,
-												fontSize: 13,
-												marginTop: 2,
-												display: 'inline-block',
-											}}
-										>
-											{selected.respondentRole}
-										</span>
-									</div>
-								</div>
-							</div>
-						</div>
-						<div
-							style={{
-								display: 'flex',
-								gap: 24,
-								marginBottom: 12,
-								flexWrap: 'wrap',
-							}}
-						>
-							<div style={{ flex: 1, minWidth: 120 }}>
-								<div
-									style={{
-										fontWeight: 700,
-										color: '#222',
-										fontSize: 15,
-										marginBottom: 4,
-									}}
-								>
-									Dispute Type
-								</div>
-								<div style={{ fontWeight: 600, color: NAVY_BLUE }}>
-									{selected.type}
-								</div>
-							</div>
-							<div style={{ flex: 1, minWidth: 120 }}>
-								<div
-									style={{
-										fontWeight: 700,
-										color: '#222',
-										fontSize: 15,
-										marginBottom: 4,
-									}}
-								>
-									Date Filed
-								</div>
-								<div style={{ fontWeight: 600, color: NAVY_BLUE }}>
-									{selected.date}
-								</div>
-							</div>
-						</div>
-						<div style={{ marginBottom: 16 }}>
-							<div
-								style={{
-									fontWeight: 700,
-									color: '#222',
-									fontSize: 15,
-									marginBottom: 4,
-								}}
-							>
-								Description
-							</div>
-							<textarea
-								value={selected.description || 'No description provided.'}
-								readOnly
-								style={{
-									width: '100%',
-									minHeight: 60,
-									borderRadius: 8,
-									border: '1px solid #E5E7EB',
-									background: '#F8F6F4',
-									fontSize: 15,
-									padding: 10,
-									color: '#444',
-									resize: 'none',
-								}}
-							/>
-						</div>
+				<div style={{ minWidth: 120, flex: 1 }}>
+					<div style={{ fontWeight: 700, color: '#222', fontSize: 15, marginBottom: 4 }}>
+						Respondent
+					</div>
+					<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+						<img
+							src={selected.respondentAvatar}
+							alt={selected.return_routes?.driver_profile?.first_name || 'No Driver'}
+							style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: '2px solid #F3EDE7' }}
+						/>
 						<div>
-							<div
-								style={{
-									fontWeight: 700,
-									color: '#222',
-									fontSize: 15,
-									marginBottom: 4,
-								}}
-							>
-								Current Status
+							<div style={{ fontWeight: 600 }}>
+								{selected.return_routes?.driver_profile?.first_name || 'No Driver'}
 							</div>
 							<span
 								style={{
-									display: 'inline-block',
-									minWidth: 70,
-									textAlign: 'center',
-									background: statusBgColors[selected.status],
-									color: statusColors[selected.status],
-									borderRadius: 16,
+									background: NAVY_BLUE + '22',
+									color: NAVY_BLUE,
+									borderRadius: 8,
+									padding: '2px 10px',
 									fontWeight: 600,
-									fontSize: 14,
-									padding: '2px 16px',
+									fontSize: 13,
+									marginTop: 2,
+									display: 'inline-block',
 								}}
 							>
-								{selected.status}
+								Driver
 							</span>
 						</div>
 					</div>
+				</div>
+							</div>
+							<div
+								style={{
+									display: 'flex',
+									gap: 24,
+									marginBottom: 12,
+									flexWrap: 'wrap',
+								}}
+							>
+								<div style={{ flex: 1, minWidth: 120 }}>
+									<div style={{ fontWeight: 700, color: '#222', fontSize: 15, marginBottom: 4 }}>
+										Dispute Type
+									</div>
+									<div style={{ fontWeight: 600, color: NAVY_BLUE }}>
+										{selected.type}
+									</div>
+								</div>
+								<div style={{ flex: 1, minWidth: 120 }}>
+									<div style={{ fontWeight: 700, color: '#222', fontSize: 15, marginBottom: 4 }}>
+										Date Filed
+									</div>								<div style={{ fontWeight: 600, color: NAVY_BLUE }}>
+									{selected.created_at ? new Date(selected.created_at).toLocaleDateString('en-US', {
+										year: 'numeric',
+										month: 'short',
+										day: 'numeric'
+									}) : 'N/A'}
+								</div>
+								</div>
+							</div>
+							<div style={{ marginBottom: 16 }}>
+								<div style={{ fontWeight: 700, color: '#222', fontSize: 15, marginBottom: 4 }}>
+									Description
+								</div>
+								<textarea
+									value={selected.description || 'No description provided.'}
+									readOnly
+									style={{
+										width: '100%',
+										minHeight: 60,
+										borderRadius: 8,
+										border: '1px solid #E5E7EB',
+										background: '#F8F6F4',
+										fontSize: 15,
+										padding: 10,
+										color: '#444',
+										resize: 'none',
+									}}
+								/>
+							</div>
+							<div>
+								<div style={{ fontWeight: 700, color: '#222', fontSize: 15, marginBottom: 4 }}>
+									Current Status
+								</div>
+								<span
+									style={{
+										display: 'inline-block',
+										minWidth: 70,
+										textAlign: 'center',
+										background: statusBgColors[selected.status],
+										color: statusColors[selected.status],
+										borderRadius: 16,
+										fontWeight: 600,
+										fontSize: 14,
+										padding: '2px 16px',
+									}}
+								>
+									{selected.status}
+								</span>
+							</div>
+						</div>
+					)}
 				</div>
 			</div>
 		</div>

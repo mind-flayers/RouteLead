@@ -14,7 +14,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     const { data, error } = await adminSupabase
       .from('disputes')
-      .select('*')
+      .select(`
+        *, 
+        claimant_profile:profiles!user_id(first_name),
+        return_routes!related_route_id(
+          driver_id,
+          driver_profile:profiles!driver_id(first_name)
+        )
+      `)
       .eq('id', id)
       .single();
     if (error) {
@@ -29,10 +36,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // GET /api/admin/disputes
   if (req.method === 'GET') {
-    // Get all disputes
+    // Get all disputes with claimant first name and respondent driver info
     const { data, error } = await adminSupabase
       .from('disputes')
-      .select('*');
+      .select(`
+        *, 
+        claimant_profile:profiles!user_id(first_name),
+        return_routes!related_route_id(
+          driver_id,
+          driver_profile:profiles!driver_id(first_name)
+        )
+      `);
     if (error) {
       return res.status(500).json({ error: error.message });
     }

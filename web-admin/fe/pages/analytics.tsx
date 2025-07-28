@@ -45,8 +45,8 @@ const Analytics = () => {
         const nonAdminUsers = usersData.filter((u: any) => u.role !== 'ADMIN');
         const drivers = nonAdminUsers.filter((u: any) => u.role === 'DRIVER');
         const customers = nonAdminUsers.filter((u: any) => u.role === 'CUSTOMER');
-        const verifiedDrivers = drivers.filter((u: any) => u.isVerified).length;
-        const pendingVerifications = nonAdminUsers.filter((u: any) => u.isVerified === false).length;
+        const verifiedDrivers = drivers.filter((u: any) => u.verification_status === 'APPROVED').length;
+        const pendingVerifications = nonAdminUsers.filter((u: any) => u.verification_status === 'PENDING').length;
         const blockedAccounts = nonAdminUsers.filter((u: any) => u.verification_status === 'REJECTED').length;
 
         setStats([
