@@ -5,6 +5,8 @@ import React, { useEffect, useState } from 'react';
 const NAVY_BLUE = '#1A237E';
 const ROYAL_ORANGE = '#FF8C00';
 
+// We'll rely on real activities from the API instead of default ones
+
 const Analytics = () => {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<any[]>([]);
@@ -19,35 +21,121 @@ const Analytics = () => {
   const [disputeCategories, setDisputeCategories] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
 
+  // Store month labels for X-axis
+  const [monthLabels, setMonthLabels] = useState<string[]>(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug']);
+
   useEffect(() => {
+    // Remember that we have default activities already set in state
     async function fetchAll() {
       setLoading(true);
       try {
-        // Fetch users
-        const usersRes = await fetch('/api/admin/users');
+        // Fetch all data in parallel for better performance
+        // Add timeout to each fetch to prevent hanging indefinitely
+        const timeoutDuration = 10000; // 10 seconds timeout
+        
+        const fetchWithTimeout = async (url: string, options = {}) => {
+          const controller = new AbortController();
+          const { signal } = controller;
+          
+          const timeout = setTimeout(() => {
+            controller.abort();
+          }, timeoutDuration);
+          
+          try {
+            const response = await fetch(url, { ...options, signal });
+            clearTimeout(timeout);
+            return response;
+          } catch (error) {
+            clearTimeout(timeout);
+            throw error;
+          }
+        };
+        
+        const [usersRes, routesRes, trendsRes, categoriesRes, activitiesRes] = await Promise.all([
+          fetchWithTimeout('/api/admin/users').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/routes').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/trends').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/dispute-categories').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/activities').catch(err => ({ ok: false, json: () => Promise.resolve({}) }))
+        ]);
+        
+        // Parse response data
         const usersData = await usersRes.json();
-        setUsers(usersData);
-
-        // Fetch routes
-        const routesRes = await fetch('/api/admin/routes');
         const routesData = await routesRes.json();
-        setRoutes(routesData.routes || []);
-
-        // Optionally: Fetch bids and disputes if endpoints exist
-        // const bidsRes = await fetch('/api/bids');
-        // const bidsData = await bidsRes.json();
-        // setBids(bidsData);
-        // const disputesRes = await fetch('/api/disputes');
-        // const disputesData = await disputesRes.json();
-        // setDisputes(disputesData);
+        const trendsData = await trendsRes.json();
+        const categoriesData = await categoriesRes.json();
+        const activitiesData = await activitiesRes.json();
+        
+        // Set state with fetched data
+        setUsers(usersData);
+        setRoutes(routesData.routes || []);          // Convert trends data to the format needed by our charts
+        if (trendsData.trends && trendsData.trends.length > 0) {
+          const routePoints = trendsData.trends.map((item: any) => item.routes);
+          const bidPoints = trendsData.trends.map((item: any) => item.bids);
+          const userPoints = trendsData.trends.map((item: any) => item.users);
+          
+          console.log('Route data points:', routePoints);
+          
+          // Update the monthLabels for X-axis
+          setMonthLabels(trendsData.trends.map((item: any) => item.month));
+          
+          // Set trends data
+          setTrends({
+            route: routePoints,
+            bid: bidPoints,
+            users: userPoints
+          });
+        }
+        
+        // Set dispute categories data
+        if (categoriesData.categories) {
+          setDisputeCategories(categoriesData.categories);
+        }
+        
+        // Set activities data with improved handling
+        console.log("Received activities data:", activitiesData);
+        try {
+          if (activitiesData && activitiesData.activities && Array.isArray(activitiesData.activities) && activitiesData.activities.length > 0) {
+            console.log("Setting activities state with:", activitiesData.activities.length, "items");
+            // Store in a variable first for safety
+            const newActivities = activitiesData.activities.map((activity: any) => ({
+              ...activity,
+              // Ensure all required properties exist
+              id: activity.id || `activity-${Math.random().toString(36).substring(2, 9)}`,
+              icon: activity.icon || '📋',
+              text: activity.text || 'System activity',
+              time: activity.time || 'Recently'
+            }));
+            setActivities(newActivities);
+          } else {
+            console.log("No valid activities from API - keeping default activities");
+            // Don't overwrite the default activities
+          }
+        } catch (err) {
+          console.error("Error processing activities data:", err);
+          // Keep default activities on error
+        }
 
         // Compute stats
         const nonAdminUsers = usersData.filter((u: any) => u.role !== 'ADMIN');
         const drivers = nonAdminUsers.filter((u: any) => u.role === 'DRIVER');
         const customers = nonAdminUsers.filter((u: any) => u.role === 'CUSTOMER');
-        const verifiedDrivers = drivers.filter((u: any) => u.verification_status === 'APPROVED').length;
-        const pendingVerifications = nonAdminUsers.filter((u: any) => u.verification_status === 'PENDING').length;
-        const blockedAccounts = nonAdminUsers.filter((u: any) => u.verification_status === 'REJECTED').length;
+        
+        // Handle case-insensitive status checks and null values
+        const normalizeStatus = (status: any) => {
+          return status ? String(status).toUpperCase() : null;
+        };
+        
+        const verifiedDrivers = drivers.filter((u: any) => normalizeStatus(u.verification_status) === 'APPROVED').length;
+        
+        // For pending, check both 'PENDING' status and null/undefined status (users who haven't been verified yet)
+        const pendingVerifications = nonAdminUsers.filter((u: any) => {
+          const status = normalizeStatus(u.verification_status);
+          // Count as pending if status is 'PENDING' or if it's null/undefined/empty (not yet verified)
+          return status === 'PENDING' || !status;
+        }).length;
+        
+        const blockedAccounts = nonAdminUsers.filter((u: any) => normalizeStatus(u.verification_status) === 'REJECTED').length;
 
         setStats([
           {
@@ -77,12 +165,7 @@ const Analytics = () => {
           },
         ]);
 
-        // Trends (example: monthly counts, here just using total for demo)
-        setTrends({
-          route: [routesData.routes?.length || 0],
-          bid: [0], // Fill with real bid data if available
-          users: [nonAdminUsers.length],
-        });
+        // Trends data is now fetched from the /api/admin/trends endpoint
 
         // Demographics
         setDemographics([
@@ -98,10 +181,8 @@ const Analytics = () => {
           { label: 'Other', value: 0, color: '#FACC15' },
         ]);
 
-        // Activities (dummy, replace with real if available)
-        setActivities([
-          { icon: '🟢', text: 'New driver registered', time: 'Just now' },
-        ]);
+        // We rely solely on real activities from the API - no dummy data
+        // If activitiesData.activities is empty, we'll show a "No activities" message
       } catch (err) {
         setStats([]);
         setTrends({ route: [], bid: [], users: [] });
@@ -154,16 +235,31 @@ const Analytics = () => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
-            type="date"
+          <select
+            onChange={(e) => {
+              const value = e.target.value;
+              // In a real implementation, this would trigger a re-fetch with the new date range
+              // For now, just show a notification
+              alert(`Filter changed to: ${value}. In a production environment, this would refresh the dashboard data.`);
+            }}
             style={{
               border: '1px solid #E5E7EB',
               borderRadius: 8,
               padding: '8px 14px',
               fontSize: 15,
+              background: '#fff',
             }}
-          />
+          >
+            <option value="30d">Last 30 Days</option>
+            <option value="90d">Last 90 Days</option>
+            <option value="180d">Last 180 Days</option>
+            <option value="1y">Last 12 Months</option>
+            <option value="all">All Time</option>
+          </select>
           <button
+            onClick={() => {
+              alert('Report download functionality would be implemented here in a production environment.');
+            }}
             style={{
               background: '#fff',
               border: '1px solid #E5E7EB',
@@ -229,26 +325,39 @@ const Analytics = () => {
             <svg width="100%" height="100%" viewBox="0 0 400 180">
               {/* Axes */}
               <polyline points="40,10 40,160 380,160" fill="none" stroke="#E5E7EB" strokeWidth="2" />
+              {/* Y-axis grid lines */}
+              {[0, 6, 12, 18, 24, 30].map((y) => (
+                <line
+                  key={`grid-${y}`}
+                  x1={40}
+                  y1={160 - (y * 5)}
+                  x2={380}
+                  y2={160 - (y * 5)}
+                  stroke="#E5E7EB"
+                  strokeWidth="1"
+                  strokeDasharray="2,2"
+                />
+              ))}
               {/* Route Postings */}
               <polyline
                 fill="none"
                 stroke="#FF8C00"
                 strokeWidth="2.5"
-                points={trends.route.map((v: number, i: number) => `${40 + i * 48},${160 - v / 1.5}`).join(' ')}
+                points={trends.route.map((v: number, i: number) => `${40 + i * 48},${160 - Math.min(v, 30) * 5}`).join(' ')}
               />
               {/* Bid Activity */}
               <polyline
                 fill="none"
                 stroke="#4F46E5"
                 strokeWidth="2.5"
-                points={trends.bid.map((v: number, i: number) => `${40 + i * 48},${160 - v / 1.5}`).join(' ')}
+                points={trends.bid.map((v: number, i: number) => `${40 + i * 48},${160 - Math.min(v, 30) * 5}`).join(' ')}
               />
               {/* New Users */}
               <polyline
                 fill="none"
                 stroke="#22C55E"
                 strokeWidth="2.5"
-                points={trends.users.map((v: number, i: number) => `${40 + i * 48},${160 - v / 1.5}`).join(' ')}
+                points={trends.users.map((v: number, i: number) => `${40 + i * 48},${160 - Math.min(v, 30) * 5}`).join(' ')}
               />
               {/* Dots */}
               {['#FF8C00', '#4F46E5', '#22C55E'].map((color, idx) =>
@@ -256,7 +365,7 @@ const Analytics = () => {
                   <circle
                     key={color + i}
                     cx={40 + i * 48}
-                    cy={160 - v / 1.5}
+                    cy={160 - Math.min(v, 30) * 5}
                     r={3.5}
                     fill={color}
                     stroke="#fff"
@@ -265,11 +374,11 @@ const Analytics = () => {
                 ))
               )}
               {/* Y axis labels */}
-              {[0, 65, 130, 195, 260].map((y, i) => (
-                <text key={i} x={8} y={160 - y / 1.5 + 5} fontSize="11" fill="#A1A1AA">{y}</text>
+              {[0, 6, 12, 18, 24, 30].map((y) => (
+                <text key={y} x={20} y={160 - (y * 5) + 5} fontSize="11" fill="#A1A1AA" textAnchor="end">{y}</text>
               ))}
               {/* X axis labels */}
-              {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'].map((m, i) => (
+              {monthLabels.map((m, i) => (
                 <text key={m} x={40 + i * 48} y={175} fontSize="12" fill="#A1A1AA" textAnchor="middle">{m}</text>
               ))}
             </svg>
@@ -447,22 +556,59 @@ const Analytics = () => {
           <div style={{ color: '#7B7B93', fontSize: 14, marginBottom: 10 }}>
             Latest events and updates across the platform.
           </div>
-          <div style={{ width: '100%', marginTop: 8 }}>
-            {activities.map((a: any, i: number) => (
-              <div key={i} style={{
+          <div style={{ width: '100%', marginTop: 8, minHeight: 180 }}>
+            {/* Status message */}
+            <div style={{ fontSize: 13, color: '#7B7B93', marginBottom: 12 }}>
+              {activities.length > 0 
+                ? `Showing the latest ${activities.length} system activities`
+                : 'No recent system activities found'
+              }
+            </div>
+            
+            {/* Activities list - with proper error handling and guaranteed rendering */}
+            {Array.isArray(activities) && activities.length > 0 ? (
+              activities.map((a: any, i: number) => (
+                <div 
+                  key={a.id || `activity-${i}`} 
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '10px 0',
+                    borderBottom: i !== activities.length - 1 ? '1px solid #F3EDE7' : 'none',
+                  }}
+                >
+                  <span style={{ fontSize: 22, minWidth: 30, textAlign: 'center' }}>
+                    {a.icon || '📋'}
+                  </span>
+                  <div>
+                    <div style={{ fontWeight: 600, color: NAVY_BLUE }}>
+                      {a.text || 'System activity'}
+                    </div>
+                    <div style={{ fontSize: 13, color: '#7B7B93' }}>
+                      {a.time || 'Recently'}
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                gap: 12,
-                padding: '10px 0',
-                borderBottom: i !== activities.length - 1 ? '1px solid #F3EDE7' : 'none',
+                justifyContent: 'center',
+                padding: '30px 0',
+                color: '#7B7B93',
+                textAlign: 'center',
+                height: '150px'
               }}>
-                <span style={{ fontSize: 22 }}>{a.icon}</span>
-                <div>
-                  <div style={{ fontWeight: 600, color: NAVY_BLUE }}>{a.text}</div>
-                  <div style={{ fontSize: 13, color: '#7B7B93' }}>{a.time}</div>
+                <div style={{ fontSize: 30, marginBottom: 10 }}>📊</div>
+                <div style={{ fontWeight: 600, color: NAVY_BLUE }}>No recent activities</div>
+                <div style={{ fontSize: 13, color: '#7B7B93', maxWidth: '80%' }}>
+                  System activities will appear here as users interact with the platform
                 </div>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
