@@ -4,8 +4,13 @@ package com.example.be.service;
 
 import com.example.be.dto.BidCreateDto;
 import com.example.be.dto.BidDto;
+import com.example.be.dto.RouteBidCreateDto;
 import com.example.be.model.Bid;
+import com.example.be.model.Profile;
+import com.example.be.model.ReturnRoute;
 import com.example.be.repository.BidRepository;
+import com.example.be.repository.ProfileRepository;
+import com.example.be.repository.ReturnRouteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,11 +27,16 @@ public class BidService {
     private static final Logger logger = LoggerFactory.getLogger(BidService.class);
     private final BidRepository bidRepository;
     private final com.example.be.repository.CustomerBidRepository customerBidRepository;
+    private final ReturnRouteRepository routeRepository;
+    private final ProfileRepository profileRepository;
 
     @Autowired
-    public BidService(BidRepository bidRepository, com.example.be.repository.CustomerBidRepository customerBidRepository) {
+    public BidService(BidRepository bidRepository, com.example.be.repository.CustomerBidRepository customerBidRepository, 
+                     ReturnRouteRepository routeRepository, ProfileRepository profileRepository) {
         this.bidRepository = bidRepository;
         this.customerBidRepository = customerBidRepository;
+        this.routeRepository = routeRepository;
+        this.profileRepository = profileRepository;
     }
     @Transactional(readOnly = true)
     public List<BidDto> getBidsByParcelRequestIdAndStatus(UUID parcelRequestId, com.example.be.types.BidStatus status) {
@@ -250,5 +260,48 @@ public class BidService {
             throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Bid not found");
         }
         bidRepository.deleteById(bidId);
+    }
+
+    @Transactional
+    public BidDto createRouteBid(RouteBidCreateDto routeBidCreateDto) {
+        logger.info("Creating route bid for route: {}", routeBidCreateDto.getRouteId());
+        
+        // Create a new Bid entity
+        Bid bid = new Bid();
+        
+        // Set the route (we need to fetch it from the repository)
+        ReturnRoute route = routeRepository.findById(routeBidCreateDto.getRouteId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Route not found"));
+        bid.setRoute(route);
+        
+        // Set the customer (we need to fetch it from the repository)
+        Profile customer = profileRepository.findById(routeBidCreateDto.getCustomerId())
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Customer not found"));
+        
+        // For route-based bidding, we'll set the request to null and use default indices
+        bid.setRequest(null);
+        bid.setStartIndex(0);
+        bid.setEndIndex(0);
+        bid.setOfferedPrice(routeBidCreateDto.getOfferedPrice());
+        bid.setStatus(com.example.be.types.BidStatus.PENDING);
+        bid.setSpecialInstructions(routeBidCreateDto.getSpecialInstructions());
+        
+        // Save the bid
+        Bid savedBid = bidRepository.save(bid);
+        
+        // Convert to DTO
+        BidDto dto = new BidDto();
+        dto.setId(savedBid.getId());
+        dto.setRequestId(null); // No request for route-based bids
+        dto.setRouteId(savedBid.getRoute().getId());
+        dto.setStartIndex(savedBid.getStartIndex());
+        dto.setEndIndex(savedBid.getEndIndex());
+        dto.setOfferedPrice(savedBid.getOfferedPrice());
+        dto.setStatus(savedBid.getStatus());
+        dto.setCreatedAt(savedBid.getCreatedAt());
+        dto.setUpdatedAt(savedBid.getUpdatedAt());
+        
+        logger.info("Route bid created successfully with ID: {}", savedBid.getId());
+        return dto;
     }
 }
