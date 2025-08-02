@@ -14,7 +14,7 @@ export default function CustomerFooter({ activeTab }: { activeTab?: string }) {
         <MaterialIcons name="local-shipping" size={22} color={activeTab === 'deliveries' ? "#FF6600" : "#888"} />
         <Text className={`text-xs mt-1 ${activeTab === 'deliveries' ? 'font-semibold text-black' : 'text-gray-500'}`}>Deliveries</Text>
       </TouchableOpacity>
-      <TouchableOpacity className="items-center" onPress={() => router.push('/pages/customer/Chat')}>
+      <TouchableOpacity className="items-center" onPress={() => router.push('/pages/customer/ChatList')}>
         <Ionicons name="chatbubble-ellipses-outline" size={22} color={activeTab === 'messages' ? "#FF6600" : "#888"} />
         <Text className={`text-xs mt-1 ${activeTab === 'messages' ? 'font-semibold text-black' : 'text-gray-500'}`}>Messages</Text>
       </TouchableOpacity>

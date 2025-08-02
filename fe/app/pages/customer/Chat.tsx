@@ -96,7 +96,7 @@ const Chat = () => {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-      <CustomerFooter activeTab="messages" />
+      
     </SafeAreaView>
   );
 };

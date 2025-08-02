@@ -221,9 +221,9 @@ export default function RouteDetails() {
             textStyle={{ fontSize: 14 }}
           />
           <PrimaryButton
-            title="Place Your Bid"
+            title="Request Parcel"
             onPress={() => router.push({
-              pathname: '/pages/customer/PlaceBid',
+              pathname: '/pages/customer/RequestParcel',
               params: { 
                 routeId: routeId,
                 origin: origin,
