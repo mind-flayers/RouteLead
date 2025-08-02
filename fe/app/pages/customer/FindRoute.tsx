@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Image, Alert, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { WebView } from 'react-native-webview';
+import * as Location from 'expo-location';
 import CustomerFooter from '../../../components/navigation/CustomerFooter';
 
 const GOOGLE_MAPS_APIKEY = 'AIzaSyDj2o9cWpgCtIM2hUP938Ppo31-gvap1ig'; // Replace with your real key
@@ -96,6 +97,14 @@ export default function FindRouteScreen() {
   const [pickupCoord, setPickupCoord] = useState<LatLng | null>(null);
   const [dropoffCoord, setDropoffCoord] = useState<LatLng | null>(null);
   const [showRoutes, setShowRoutes] = useState(false);
+  const [locationPermission, setLocationPermission] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      setLocationPermission(status === 'granted');
+    })();
+  }, []);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [loadingRoutes, setLoadingRoutes] = useState(false);
   const [showRegionWarning, setShowRegionWarning] = useState(false);
@@ -157,6 +166,79 @@ export default function FindRouteScreen() {
     setShowRoutes(false);
   };
 
+  const openSettings = () => {
+    if (Platform.OS === 'ios') {
+      Linking.openURL('app-settings:');
+    } else {
+      Linking.openSettings();
+    }
+  };
+
+  const getCurrentLocation = async () => {
+    try {
+      // First check if location services are enabled
+      const enabled = await Location.hasServicesEnabledAsync();
+      if (!enabled) {
+        Alert.alert(
+          "Location Services Disabled",
+          "Please enable location services in your device settings to use this feature.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open Settings", onPress: openSettings }
+          ]
+        );
+        return;
+      }
+
+      // Check and request permission if needed
+      let { status } = await Location.getForegroundPermissionsAsync();
+      
+      if (status !== 'granted') {
+        status = (await Location.requestForegroundPermissionsAsync()).status;
+        if (status !== 'granted') {
+          Alert.alert(
+            "Permission Denied",
+            "We need location access to get your current position. Please enable it in settings.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Open Settings", onPress: openSettings }
+            ]
+          );
+          return;
+        }
+      }
+
+      // Get current position with a timeout
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+        timeInterval: 5000, // Update every 5 seconds
+        distanceInterval: 10 // Update every 10 meters
+      });
+      
+      const { latitude, longitude } = location.coords;
+      
+      if (!isInSriLanka(latitude, longitude)) {
+        setShowRegionWarning(true);
+        return;
+      }
+
+      setPickupCoord({ latitude, longitude });
+      const address = await reverseGeocode(latitude, longitude);
+      setPickupAddress(address);
+      setStep('dropoff');
+      setLocationPermission(true);
+    } catch (error) {
+      Alert.alert(
+        "Location Error",
+        "Could not get your current location. Please check if your GPS is enabled and try again.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Try Again", onPress: getCurrentLocation }
+        ]
+      );
+    }
+  };
+
   const handleSearch = async () => {
     setShowRoutes(true);
     setLoadingRoutes(true);
@@ -189,11 +271,29 @@ export default function FindRouteScreen() {
 
       {/* Instructions */}
       <View style={{ padding: 12, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#eee' }}>
-        <Text style={{ fontWeight: 'bold', color: '#1e3a8a' }}>
+        <Text style={{ fontWeight: 'bold', color: '#1e3a8a', marginBottom: step === 'pickup' ? 8 : 0 }}>
           {step === 'pickup' && 'Tap on the map to select Pickup location'}
           {step === 'dropoff' && 'Tap on the map to select Dropoff location'}
           {step === 'done' && 'Pickup and Dropoff selected'}
         </Text>
+        {step === 'pickup' && (
+          <TouchableOpacity
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#1e3a8a',
+              padding: 8,
+              borderRadius: 8,
+              alignSelf: 'flex-start'
+            }}
+            onPress={getCurrentLocation}
+          >
+            <Ionicons name="locate" size={18} color="white" />
+            <Text style={{ color: 'white', marginLeft: 8, fontWeight: '500' }}>
+              Use Current Location
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Map WebView */}
