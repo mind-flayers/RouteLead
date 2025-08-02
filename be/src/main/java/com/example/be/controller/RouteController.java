@@ -26,6 +26,9 @@ import java.util.Map;
 import java.util.HashMap;
 import com.example.be.model.Profile;
 import com.example.be.repository.ProfileRepository;
+import com.example.be.service.BidSelectionService;
+import com.example.be.dto.BidsAndRequestsResponse;
+import com.example.be.dto.BidSelectionDto;
 
 @Slf4j
 @RestController
@@ -38,6 +41,7 @@ public class RouteController {
     private final PricePredictionService pricePredictionService;
     private final ProfileRepository profileRepository;
     private final com.example.be.service.BidService bidService;
+    private final BidSelectionService bidSelectionService;
 
     @GetMapping("/{routeId}")
     public ResponseEntity<?> getRouteById(@PathVariable UUID routeId) {
@@ -233,6 +237,140 @@ public class RouteController {
             errorResponse.put("message", e.getMessage());
             errorResponse.put("details", e.getClass().getSimpleName());
             errorResponse.put("path", "/api/routes/" + routeId + "/create-request-and-bid");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @GetMapping("/{routeId}/bids-and-requests")
+    public ResponseEntity<?> getBidsAndRequestsForRoute(
+            @PathVariable UUID routeId,
+            @RequestParam(required = false) com.example.be.types.BidStatus status) {
+        log.info("GET /api/routes/{}/bids-and-requests - Fetching bids and requests for route with status: {}", routeId, status);
+        try {
+            com.example.be.dto.RouteBidsAndRequestsDto result = bidService.getBidsAndRequestsByRouteId(routeId, status);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("timestamp", LocalDateTime.now());
+            response.put("status", 200);
+            response.put("message", "Bids and requests retrieved successfully");
+            response.put("data", result);
+            response.put("path", "/api/routes/" + routeId + "/bids-and-requests");
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error fetching bids and requests for route: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/api/routes/" + routeId + "/bids-and-requests");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @GetMapping("/{routeId}/optimal-bids")
+    public ResponseEntity<?> getOptimalBidsForRoute(
+            @PathVariable UUID routeId,
+            @RequestParam(required = false) com.example.be.types.BidStatus status) {
+        log.info("GET /api/routes/{}/optimal-bids - Selecting optimal bids for route with status: {}", routeId, status);
+        try {
+            // First get the bids and requests
+            com.example.be.dto.RouteBidsAndRequestsDto bidsAndRequests = bidService.getBidsAndRequestsByRouteId(routeId, status);
+            
+            // Convert to BidsAndRequestsResponse format
+            com.example.be.dto.BidsAndRequestsResponse response = new com.example.be.dto.BidsAndRequestsResponse();
+            response.setRouteId(bidsAndRequests.getRouteId());
+            response.setParcelRequestsWithBids(bidsAndRequests.getParcelRequestsWithBids());
+            response.setTotalParcelRequests(bidsAndRequests.getTotalParcelRequests());
+            response.setTotalBids(bidsAndRequests.getTotalBids());
+            response.setHighestBid(bidsAndRequests.getHighestBid());
+            response.setAverageBid(bidsAndRequests.getAverageBid());
+            response.setLowestBid(bidsAndRequests.getLowestBid());
+            
+            // Select optimal bids
+            List<com.example.be.dto.BidSelectionDto> optimalBids = bidSelectionService.selectOptimalBids(routeId, response);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("timestamp", LocalDateTime.now());
+            result.put("status", 200);
+            result.put("message", "Optimal bids selected successfully");
+            result.put("routeId", routeId);
+            result.put("totalBidsConsidered", bidsAndRequests.getTotalBids());
+            result.put("optimalBidsSelected", optimalBids.size());
+            result.put("selectionCriteria", Map.of(
+                "priceWeight", bidSelectionService.getWPrice(),
+                "volumeWeight", bidSelectionService.getWVolume(),
+                "distanceWeight", bidSelectionService.getWDistance(),
+                "detourWeight", bidSelectionService.getWDetour(),
+                "vehicleCapacity", bidSelectionService.getCapacityC()
+            ));
+            result.put("optimalBids", optimalBids);
+            result.put("path", "/api/routes/" + routeId + "/optimal-bids");
+            
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error selecting optimal bids for route: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/api/routes/" + routeId + "/optimal-bids");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @GetMapping("/{routeId}/ranked-bids")
+    public ResponseEntity<?> getRankedBidsForRoute(
+            @PathVariable UUID routeId,
+            @RequestParam(required = false) com.example.be.types.BidStatus status) {
+        log.info("GET /api/routes/{}/ranked-bids - Ranking all bids for route with status: {}", routeId, status);
+        try {
+            // First get the bids and requests
+            com.example.be.dto.RouteBidsAndRequestsDto bidsAndRequests = bidService.getBidsAndRequestsByRouteId(routeId, status);
+            
+            // Convert to BidsAndRequestsResponse format
+            com.example.be.dto.BidsAndRequestsResponse response = new com.example.be.dto.BidsAndRequestsResponse();
+            response.setRouteId(bidsAndRequests.getRouteId());
+            response.setParcelRequestsWithBids(bidsAndRequests.getParcelRequestsWithBids());
+            response.setTotalParcelRequests(bidsAndRequests.getTotalParcelRequests());
+            response.setTotalBids(bidsAndRequests.getTotalBids());
+            response.setHighestBid(bidsAndRequests.getHighestBid());
+            response.setAverageBid(bidsAndRequests.getAverageBid());
+            response.setLowestBid(bidsAndRequests.getLowestBid());
+            
+            // Get all bids ranked by score
+            List<com.example.be.dto.BidSelectionDto> rankedBids = bidSelectionService.getAllBidsRanked(routeId, response);
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("timestamp", LocalDateTime.now());
+            result.put("status", 200);
+            result.put("message", "All bids ranked successfully");
+            result.put("routeId", routeId);
+            result.put("totalBids", rankedBids.size());
+            result.put("rankingCriteria", Map.of(
+                "priceWeight", bidSelectionService.getWPrice(),
+                "volumeWeight", bidSelectionService.getWVolume(),
+                "distanceWeight", bidSelectionService.getWDistance(),
+                "detourWeight", bidSelectionService.getWDetour(),
+                "vehicleCapacity", bidSelectionService.getCapacityC()
+            ));
+            result.put("rankedBids", rankedBids);
+            result.put("path", "/api/routes/" + routeId + "/ranked-bids");
+            
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error ranking bids for route: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/api/routes/" + routeId + "/ranked-bids");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }

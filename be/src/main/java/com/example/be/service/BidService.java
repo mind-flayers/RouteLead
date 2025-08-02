@@ -11,6 +11,7 @@ import com.example.be.model.ReturnRoute;
 import com.example.be.repository.BidRepository;
 import com.example.be.repository.ProfileRepository;
 import com.example.be.repository.ReturnRouteRepository;
+import com.example.be.repository.ParcelRequestRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,14 +30,16 @@ public class BidService {
     private final com.example.be.repository.CustomerBidRepository customerBidRepository;
     private final ReturnRouteRepository routeRepository;
     private final ProfileRepository profileRepository;
+    private final ParcelRequestRepository parcelRequestRepository;
 
     @Autowired
     public BidService(BidRepository bidRepository, com.example.be.repository.CustomerBidRepository customerBidRepository, 
-                     ReturnRouteRepository routeRepository, ProfileRepository profileRepository) {
+                     ReturnRouteRepository routeRepository, ProfileRepository profileRepository, ParcelRequestRepository parcelRequestRepository) {
         this.bidRepository = bidRepository;
         this.customerBidRepository = customerBidRepository;
         this.routeRepository = routeRepository;
         this.profileRepository = profileRepository;
+        this.parcelRequestRepository = parcelRequestRepository;
     }
     @Transactional(readOnly = true)
     public List<BidDto> getBidsByParcelRequestIdAndStatus(UUID parcelRequestId, com.example.be.types.BidStatus status) {
@@ -77,6 +80,135 @@ public class BidService {
             dtos.add(dto);
         }
         return dtos;
+    }
+
+    @Transactional(readOnly = true)
+    public List<BidDto> getBidsByRouteIdAndStatus(UUID routeId, com.example.be.types.BidStatus status) {
+        String statusStr = status != null ? status.name() : null;
+        List<com.example.be.model.Bid> bids = bidRepository.findByRouteIdAndStatusNative(routeId, statusStr);
+        List<BidDto> dtos = new ArrayList<>();
+        for (com.example.be.model.Bid bid : bids) {
+            BidDto dto = new BidDto();
+            dto.setId(bid.getId());
+            dto.setRequestId(bid.getRequest() != null ? bid.getRequest().getId() : null);
+            dto.setRouteId(bid.getRoute() != null ? bid.getRoute().getId() : null);
+            dto.setStartIndex(bid.getStartIndex());
+            dto.setEndIndex(bid.getEndIndex());
+            dto.setOfferedPrice(bid.getOfferedPrice());
+            dto.setStatus(bid.getStatus());
+            dto.setCreatedAt(bid.getCreatedAt());
+            dto.setUpdatedAt(bid.getUpdatedAt());
+            dtos.add(dto);
+        }
+        return dtos;
+    }
+
+    @Transactional(readOnly = true)
+    public com.example.be.dto.RouteBidsAndRequestsDto getBidsAndRequestsByRouteId(UUID routeId, com.example.be.types.BidStatus status) {
+        // Get bids for the route
+        List<BidDto> allBids = getBidsByRouteIdAndStatus(routeId, status);
+        
+        // Get parcel requests for the route
+        List<com.example.be.model.ParcelRequest> parcelRequests = parcelRequestRepository.findByRouteIdNative(routeId);
+        
+        // Create hierarchical structure
+        List<com.example.be.dto.ParcelRequestWithBidsDto> parcelRequestsWithBids = new ArrayList<>();
+        
+        for (com.example.be.model.ParcelRequest request : parcelRequests) {
+            com.example.be.dto.ParcelRequestWithBidsDto requestWithBids = new com.example.be.dto.ParcelRequestWithBidsDto();
+            
+            // Set parcel request details
+            requestWithBids.setId(request.getId());
+            requestWithBids.setCustomerId(request.getCustomer().getId());
+            requestWithBids.setPickupLat(request.getPickupLat());
+            requestWithBids.setPickupLng(request.getPickupLng());
+            requestWithBids.setDropoffLat(request.getDropoffLat());
+            requestWithBids.setDropoffLng(request.getDropoffLng());
+            requestWithBids.setWeightKg(request.getWeightKg());
+            requestWithBids.setVolumeM3(request.getVolumeM3());
+            requestWithBids.setDescription(request.getDescription());
+            requestWithBids.setMaxBudget(request.getMaxBudget());
+            requestWithBids.setDeadline(request.getDeadline());
+            requestWithBids.setStatus(request.getStatus());
+            requestWithBids.setCreatedAt(request.getCreatedAt());
+            requestWithBids.setUpdatedAt(request.getUpdatedAt());
+            
+            // Set customer information
+            requestWithBids.setCustomerFirstName(request.getCustomer().getFirstName());
+            requestWithBids.setCustomerLastName(request.getCustomer().getLastName());
+            requestWithBids.setCustomerEmail(request.getCustomer().getEmail());
+            requestWithBids.setCustomerPhone(request.getCustomer().getPhoneNumber());
+            
+            // Filter bids for this specific parcel request
+            List<BidDto> requestBids = new ArrayList<>();
+            for (BidDto bid : allBids) {
+                if (bid.getRequestId() != null && bid.getRequestId().equals(request.getId())) {
+                    requestBids.add(bid);
+                }
+            }
+            requestWithBids.setBids(requestBids);
+            requestWithBids.setTotalBids(requestBids.size());
+            
+            // Calculate statistics for this parcel request
+            java.math.BigDecimal highestBid = java.math.BigDecimal.ZERO;
+            java.math.BigDecimal lowestBid = null;
+            java.math.BigDecimal totalBidAmount = java.math.BigDecimal.ZERO;
+            
+            for (BidDto bid : requestBids) {
+                if (bid.getOfferedPrice() != null) {
+                    if (highestBid.compareTo(bid.getOfferedPrice()) < 0) {
+                        highestBid = bid.getOfferedPrice();
+                    }
+                    if (lowestBid == null || lowestBid.compareTo(bid.getOfferedPrice()) > 0) {
+                        lowestBid = bid.getOfferedPrice();
+                    }
+                    totalBidAmount = totalBidAmount.add(bid.getOfferedPrice());
+                }
+            }
+            
+            java.math.BigDecimal averageBid = requestBids.isEmpty() ? java.math.BigDecimal.ZERO : 
+                totalBidAmount.divide(java.math.BigDecimal.valueOf(requestBids.size()), 2, java.math.BigDecimal.ROUND_HALF_UP);
+            
+            requestWithBids.setHighestBid(highestBid);
+            requestWithBids.setAverageBid(averageBid);
+            requestWithBids.setLowestBid(lowestBid);
+            
+            parcelRequestsWithBids.add(requestWithBids);
+        }
+        
+        // Calculate overall statistics
+        java.math.BigDecimal overallHighestBid = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal overallLowestBid = null;
+        java.math.BigDecimal overallTotalBidAmount = java.math.BigDecimal.ZERO;
+        int totalBidsCount = 0;
+        
+        for (BidDto bid : allBids) {
+            if (bid.getOfferedPrice() != null) {
+                if (overallHighestBid.compareTo(bid.getOfferedPrice()) < 0) {
+                    overallHighestBid = bid.getOfferedPrice();
+                }
+                if (overallLowestBid == null || overallLowestBid.compareTo(bid.getOfferedPrice()) > 0) {
+                    overallLowestBid = bid.getOfferedPrice();
+                }
+                overallTotalBidAmount = overallTotalBidAmount.add(bid.getOfferedPrice());
+                totalBidsCount++;
+            }
+        }
+        
+        java.math.BigDecimal overallAverageBid = totalBidsCount == 0 ? java.math.BigDecimal.ZERO : 
+            overallTotalBidAmount.divide(java.math.BigDecimal.valueOf(totalBidsCount), 2, java.math.BigDecimal.ROUND_HALF_UP);
+        
+        // Create response DTO
+        com.example.be.dto.RouteBidsAndRequestsDto response = new com.example.be.dto.RouteBidsAndRequestsDto();
+        response.setRouteId(routeId);
+        response.setParcelRequestsWithBids(parcelRequestsWithBids);
+        response.setTotalParcelRequests(parcelRequestsWithBids.size());
+        response.setTotalBids(totalBidsCount);
+        response.setHighestBid(overallHighestBid);
+        response.setAverageBid(overallAverageBid);
+        response.setLowestBid(overallLowestBid);
+        
+        return response;
     }
 
     @Transactional(readOnly = true)

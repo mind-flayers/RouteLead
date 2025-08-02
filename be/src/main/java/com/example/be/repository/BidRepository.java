@@ -72,4 +72,19 @@ public interface BidRepository extends JpaRepository<Bid, UUID> {
             "INNER JOIN return_routes rr ON b.route_id = rr.id " +
             "WHERE rr.driver_id = :driverId AND b.status = CAST(:status AS bid_status)", nativeQuery = true)
     int countByRouteDriverIdAndStatus(@Param("driverId") UUID driverId, @Param("status") String status);
+
+    // Find bids by route ID with optional status filtering
+    @Query(value = "SELECT * FROM bids WHERE route_id = :routeId" +
+            " AND (:status IS NULL OR status = CAST(:status AS bid_status)) ORDER BY created_at DESC", nativeQuery = true)
+    List<Bid> findByRouteIdAndStatus(@Param("routeId") UUID routeId, @Param("status") String status);
+
+    // Find bids by route ID using JPA query to handle enum properly
+    @Query("SELECT b FROM Bid b WHERE b.route.id = :routeId " +
+            "AND (:status IS NULL OR b.status = :status) ORDER BY b.createdAt DESC")
+    List<Bid> findByRouteIdAndStatusJpa(@Param("routeId") UUID routeId, @Param("status") com.example.be.types.BidStatus status);
+
+    // Find bids by route ID using native SQL with proper enum casting
+    @Query(value = "SELECT * FROM bids WHERE route_id = :routeId " +
+            "AND (:status IS NULL OR status = CAST(:status AS bid_status)) ORDER BY created_at DESC", nativeQuery = true)
+    List<Bid> findByRouteIdAndStatusNative(@Param("routeId") UUID routeId, @Param("status") String status);
 }

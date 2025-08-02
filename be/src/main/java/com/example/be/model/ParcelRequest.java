@@ -2,6 +2,7 @@ package com.example.be.model;
 
 import com.example.be.types.ParcelStatus;
 import jakarta.persistence.*;
+import jakarta.persistence.EnumType;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
@@ -54,6 +55,7 @@ public class ParcelRequest {
     @Column(name = "deadline", nullable = false)
     private ZonedDateTime deadline;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, columnDefinition = "parcel_status")
     private ParcelStatus status = ParcelStatus.OPEN;
 
