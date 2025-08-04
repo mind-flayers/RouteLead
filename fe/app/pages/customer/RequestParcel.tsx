@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert 
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Config } from '@/constants/Config';
 
-export default function PlaceBid() {
+export default function RequestParcel() {
   const router = useRouter();
   const params = useLocalSearchParams();
   
@@ -12,41 +12,31 @@ export default function PlaceBid() {
   const origin = params.origin as string;
   const destination = params.destination as string;
 
-  // Simulate driver's fixed price (replace with prop or API as needed)
-  const fixedPrice = 1000; // Example: 1000. Replace with actual value.
-
-  const [bid, setBid] = useState('');
   const [weight, setWeight] = useState('');
   const [length, setLength] = useState('');
   const [width, setWidth] = useState('');
   const [height, setHeight] = useState('');
   const [description, setDescription] = useState('');
-  const [placingBid, setPlacingBid] = useState(false);
+  const [requestingParcel, setRequestingParcel] = useState(false);
   
   // TODO: Replace with actual customerId from context or authentication
   const customerId = '70ba4867-edcb-4628-b614-7bb60e935862';
 
-  const handlePlaceBid = async () => {
+  const handleRequestParcel = async () => {
     // Validate all required fields
-    if (!bid || !weight || !length || !width || !height || !description) {
+    if (!weight || !length || !width || !height || !description) {
       Alert.alert('Validation Error', 'Please fill in all fields.');
       return;
     }
     
     // Validate numeric values
-    const bidAmount = parseFloat(bid);
     const weightValue = parseFloat(weight);
     const lengthValue = parseFloat(length);
     const widthValue = parseFloat(width);
     const heightValue = parseFloat(height);
     
-    if (isNaN(bidAmount) || isNaN(weightValue) || isNaN(lengthValue) || isNaN(widthValue) || isNaN(heightValue)) {
+    if (isNaN(weightValue) || isNaN(lengthValue) || isNaN(widthValue) || isNaN(heightValue)) {
       Alert.alert('Validation Error', 'Please enter valid numeric values for all fields.');
-      return;
-    }
-    
-    if (bidAmount <= fixedPrice) {
-      Alert.alert('Invalid Bid', `Your bid must be higher than the driver&apos;s fixed price: ${fixedPrice}`);
       return;
     }
     
@@ -56,14 +46,14 @@ export default function PlaceBid() {
     }
     
     try {
-      setPlacingBid(true);
+      setRequestingParcel(true);
       
       // Calculate volume from dimensions (convert cm³ to m³)
       const volumeM3 = (lengthValue * widthValue * heightValue) / 1000000;
       
-      // Create both request and bid in one call
-      const combinedData = {
-        customerId: customerId,
+      // Create parcel request
+      const requestData = {
+        customer: { id: customerId },
         pickupLat: 6.9271, // TODO: Get from route details
         pickupLng: 79.8612, // TODO: Get from route details
         dropoffLat: 6.9934, // TODO: Get from route details
@@ -71,40 +61,59 @@ export default function PlaceBid() {
         weightKg: weightValue,
         volumeM3: volumeM3,
         description: description,
-        maxBudget: bidAmount,
+        maxBudget: 1000.00, // TODO: Get from user input or default
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
         pickupContactName: "Customer", // TODO: Get from user profile
         pickupContactPhone: "+94 999999999", // TODO: Get from user profile
         deliveryContactName: "Customer", // TODO: Get from user profile
-        deliveryContactPhone: "+94 999999999", // TODO: Get from user profile
-        offeredPrice: bidAmount,
-        specialInstructions: description
+        deliveryContactPhone: "+94 999999999" // TODO: Get from user profile
       };
       
-      console.log('Sending data to backend:', combinedData);
+      console.log('Sending parcel request to backend:', requestData);
       
-      const response = await fetch(`${Config.API_BASE}/routes/${routeId}/create-request-and-bid`, {
+      const response = await fetch(`${Config.API_BASE}/parcel-requests`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json' 
         },
-        body: JSON.stringify(combinedData),
+        body: JSON.stringify(requestData),
       });
       
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Backend error response:', errorText);
-        throw new Error(`Failed to place bid: ${response.status} - ${errorText}`);
+        throw new Error(`Failed to request parcel: ${response.status} - ${errorText}`);
       }
       
-      const result = await response.json();
-      Alert.alert('Success!', 'Your bid has been placed successfully.', [
-        { text: 'OK', onPress: () => router.push('/pages/customer/BidConfirmation') }
+      // Check if response has content before parsing JSON
+      const responseText = await response.text();
+      console.log('Backend response:', responseText);
+      
+      let result = null;
+      if (responseText && responseText.trim()) {
+        try {
+          result = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('JSON parse error:', parseError);
+          // If it's a 201 status, the request was successful even without JSON response
+          if (response.status === 201) {
+            result = { success: true };
+          } else {
+            throw new Error(`Invalid JSON response: ${responseText}`);
+          }
+        }
+      } else if (response.status === 201) {
+        // Empty response but 201 status means success
+        result = { success: true };
+      }
+      Alert.alert('Success!', 'Your parcel request has been submitted successfully.', [
+        { text: 'OK', onPress: () => router.push('/pages/customer/RequestConfirmation') }
       ]);
     } catch (err) {
-      console.error('Error placing bid:', err);
-      Alert.alert('Error', 'Failed to place bid. Please try again.');
+      console.error('Error requesting parcel:', err);
+      Alert.alert('Error', 'Failed to submit parcel request. Please try again.');
     } finally {
-      setPlacingBid(false);
+      setRequestingParcel(false);
     }
   };
 
@@ -116,25 +125,8 @@ export default function PlaceBid() {
         <Text style={styles.routeText}>{origin} → {destination}</Text>
       </View>
       
-      {/* Bid Details */}
-      <Text style={styles.title}>Place Your Bid</Text>
-
-      <View style={styles.section}>
-        <Text style={styles.label}>Bid Amount (Driver&apos;s Fixed Price: {fixedPrice})</Text>
-        <TextInput
-          value={bid}
-          onChangeText={setBid}
-          keyboardType="numeric"
-          placeholder={`Enter your bid (above ${fixedPrice})`}
-          placeholderTextColor="#555"
-          style={styles.input}
-        />
-        {bid && parseFloat(bid) <= fixedPrice && (
-          <Text style={{ color: 'red', marginTop: 4 }}>
-            Your bid must be higher than the fixed price ({fixedPrice}).
-          </Text>
-        )}
-      </View>
+      {/* Parcel Request Details */}
+      <Text style={styles.title}>Parcel Request</Text>
 
       {/* Parcel Details */}
       <View style={styles.section}>
@@ -186,12 +178,12 @@ export default function PlaceBid() {
 
       {/* Submit Button */}
       <TouchableOpacity 
-        style={[styles.button, placingBid && styles.buttonDisabled]} 
-        onPress={handlePlaceBid}
-        disabled={placingBid}
+        style={[styles.button, requestingParcel && styles.buttonDisabled]} 
+        onPress={handleRequestParcel}
+        disabled={requestingParcel}
       >
         <Text style={styles.buttonText}>
-          {placingBid ? 'Placing Bid...' : 'Place Your Bid'}
+          {requestingParcel ? 'Requesting...' : 'Request'}
         </Text>
       </TouchableOpacity>
     </ScrollView>
