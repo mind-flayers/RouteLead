@@ -41,6 +41,9 @@ public class ReturnRoute {
     @Column(name = "departure_time", nullable = false)
     private ZonedDateTime departureTime;
 
+    @Column(name = "bidding_start")
+    private ZonedDateTime biddingStart;
+
     @Column(name = "detour_tolerance_km", nullable = false, precision = 10, scale = 2)
     private BigDecimal detourToleranceKm = BigDecimal.ZERO;
 
@@ -50,9 +53,19 @@ public class ReturnRoute {
     @Column(name = "suggested_price_max", nullable = false, precision = 10, scale = 2)
     private BigDecimal suggestedPriceMax;
 
+    // Enhanced fields for polyline support
+    @Column(name = "route_polyline", columnDefinition = "TEXT")
+    private String routePolyline; // Google Maps encoded polyline
+
+    @Column(name = "total_distance_km", precision = 10, scale = 2)
+    private BigDecimal totalDistanceKm; // Total distance from polyline
+
+    @Column(name = "estimated_duration_minutes")
+    private Integer estimatedDurationMinutes; // Estimated travel time
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, columnDefinition = "route_status")
-    private RouteStatus status = RouteStatus.INITIATED;
+    private RouteStatus status = RouteStatus.OPEN;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -74,7 +87,7 @@ public class ReturnRoute {
             updatedAt = ZonedDateTime.now();
         }
         if (status == null) {
-            status = RouteStatus.INITIATED;
+            status = RouteStatus.OPEN;
         }
         if (detourToleranceKm == null) {
             detourToleranceKm = BigDecimal.ZERO;

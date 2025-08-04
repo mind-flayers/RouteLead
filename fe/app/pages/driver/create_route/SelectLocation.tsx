@@ -1,232 +1,113 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Alert, TouchableOpacity, StyleSheet } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { WebView } from 'react-native-webview';
-import * as Location from 'expo-location';
-import PrimaryButton from '../../../../components/ui/PrimaryButton';
+import SimpleMapLocationSelector from '../../../../components/SimpleMapLocationSelector';
+import SecondaryButton from '../../../../components/ui/SecondaryButton';
+import { useRouteCreation } from '../../../../contexts/RouteCreationContext';
 
-interface LocationCoordinate {
-  latitude: number;
-  longitude: number;
+// Define the types here temporarily
+interface LocationData {
+  lat: number;
+  lng: number;
+  address: string;
 }
 
-interface LocationData {
-  coordinate: LocationCoordinate;
-  address: string;
+interface RouteData {
+  distance: number;
+  duration: number;
+  overview_path?: any;
+  encoded_polyline?: string;
+}
+
+interface RouteSelectionData {
+  origin: LocationData;
+  destination: LocationData;
+  route: RouteData;
 }
 
 const SelectLocation = () => {
   const router = useRouter();
-  const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
-  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(null);
-  const [mapCenter, setMapCenter] = useState({
-    latitude: -7.6489, // Default to Indonesia (Nganjuk area)
-    longitude: 111.9033,
-  });
-  const [searchQuery, setSearchQuery] = useState('');
-  const webViewRef = useRef<WebView>(null);
+  const { routeData, updateRouteData } = useRouteCreation();
+  const [selectedOrigin, setSelectedOrigin] = useState<LocationData | null>(routeData.origin || null);
+  const [selectedDestination, setSelectedDestination] = useState<LocationData | null>(routeData.destination || null);
+  const [selectedRoute, setSelectedRoute] = useState<RouteData | null>(routeData.selectedRoute || null);
 
+  const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+
+  console.log('Google Maps API Key available:', GOOGLE_MAPS_API_KEY ? `${GOOGLE_MAPS_API_KEY.substring(0, 10)}...` : 'NOT FOUND');
+
+  // Validate API key on component mount
   useEffect(() => {
-    getCurrentLocation();
-  }, []);
+    if (!GOOGLE_MAPS_API_KEY) {
+      Alert.alert(
+        'Configuration Error',
+        'Google Maps API key is not configured. Please check your environment variables.',
+        [{ text: 'OK', onPress: () => router.back() }]
+      );
+    }
+  }, [GOOGLE_MAPS_API_KEY, router]);
 
-  const getCurrentLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission denied', 'Location permission is required to show your current location.');
-        return;
-      }
+  const handleOriginSelected = (location: LocationData) => {
+    setSelectedOrigin(location);
+    updateRouteData({ origin: location });
+  };
 
-      const location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
-      
-      // Reverse geocode to get address
-      const address = await Location.reverseGeocodeAsync({ latitude, longitude });
-      const formattedAddress = address[0] 
-        ? `${address[0].street || ''} ${address[0].streetNumber || ''}, ${address[0].district || ''}, ${address[0].city || ''}`.trim()
-        : 'Current Location';
+  const handleDestinationSelected = (location: LocationData) => {
+    setSelectedDestination(location);
+    updateRouteData({ destination: location });
+  };
 
-      const locationData: LocationData = {
-        coordinate: { latitude, longitude },
-        address: formattedAddress
+  const handleRouteSelected = (route: RouteData) => {
+    setSelectedRoute(route);
+    
+    // Convert the route data to match the context interface
+    const contextRouteData = {
+      polyline: route.encoded_polyline || '', // Use encoded polyline from route data
+      distance: route.distance,
+      duration: route.duration,
+      encoded_polyline: route.encoded_polyline || '', // Use encoded polyline from route data
+    };
+    
+    updateRouteData({ selectedRoute: contextRouteData });
+    
+    // Since the simple component doesn't have route confirmation, auto-confirm
+    if (selectedOrigin && selectedDestination) {
+      const routeSelectionData: RouteSelectionData = {
+        origin: selectedOrigin,
+        destination: selectedDestination,
+        route: route
       };
-
-      setCurrentLocation(locationData);
-      setSelectedLocation(locationData);
-      setMapCenter({ latitude, longitude });
       
-      // Update map center
-      if (webViewRef.current) {
-        webViewRef.current.postMessage(
-          JSON.stringify({
-            type: 'updateLocation',
-            latitude,
-            longitude,
-            address: formattedAddress
-          })
-        );
-      }
-    } catch (error) {
-      console.error('Error getting location:', error);
-      Alert.alert('Error', 'Unable to get current location. Please try again.');
+      Alert.alert(
+        'Route Selected',
+        `Route from ${routeSelectionData.origin.address} to ${routeSelectionData.destination.address} has been selected.\n\nDistance: ${routeSelectionData.route.distance.toFixed(1)} km\nEstimated time: ${Math.round(routeSelectionData.route.duration)} minutes`,
+        [
+          {
+            text: 'Continue',
+            onPress: () => router.back(), // Go back to CreateRoute instead of SelectRoute
+          },
+        ]
+      );
     }
   };
 
-  const handleWebViewMessage = async (event: any) => {
-    try {
-      const data = JSON.parse(event.nativeEvent.data);
-      
-      if (data.type === 'locationSelected') {
-        const { latitude, longitude } = data;
-        
-        try {
-          // Reverse geocode to get address
-          const address = await Location.reverseGeocodeAsync({ latitude, longitude });
-          const formattedAddress = address[0] 
-            ? `${address[0].street || ''} ${address[0].streetNumber || ''}, ${address[0].district || ''}, ${address[0].city || ''}`.trim()
-            : 'Selected Location';
-
-          const locationData: LocationData = {
-            coordinate: { latitude, longitude },
-            address: formattedAddress
-          };
-
-          setSelectedLocation(locationData);
-        } catch (error) {
-          console.error('Error reverse geocoding:', error);
-          setSelectedLocation({
-            coordinate: { latitude, longitude },
-            address: 'Selected Location'
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error parsing WebView message:', error);
-    }
+  const handleError = (error: string) => {
+    console.error('Map Error:', error);
+    Alert.alert('Map Error', error);
   };
 
-  const handleLocationSelect = () => {
-    if (selectedLocation) {
-      // You can pass the selected location data to the next screen
-      router.push({
-        pathname: '/pages/driver/create_route/CreateRoute',
-        params: {
-          selectedLocation: JSON.stringify(selectedLocation)
-        }
-      });
-    }
+  const canProceed = () => {
+    return selectedOrigin && selectedDestination && selectedRoute;
   };
 
-  const getMapHTML = () => {
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Map</title>
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-        <style>
-          body { margin: 0; padding: 0; }
-          #map { height: 100vh; width: 100vw; }
-        </style>
-      </head>
-      <body>
-        <div id="map"></div>
-        <script>
-          let map;
-          let selectedMarker;
-          let currentLocationMarker;
-          
-          // Initialize map
-          function initMap() {
-            map = L.map('map').setView([${mapCenter.latitude}, ${mapCenter.longitude}], 15);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-              attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
-            
-            // Handle map clicks
-            map.on('click', function(e) {
-              const lat = e.latlng.lat;
-              const lng = e.latlng.lng;
-              
-              // Remove previous selected marker
-              if (selectedMarker) {
-                map.removeLayer(selectedMarker);
-              }
-              
-              // Add new marker
-              selectedMarker = L.marker([lat, lng], {
-                icon: L.divIcon({
-                  className: 'custom-marker',
-                  html: '<div style="background-color: #FF8C00; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
-                  iconSize: [20, 20],
-                  iconAnchor: [10, 10]
-                })
-              }).addTo(map);
-              
-              // Send location to React Native
-              if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                  type: 'locationSelected',
-                  latitude: lat,
-                  longitude: lng
-                }));
-              }
-            });
-          }
-          
-          // Handle messages from React Native
-          window.addEventListener('message', function(event) {
-            const data = JSON.parse(event.data);
-            
-            if (data.type === 'updateLocation') {
-              const lat = data.latitude;
-              const lng = data.longitude;
-              
-              // Update map view
-              map.setView([lat, lng], 15);
-              
-              // Remove previous current location marker
-              if (currentLocationMarker) {
-                map.removeLayer(currentLocationMarker);
-              }
-              
-              // Add current location marker
-              currentLocationMarker = L.marker([lat, lng], {
-                icon: L.divIcon({
-                  className: 'current-location-marker',
-                  html: '<div style="background-color: #007AFF; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.5);"></div>',
-                  iconSize: [16, 16],
-                  iconAnchor: [8, 8]
-                })
-              }).addTo(map);
-              
-              // Also set as selected location
-              if (selectedMarker) {
-                map.removeLayer(selectedMarker);
-              }
-              selectedMarker = L.marker([lat, lng], {
-                icon: L.divIcon({
-                  className: 'custom-marker',
-                  html: '<div style="background-color: #FF8C00; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
-                  iconSize: [20, 20],
-                  iconAnchor: [10, 10]
-                })
-              }).addTo(map);
-            }
-          });
-          
-          // Initialize when page loads
-          initMap();
-        </script>
-      </body>
-      </html>
-    `;
+  const handleNext = () => {
+    if (canProceed()) {
+      // Data is already saved to context in the handlers above
+      router.back(); // Go back to CreateRoute
+    } else {
+      Alert.alert('Incomplete Selection', 'Please select both origin and destination locations, and choose a route.');
+    }
   };
 
   return (
@@ -234,7 +115,7 @@ const SelectLocation = () => {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Select Location',
+          title: 'Select Route Locations',
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color="white" />
@@ -242,57 +123,68 @@ const SelectLocation = () => {
           ),
         }}
       />
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#888" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search location"
-          placeholderTextColor="#888"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
+
+      {/* Instructions */}
+      <View style={styles.instructionsContainer}>
+        <Text style={styles.instructionTitle}>Select Your Route</Text>
+        <Text style={styles.instructionText}>
+          1. Click on the map to select your origin location{'\n'}
+          2. Click to select your destination{'\n'}
+          3. Choose from the available route options{'\n'}
+          4. Confirm your selection to continue
+        </Text>
       </View>
 
-      {/* Map View */}
+      {/* Map Component */}
       <View style={styles.mapContainer}>
-        <WebView
-          ref={webViewRef}
-          style={styles.map}
-          source={{ html: getMapHTML() }}
-          onMessage={handleWebViewMessage}
-          javaScriptEnabled={true}
-          domStorageEnabled={true}
-          startInLoadingState={true}
-          mixedContentMode="compatibility"
-          allowsInlineMediaPlayback={true}
-          mediaPlaybackRequiresUserAction={false}
-        />
+        {GOOGLE_MAPS_API_KEY ? (
+          <SimpleMapLocationSelector
+            onOriginSelected={handleOriginSelected}
+            onDestinationSelected={handleDestinationSelected}
+            onRouteSelected={handleRouteSelected}
+            onError={handleError}
+            googleMapsApiKey={GOOGLE_MAPS_API_KEY}
+          />
+        ) : (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Google Maps API key not found</Text>
+            <Text style={styles.errorSubtext}>Please check your configuration</Text>
+          </View>
+        )}
       </View>
 
-      {/* Selected Location Card */}
-      {selectedLocation && (
-        <View style={styles.currentLocationCard}>
-          <Text style={styles.currentLocationTitle}>Selected Location</Text>
-          <View style={styles.locationDetail}>
-            <Ionicons name="location" size={20} color="#FF8C00" />
-            <Text style={styles.locationAddress}>{selectedLocation.address}</Text>
-            <TouchableOpacity 
-              onPress={getCurrentLocation}
-              style={styles.refreshButton}
-            >
-              <Ionicons name="refresh" size={20} color="#FF8C00" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
+      {/* Status and Navigation */}
+      <View style={styles.bottomContainer}>
+        {selectedOrigin && (
+          <Text style={styles.statusText}>
+            Origin: {selectedOrigin.address}
+          </Text>
+        )}
+        {selectedDestination && (
+          <Text style={styles.statusText}>
+            Destination: {selectedDestination.address}
+          </Text>
+        )}
+        {selectedRoute && (
+          <Text style={styles.statusText}>
+            Route: {selectedRoute.distance.toFixed(1)} km, {Math.round(selectedRoute.duration)} min
+          </Text>
+        )}
 
-      {/* Select Location Button */}
-      <PrimaryButton 
-        onPress={handleLocationSelect} 
-        title="Confirm Location" 
-        style={styles.selectLocationButton}
-        disabled={!selectedLocation}
-      />
+        <View style={styles.buttonContainer}>
+          <SecondaryButton
+            title="Back"
+            onPress={() => router.back()}
+            style={[styles.button, styles.backButton]}
+          />
+          <SecondaryButton
+            title={canProceed() ? "Continue" : "Select Route"}
+            onPress={handleNext}
+            style={[styles.button, canProceed() ? styles.continueButton : styles.disabledButton]}
+            disabled={!canProceed()}
+          />
+        </View>
+      </View>
     </View>
   );
 };
@@ -300,78 +192,86 @@ const SelectLocation = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#f5f5f5',
+  },
+  instructionsContainer: {
     padding: 16,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: 'white',
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
   },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    height: 50,
-    fontSize: 16,
+  instructionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#333',
+    marginBottom: 8,
+  },
+  instructionText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
   },
   mapContainer: {
     flex: 1,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 10,
-    marginBottom: 20,
+    margin: 16,
+    borderRadius: 8,
     overflow: 'hidden',
-  },
-  map: {
-    flex: 1,
-  },
-  currentLocationCard: {
     backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 20,
-    marginBottom: 20,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3,
   },
-  currentLocationTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  locationDetail: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff5e6', // Light orange background
-    borderRadius: 8,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: '#FF8C00',
-  },
-  locationAddress: {
+  errorContainer: {
     flex: 1,
-    marginLeft: 10,
-    fontSize: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ff4444',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  bottomContainer: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  statusText: {
+    fontSize: 14,
     color: '#333',
+    marginBottom: 4,
   },
-  refreshButton: {
-    marginLeft: 10,
-    padding: 5,
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
   },
-  selectLocationButton: {
-    marginTop: 'auto', // Pushes button to the bottom
+  button: {
+    flex: 1,
+    marginHorizontal: 8,
+  },
+  backButton: {
+    backgroundColor: '#6c757d',
+  },
+  continueButton: {
+    backgroundColor: '#007bff',
+  },
+  disabledButton: {
+    backgroundColor: '#ccc',
   },
 });
 

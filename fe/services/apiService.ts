@@ -1,17 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { reverseGeocode } from './geocodingService';
 
 // Base configuration
 // For React Native, we need to use the actual IP address instead of localhost
 const getApiBaseUrl = () => {
   if (Platform.OS === 'android') {
-    // For Android emulator and physical device, use the host machine's IP address
-    // 10.0.2.2 often doesn't work, so we use the actual IP address
-    return 'http://192.168.8.144:8080/api';
+    // For Android emulator, use 10.0.2.2 to access localhost
+    // For physical Android device, use your machine's IP address
+    return 'http://10.0.2.2:8080/api';
   } else if (Platform.OS === 'ios') {
     // For iOS simulator, localhost should work
-    // For physical iOS device, use your machine's IP address
-    return 'http://192.168.8.144:8080/api';
+    return 'http://localhost:8080/api';
   } else {
     // For web/other platforms
     return 'http://localhost:8080/api';
@@ -19,7 +19,7 @@ const getApiBaseUrl = () => {
 };
 
 // Use actual IP address for all platforms to ensure connectivity
-const API_BASE_URL = 'https://528069faa0ff.ngrok-free.app/api';
+const API_BASE_URL = 'https://aa79d787f17b.ngrok-free.app/api';
 
 // Debug log to show which API URL is being used
 console.log('API Base URL:', API_BASE_URL);
@@ -215,6 +215,105 @@ export class ApiService {
       return 0;
     }
   }
+
+  // Route Creation API
+  static async createRoute(routeData: any): Promise<{ routeId: string; message: string }> {
+    console.log('Creating route with data:', routeData);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/routes`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(routeData),
+      });
+
+      console.log('Create route response status:', response.status);
+      console.log('Create route response headers:', response.headers.get('content-type'));
+      
+      if (!response.ok) {
+        // Check if response is JSON or HTML
+        const contentType = response.headers.get('content-type');
+        let errorMessage = 'Failed to create route';
+        
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          } catch (e) {
+            console.error('Failed to parse error JSON:', e);
+          }
+        } else {
+          // If it's HTML or other content, read as text
+          const errorText = await response.text();
+          console.error('Server returned non-JSON error:', errorText);
+          errorMessage = `Server error (${response.status}): ${response.statusText}`;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      console.log('Create route response:', result);
+      
+      return {
+        routeId: result.routeId,
+        message: result.message || 'Route created successfully'
+      };
+    } catch (error) {
+      console.error('Error creating route:', error);
+      throw error;
+    }
+  }
+
+  static async validateRouteCoordinates(
+    originLat: number, 
+    originLng: number, 
+    destinationLat: number, 
+    destinationLng: number
+  ): Promise<{ valid: boolean; message?: string }> {
+    try {
+      // Basic Sri Lankan coordinate validation
+      const isInSriLanka = (lat: number, lng: number) => {
+        return lat >= 5.9 && lat <= 9.9 && lng >= 79.5 && lng <= 81.9;
+      };
+
+      if (!isInSriLanka(originLat, originLng)) {
+        return { valid: false, message: 'Origin location must be within Sri Lanka' };
+      }
+
+      if (!isInSriLanka(destinationLat, destinationLng)) {
+        return { valid: false, message: 'Destination location must be within Sri Lanka' };
+      }
+
+      // Check minimum distance (e.g., at least 1km apart)
+      const distance = this.calculateDistance(originLat, originLng, destinationLat, destinationLng);
+      if (distance < 1) {
+        return { valid: false, message: 'Origin and destination must be at least 1km apart' };
+      }
+
+      return { valid: true };
+    } catch (error) {
+      console.error('Error validating coordinates:', error);
+      return { valid: false, message: 'Error validating coordinates' };
+    }
+  }
+
+  private static calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371; // Radius of the earth in km
+    const dLat = this.deg2rad(lat2 - lat1);
+    const dLng = this.deg2rad(lng2 - lng1);
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
+      Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const d = R * c; // Distance in km
+    return d;
+  }
+
+  private static deg2rad(deg: number): number {
+    return deg * (Math.PI/180);
+  }
 };
 
 // Utility functions for formatting
@@ -265,8 +364,7 @@ export const formatLocation = async (locationString: string | undefined | null):
     const lat = parseFloat(coordMatch[1]);
     const lng = parseFloat(coordMatch[2]);
     
-    // Import geocoding service dynamically to avoid circular dependencies
-    const { reverseGeocode } = await import('./geocodingService');
+    // Use direct import instead of dynamic import to avoid Metro bundling issues
     return reverseGeocode(lat, lng);
   }
   

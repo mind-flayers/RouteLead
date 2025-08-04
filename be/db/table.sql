@@ -106,11 +106,21 @@ CREATE TABLE IF NOT EXISTS public.return_routes (
   departure_time TIMESTAMPTZ NOT NULL, detour_tolerance_km NUMERIC NOT NULL DEFAULT 0,
   suggested_price_min NUMERIC NOT NULL, suggested_price_max NUMERIC NOT NULL,
   status route_status NOT NULL DEFAULT 'INITIATED',
+  route_polyline TEXT,
+  total_distance_km NUMERIC,
+  estimated_duration_minutes INTEGER,
+  bidding_start TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+COMMENT ON COLUMN public.return_routes.route_polyline IS 'Google Maps encoded polyline string';
+COMMENT ON COLUMN public.return_routes.total_distance_km IS 'Total route distance calculated from polyline';
+COMMENT ON COLUMN public.return_routes.estimated_duration_minutes IS 'Estimated travel time in minutes';
+COMMENT ON COLUMN public.return_routes.bidding_start IS 'The timestamp when bidding starts for this route. Bidding ends 2 hours before departure time.';
 CREATE TRIGGER update_return_routes_updated_at BEFORE UPDATE ON public.return_routes
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE INDEX IF NOT EXISTS idx_return_routes_bidding_start
+ON public.return_routes (bidding_start);
 
 -- 5. route_segments
 CREATE TABLE IF NOT EXISTS public.route_segments (

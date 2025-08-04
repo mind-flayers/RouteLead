@@ -4,7 +4,7 @@ import com.example.be.types.RouteStatus;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
-@Converter(autoApply = true)
+@Converter(autoApply = false)
 public class RouteStatusConverter implements AttributeConverter<RouteStatus, String> {
 
     @Override

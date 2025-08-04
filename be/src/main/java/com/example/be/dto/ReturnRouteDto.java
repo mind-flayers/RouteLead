@@ -16,6 +16,7 @@ public class ReturnRouteDto {
     private BigDecimal destinationLat;
     private BigDecimal destinationLng;
     private ZonedDateTime departureTime;
+    private ZonedDateTime biddingStart;
     private BigDecimal detourToleranceKm;
     private BigDecimal suggestedPriceMin;
     private BigDecimal suggestedPriceMax;
@@ -31,6 +32,7 @@ class ReturnRouteRequestDto {
     private BigDecimal destinationLat;
     private BigDecimal destinationLng;
     private ZonedDateTime departureTime;
+    private ZonedDateTime biddingStart;
     private BigDecimal detourToleranceKm;
     private BigDecimal suggestedPriceMin;
     private BigDecimal suggestedPriceMax;

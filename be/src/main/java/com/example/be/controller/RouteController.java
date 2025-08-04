@@ -410,10 +410,30 @@ public class RouteController {
             errorResponse.put("path", "/api/routes");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
+
+        // Validate polyline data (required for complete route creation)
+        if (dto.getRoutePolyline() == null || dto.getRoutePolyline().trim().isEmpty()) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 400);
+            errorResponse.put("error", "Bad Request");
+            errorResponse.put("message", "routePolyline is required for route creation");
+            errorResponse.put("path", "/api/routes");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
         
         try {
-            service.createRoute(dto);
-            return ResponseEntity.status(HttpStatus.CREATED).build();
+            UUID routeId = service.createRoute(dto);
+            
+            // Return success response with created route ID
+            Map<String, Object> successResponse = new HashMap<>();
+            successResponse.put("timestamp", LocalDateTime.now());
+            successResponse.put("status", 201);
+            successResponse.put("message", "Route created successfully");
+            successResponse.put("routeId", routeId);
+            successResponse.put("path", "/api/routes");
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(successResponse);
         } catch (Exception e) {
             log.error("Error creating route: ", e);
             Map<String, Object> errorResponse = new HashMap<>();
