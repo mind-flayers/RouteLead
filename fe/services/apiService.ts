@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { reverseGeocode } from './geocodingService';
+import { Config } from '@/constants/Config';
 
 // Base configuration
 // For React Native, we need to use the actual IP address instead of localhost
@@ -19,7 +20,7 @@ const getApiBaseUrl = () => {
 };
 
 // Use actual IP address for all platforms to ensure connectivity
-const API_BASE_URL = 'https://fdaa36fcdab5.ngrok-free.app/api';
+const API_BASE_URL = Config.API_BASE;
 
 // Debug log to show which API URL is being used
 console.log('API Base URL:', API_BASE_URL);
