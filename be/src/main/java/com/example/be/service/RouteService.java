@@ -52,30 +52,32 @@ public class RouteService {
             throw new IllegalArgumentException("Route polyline is required");
         }
 
-        // 2) Create and persist route entity
-        ReturnRoute route = new ReturnRoute();
-        route.setDriver(profileRepo.findById(dto.getDriverId())
-                .orElseThrow(() -> new RuntimeException("Driver not found")));
-        route.setOriginLat(dto.getOriginLat());
-        route.setOriginLng(dto.getOriginLng());
-        route.setDestinationLat(dto.getDestinationLat());
-        route.setDestinationLng(dto.getDestinationLng());
-        route.setDepartureTime(dto.getDepartureTime());
-        route.setBiddingStart(dto.getBiddingStartTime());
-        route.setDetourToleranceKm(dto.getDetourToleranceKm());
-        route.setSuggestedPriceMin(dto.getSuggestedPriceMin());
-        route.setSuggestedPriceMax(dto.getSuggestedPriceMax());
+        // 2) Generate UUID for the route
+        UUID routeId = UUID.randomUUID();
         
-        // Set polyline-related fields
-        route.setRoutePolyline(dto.getRoutePolyline());
-        route.setTotalDistanceKm(dto.getTotalDistanceKm());
-        route.setEstimatedDurationMinutes(dto.getEstimatedDurationMinutes());
+        // 3) Get current timestamp
+        ZonedDateTime now = ZonedDateTime.now();
         
-        route.setStatus(RouteStatus.INITIATED);
-        
-        // Save the route and get the generated ID
-        ReturnRoute savedRoute = routeRepo.save(route);
-        UUID routeId = savedRoute.getId();
+        // 4) Use native SQL to insert route with proper enum casting
+        routeRepo.insertRouteWithAllFields(
+            routeId,
+            dto.getDriverId(),
+            dto.getOriginLat(),
+            dto.getOriginLng(),
+            dto.getDestinationLat(),
+            dto.getDestinationLng(),
+            dto.getDepartureTime(),
+            dto.getDetourToleranceKm(),
+            dto.getSuggestedPriceMin(),
+            dto.getSuggestedPriceMax(),
+            RouteStatus.INITIATED.name(), // Convert enum to string for native SQL
+            now,
+            now,
+            dto.getBiddingStartTime(),
+            dto.getEstimatedDurationMinutes(),
+            dto.getRoutePolyline(),
+            dto.getTotalDistanceKm()
+        );
         
         log.info("Route created with ID: {}", routeId);
 
@@ -91,7 +93,10 @@ public class RouteService {
                 LatLng point = segmentPoints.get(i);
                 
                 RouteSegment segment = new RouteSegment();
-                segment.setRoute(savedRoute);
+                // Create a temporary route object with the ID for the relationship
+                ReturnRoute tempRoute = new ReturnRoute();
+                tempRoute.setId(routeId);
+                segment.setRoute(tempRoute);
                 segment.setSegmentIndex(i);
                 segment.setStartLat(BigDecimal.valueOf(point.getLat()));
                 segment.setStartLng(BigDecimal.valueOf(point.getLng()));

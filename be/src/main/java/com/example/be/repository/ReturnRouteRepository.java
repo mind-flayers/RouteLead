@@ -64,6 +64,40 @@ public interface ReturnRouteRepository extends JpaRepository<ReturnRoute, UUID> 
 
     @Modifying
     @Query(value = """
+        INSERT INTO return_routes (
+            id, driver_id, origin_lat, origin_lng, destination_lat, destination_lng,
+            departure_time, detour_tolerance_km, suggested_price_min, suggested_price_max,
+            status, created_at, updated_at, bidding_start, estimated_duration_minutes,
+            route_polyline, total_distance_km
+        ) VALUES (
+            :id, :driverId, :originLat, :originLng, :destinationLat, :destinationLng,
+            :departureTime, :detourToleranceKm, :suggestedPriceMin, :suggestedPriceMax,
+            CAST(:status AS route_status), :createdAt, :updatedAt, :biddingStart,
+            :estimatedDurationMinutes, :routePolyline, :totalDistanceKm
+        )
+        """, nativeQuery = true)
+    void insertRouteWithAllFields(
+        @Param("id") UUID id,
+        @Param("driverId") UUID driverId,
+        @Param("originLat") java.math.BigDecimal originLat,
+        @Param("originLng") java.math.BigDecimal originLng,
+        @Param("destinationLat") java.math.BigDecimal destinationLat,
+        @Param("destinationLng") java.math.BigDecimal destinationLng,
+        @Param("departureTime") java.time.ZonedDateTime departureTime,
+        @Param("detourToleranceKm") java.math.BigDecimal detourToleranceKm,
+        @Param("suggestedPriceMin") java.math.BigDecimal suggestedPriceMin,
+        @Param("suggestedPriceMax") java.math.BigDecimal suggestedPriceMax,
+        @Param("status") String status,
+        @Param("createdAt") java.time.ZonedDateTime createdAt,
+        @Param("updatedAt") java.time.ZonedDateTime updatedAt,
+        @Param("biddingStart") java.time.ZonedDateTime biddingStart,
+        @Param("estimatedDurationMinutes") Integer estimatedDurationMinutes,
+        @Param("routePolyline") String routePolyline,
+        @Param("totalDistanceKm") java.math.BigDecimal totalDistanceKm
+    );
+
+    @Modifying
+    @Query(value = """
         UPDATE return_routes SET
             origin_lat = COALESCE(:originLat, origin_lat),
             origin_lng = COALESCE(:originLng, origin_lng),
