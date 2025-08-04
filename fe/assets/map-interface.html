@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route Selection Map</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            height: 70%;
+            width: 100%;
+        }
+        #controls {
+            height: 30%;
+            padding: 10px;
+            box-sizing: border-box;
+            background: #f5f5f5;
+            overflow-y: auto;
+        }
+        .search-container {
+            margin-bottom: 10px;
+        }
+        .search-container input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .location-display {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .route-option {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            cursor: pointer;
+        }
+        .route-option:hover {
+            background: #e3f2fd;
+        }
+        .route-option.selected {
+            background: #2196f3;
+            color: white;
+        }
+        .btn {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div id="controls">
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search for a location...">
+        </div>
+        
+        <div class="status" id="status">Click on the map to select origin location</div>
+        
+        <div id="originDisplay" class="location-display" style="display: none;">
+            <strong>Origin:</strong> <span id="originText"></span>
+        </div>
+        
+        <div id="destinationDisplay" class="location-display" style="display: none;">
+            <strong>Destination:</strong> <span id="destinationText"></span>
+        </div>
+        
+        <div id="routeOptions" style="display: none;">
+            <h3>Select Route:</h3>
+            <div id="routesList"></div>
+        </div>
+        
+        <button class="btn" id="confirmBtn" onclick="confirmSelection()" disabled>
+            Confirm Selection
+        </button>
+        <button class="btn" id="resetBtn" onclick="resetSelection()">
+            Reset
+        </button>
+    </div>
+
+    <script>
+        let map;
+        let directionsService;
+        let directionsRenderer;
+        let originMarker = null;
+        let destinationMarker = null;
+        let currentStep = 'origin'; // 'origin', 'destination', 'route'
+        let selectedOrigin = null;
+        let selectedDestination = null;
+        let routeOptions = [];
+        let selectedRoute = null;
+
+        // Initialize the map
+        function initMap() {
+            // Center on Sri Lanka
+            const sriLanka = { lat: 7.8731, lng: 80.7718 };
+            
+            map = new google.maps.Map(document.getElementById('map'), {
+                zoom: 8,
+                center: sriLanka,
+                mapTypeControl: false,
+                streetViewControl: false,
+                fullscreenControl: false
+            });
+
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({
+                draggable: false,
+                panel: null
+            });
+            directionsRenderer.setMap(map);
+
+            // Initialize places autocomplete
+            const searchInput = document.getElementById('searchInput');
+            const autocomplete = new google.maps.places.Autocomplete(searchInput, {
+                componentRestrictions: { country: 'lk' }, // Restrict to Sri Lanka
+                fields: ['geometry', 'formatted_address']
+            });
+
+            autocomplete.addListener('place_changed', function() {
+                const place = autocomplete.getPlace();
+                if (place.geometry) {
+                    map.setCenter(place.geometry.location);
+                    map.setZoom(15);
+                }
+            });
+
+            // Map click handler
+            map.addListener('click', function(event) {
+                handleMapClick(event.latLng);
+            });
+
+            // Notify React Native that the map is ready
+            sendMessage({ type: 'map_ready' });
+        }
+
+        function handleMapClick(latLng) {
+            const location = {
+                lat: latLng.lat(),
+                lng: latLng.lng()
+            };
+
+            if (currentStep === 'origin') {
+                setOrigin(location);
+            } else if (currentStep === 'destination') {
+                setDestination(location);
+            }
+        }
+
+        function setOrigin(location) {
+            selectedOrigin = location;
+            
+            // Remove existing origin marker
+            if (originMarker) {
+                originMarker.setMap(null);
+            }
+            
+            // Add new origin marker
+            originMarker = new google.maps.Marker({
+                position: location,
+                map: map,
+                title: 'Origin',
+                icon: {
+                    url: 'https://maps.google.com/mapfiles/ms/icons/green-dot.png'
+                }
+            });
+
+            // Reverse geocode to get address
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ location: location }, function(results, status) {
+                if (status === 'OK' && results[0]) {
+                    const address = results[0].formatted_address;
+                    document.getElementById('originText').textContent = address;
+                    document.getElementById('originDisplay').style.display = 'block';
+                    
+                    // Update status and move to destination selection
+                    currentStep = 'destination';
+                    document.getElementById('status').textContent = 'Now click to select destination location';
+                    
+                    sendMessage({
+                        type: 'origin_selected',
+                        data: {
+                            lat: location.lat,
+                            lng: location.lng,
+                            address: address
+                        }
+                    });
+                }
+            });
+        }
+
+        function setDestination(location) {
+            selectedDestination = location;
+            
+            // Remove existing destination marker
+            if (destinationMarker) {
+                destinationMarker.setMap(null);
+            }
+            
+            // Add new destination marker
+            destinationMarker = new google.maps.Marker({
+                position: location,
+                map: map,
+                title: 'Destination',
+                icon: {
+                    url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png'
+                }
+            });
+
+            // Reverse geocode to get address
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ location: location }, function(results, status) {
+                if (status === 'OK' && results[0]) {
+                    const address = results[0].formatted_address;
+                    document.getElementById('destinationText').textContent = address;
+                    document.getElementById('destinationDisplay').style.display = 'block';
+                    
+                    sendMessage({
+                        type: 'destination_selected',
+                        data: {
+                            lat: location.lat,
+                            lng: location.lng,
+                            address: address
+                        }
+                    });
+                    
+                    // Get route options
+                    getRouteOptions();
+                }
+            });
+        }
+
+        function getRouteOptions() {
+            if (!selectedOrigin || !selectedDestination) return;
+
+            document.getElementById('status').textContent = 'Loading route options...';
+
+            const request = {
+                origin: selectedOrigin,
+                destination: selectedDestination,
+                travelMode: google.maps.TravelMode.DRIVING,
+                provideRouteAlternatives: true,
+                region: 'lk'
+            };
+
+            directionsService.route(request, function(result, status) {
+                if (status === 'OK') {
+                    routeOptions = result.routes;
+                    displayRouteOptions();
+                    currentStep = 'route';
+                    document.getElementById('status').textContent = 'Select your preferred route:';
+                } else {
+                    document.getElementById('status').textContent = 'Could not calculate routes. Please try different locations.';
+                    console.error('Directions request failed:', status);
+                }
+            });
+        }
+
+        function displayRouteOptions() {
+            const routesList = document.getElementById('routesList');
+            routesList.innerHTML = '';
+
+            routeOptions.forEach((route, index) => {
+                const leg = route.legs[0];
+                const distance = leg.distance.text;
+                const duration = leg.duration.text;
+                
+                const routeDiv = document.createElement('div');
+                routeDiv.className = 'route-option';
+                routeDiv.innerHTML = `
+                    <strong>Route ${index + 1}</strong><br>
+                    Distance: ${distance}<br>
+                    Duration: ${duration}
+                `;
+                routeDiv.onclick = () => selectRoute(index);
+                routesList.appendChild(routeDiv);
+            });
+
+            document.getElementById('routeOptions').style.display = 'block';
+            
+            // Auto-select first route
+            if (routeOptions.length > 0) {
+                selectRoute(0);
+            }
+        }
+
+        function selectRoute(index) {
+            selectedRoute = routeOptions[index];
+            
+            // Update UI
+            document.querySelectorAll('.route-option').forEach((div, i) => {
+                div.classList.toggle('selected', i === index);
+            });
+
+            // Display route on map
+            directionsRenderer.setDirections({
+                routes: [selectedRoute],
+                request: {
+                    origin: selectedOrigin,
+                    destination: selectedDestination,
+                    travelMode: google.maps.TravelMode.DRIVING
+                }
+            });
+
+            // Enable confirm button
+            document.getElementById('confirmBtn').disabled = false;
+
+            const leg = selectedRoute.legs[0];
+            sendMessage({
+                type: 'route_selected',
+                data: {
+                    polyline: selectedRoute.overview_polyline,
+                    distance: leg.distance.value / 1000, // Convert to kilometers
+                    duration: leg.duration.value / 60, // Convert to minutes
+                    routeIndex: index
+                }
+            });
+        }
+
+        function confirmSelection() {
+            if (selectedRoute && selectedOrigin && selectedDestination) {
+                const leg = selectedRoute.legs[0];
+                
+                sendMessage({
+                    type: 'route_confirmed',
+                    data: {
+                        origin: {
+                            lat: selectedOrigin.lat,
+                            lng: selectedOrigin.lng,
+                            address: document.getElementById('originText').textContent
+                        },
+                        destination: {
+                            lat: selectedDestination.lat,
+                            lng: selectedDestination.lng,
+                            address: document.getElementById('destinationText').textContent
+                        },
+                        route: {
+                            polyline: selectedRoute.overview_polyline,
+                            distance: leg.distance.value / 1000,
+                            duration: leg.duration.value / 60,
+                            encoded_polyline: selectedRoute.overview_polyline
+                        }
+                    }
+                });
+            }
+        }
+
+        function resetSelection() {
+            // Clear markers
+            if (originMarker) {
+                originMarker.setMap(null);
+                originMarker = null;
+            }
+            if (destinationMarker) {
+                destinationMarker.setMap(null);
+                destinationMarker = null;
+            }
+
+            // Clear directions
+            directionsRenderer.setDirections({routes: []});
+
+            // Reset state
+            selectedOrigin = null;
+            selectedDestination = null;
+            selectedRoute = null;
+            routeOptions = [];
+            currentStep = 'origin';
+
+            // Reset UI
+            document.getElementById('originDisplay').style.display = 'none';
+            document.getElementById('destinationDisplay').style.display = 'none';
+            document.getElementById('routeOptions').style.display = 'none';
+            document.getElementById('confirmBtn').disabled = true;
+            document.getElementById('status').textContent = 'Click on the map to select origin location';
+
+            sendMessage({ type: 'selection_reset' });
+        }
+
+        function sendMessage(message) {
+            if (window.ReactNativeWebView) {
+                window.ReactNativeWebView.postMessage(JSON.stringify(message));
+            } else {
+                console.log('Message to React Native:', message);
+            }
+        }
+
+        // Handle messages from React Native
+        window.addEventListener('message', function(event) {
+            const message = JSON.parse(event.data);
+            
+            switch (message.type) {
+                case 'reset':
+                    resetSelection();
+                    break;
+                case 'set_center':
+                    if (message.data && message.data.lat && message.data.lng) {
+                        map.setCenter({ lat: message.data.lat, lng: message.data.lng });
+                        map.setZoom(message.data.zoom || 15);
+                    }
+                    break;
+            }
+        });
+
+        // Error handling
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            sendMessage({
+                type: 'error',
+                data: {
+                    message: msg,
+                    url: url,
+                    line: lineNo,
+                    column: columnNo,
+                    error: error ? error.toString() : null
+                }
+            });
+        };
+    </script>
+    
+    <!-- Google Maps API - Replace YOUR_API_KEY with your actual API key -->
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places&callback=initMap">
+    </script>
+</body>
+</html>

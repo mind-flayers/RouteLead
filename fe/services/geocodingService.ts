@@ -198,6 +198,8 @@ async function reverseGeocodeGoogle(lat: number, lng: number): Promise<Geocoding
     let sublocality = '';
     let premise = '';
     let establishment = '';
+    let route = '';
+    let streetNumber = '';
     
     for (const component of components) {
       const types = component.types;
@@ -207,6 +209,10 @@ async function reverseGeocodeGoogle(lat: number, lng: number): Promise<Geocoding
         establishment = longName;
       } else if (types.includes('premise')) {
         premise = longName;
+      } else if (types.includes('street_number')) {
+        streetNumber = longName;
+      } else if (types.includes('route')) {
+        route = longName;
       } else if (types.includes('sublocality_level_1') || types.includes('sublocality')) {
         sublocality = longName;
       } else if (types.includes('neighborhood')) {
@@ -220,10 +226,32 @@ async function reverseGeocodeGoogle(lat: number, lng: number): Promise<Geocoding
       }
     }
     
+    // Debug log to see what components we extracted
+    console.log(`🗺️ Extracted components for ${lat},${lng}:`, {
+      establishment,
+      premise,
+      streetNumber,
+      route,
+      sublocality,
+      neighborhood,
+      area,
+      city,
+      formattedAddress: result.formatted_address
+    });
+
     // Priority order for most precise location name
     if (establishment) {
-      // Named places like "Department of Education", "Kandy Railway Station"
+      // Named places like "Bogambara Bus Stand", "Department of Education"
       placeName = establishment;
+    } else if (premise && route) {
+      // Building with street: "Building Name, Street Name"
+      placeName = `${premise}, ${route}`;
+    } else if (streetNumber && route) {
+      // Street address: "123 Main Street"
+      placeName = `${streetNumber} ${route}`;
+    } else if (route) {
+      // Just the street name
+      placeName = route;
     } else if (premise) {
       // Building numbers, building names
       placeName = premise;
@@ -236,21 +264,30 @@ async function reverseGeocodeGoogle(lat: number, lng: number): Promise<Geocoding
     } else if (area) {
       // Secondary areas
       placeName = area;
-    } else if (city) {
-      // Fall back to city
-      placeName = city;
     } else {
-      // Ultimate fallback to formatted address
-      placeName = result.formatted_address.split(',')[0] || 'Unknown Location';
+      // Try to extract precise location from formatted_address
+      // Look for street addresses or specific locations
+      const formattedParts = result.formatted_address.split(',');
+      if (formattedParts.length >= 2) {
+        // Use the first part which is usually the most specific
+        const firstPart = formattedParts[0].trim();
+        // If it contains numbers or specific identifiers, it's likely a street address
+        if (/\d/.test(firstPart) || firstPart.includes('Rd') || firstPart.includes('Street') || firstPart.includes('Avenue') || firstPart.includes('Mawatha')) {
+          placeName = firstPart;
+        } else {
+          // Otherwise use city
+          placeName = city || firstPart;
+        }
+      } else {
+        placeName = city || result.formatted_address.split(',')[0] || 'Unknown Location';
+      }
     }
-    
-    // Add city context for better readability (except for establishments which are usually self-explanatory)
+
+    // Add city context for better readability (except for establishments which usually already include context)
     let enhancedPlaceName = placeName.trim();
-    if (city && placeName !== city && !establishment) {
+    if (city && placeName !== city && !establishment && !placeName.toLowerCase().includes(city.toLowerCase())) {
       enhancedPlaceName = `${placeName}, ${city}`;
-    }
-    
-    return {
+    }return {
       success: true,
       placeName: enhancedPlaceName,
       fullAddress: result.formatted_address,

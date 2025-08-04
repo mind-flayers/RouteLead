@@ -1,60 +1,96 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Platform, Alert } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useRouteCreation } from '../../../../contexts/RouteCreationContext';
+import { ApiService, formatLocation } from '../../../../services/apiService';
 import PrimaryButton from '../../../../components/ui/PrimaryButton';
 import SecondaryButton from '../../../../components/ui/SecondaryButton';
 import PrimaryCard from '../../../../components/ui/PrimaryCard';
 
 const EnterBiddingDetails = () => {
   const router = useRouter();
+  const { routeData, updateRouteData, isLocationDataComplete, getCreateRoutePayload, clearRouteData } = useRouteCreation();
 
-  const [startDate, setStartDate] = useState(new Date(2025, 5, 16)); // June 16th, 2025
-  const [startTime, setStartTime] = useState(new Date(2025, 5, 16, 9, 0)); // 09:00 AM
-  const [endDate, setEndDate] = useState(new Date(2025, 5, 17)); // June 17th, 2025
-  const [endTime, setEndTime] = useState(new Date(2025, 5, 17, 22, 0)); // 10:00 PM
+  // Form state
+  const [biddingStartDate, setBiddingStartDate] = useState(new Date());
+  const [biddingStartTime, setBiddingStartTime] = useState(new Date());
+  const [departureDate, setDepartureDate] = useState(new Date());
+  const [departureTime, setDepartureTime] = useState(new Date());
+  const [detourTolerance, setDetourTolerance] = useState('5');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [maxWeight, setMaxWeight] = useState('');
+  const [maxVolume, setMaxVolume] = useState('');
+  
+  // UI state
+  const [showBiddingDatePicker, setShowBiddingDatePicker] = useState(false);
+  const [showBiddingTimePicker, setShowBiddingTimePicker] = useState(false);
+  const [showDepartureDatePicker, setShowDepartureDatePicker] = useState(false);
+  const [showDepartureTimePicker, setShowDepartureTimePicker] = useState(false);
+  const [isCreatingRoute, setIsCreatingRoute] = useState(false);
+  
+  // Location names state
+  const [originLocationName, setOriginLocationName] = useState('');
+  const [destinationLocationName, setDestinationLocationName] = useState('');
 
-  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
+  // Check if route data is complete
+  useEffect(() => {
+    if (!isLocationDataComplete()) {
+      Alert.alert(
+        'Missing Route Data',
+        'Please select your route locations first.',
+        [
+          {
+            text: 'Select Route',
+            onPress: () => router.push('/pages/driver/create_route/SelectLocation'),
+          },
+        ]
+      );
+    }
+  }, []);
 
-  const [selectedWeightUnit, setSelectedWeightUnit] = useState('kg');
-  const [showWeightUnitOptions, setShowWeightUnitOptions] = useState(false);
+  // Load location names from coordinates
+  useEffect(() => {
+    const loadLocationNames = async () => {
+      if (routeData.origin) {
+        const originName = await formatLocation(`${routeData.origin.lat}, ${routeData.origin.lng}`);
+        setOriginLocationName(originName);
+      }
+      if (routeData.destination) {
+        const destName = await formatLocation(`${routeData.destination.lat}, ${routeData.destination.lng}`);
+        setDestinationLocationName(destName);
+      }
+    };
 
-  const [selectedVolumeUnit, setSelectedVolumeUnit] = useState('cm³');
-  const [showVolumeUnitOptions, setShowVolumeUnitOptions] = useState(false);
+    if (isLocationDataComplete()) {
+      loadLocationNames();
+    }
+  }, [routeData.origin, routeData.destination]);
 
-  const [selectedRadiusUnit, setSelectedRadiusUnit] = useState('km');
-  const [showRadiusUnitOptions, setShowRadiusUnitOptions] = useState(false);
-
-  const onChangeStartDate = (event: any, selectedDate?: Date) => {
-    const currentDate = selectedDate || startDate;
-    setShowStartDatePicker(Platform.OS === 'ios');
-    setStartDate(currentDate);
+  const onChangeBiddingDate = (event: any, selectedDate?: Date) => {
+    const currentDate = selectedDate || biddingStartDate;
+    setShowBiddingDatePicker(Platform.OS === 'ios');
+    setBiddingStartDate(currentDate);
   };
 
-  const onChangeStartTime = (event: any, selectedTime?: Date) => {
-    const currentTime = selectedTime || startTime;
-    setShowStartTimePicker(Platform.OS === 'ios');
-    setStartTime(currentTime);
+  const onChangeBiddingTime = (event: any, selectedTime?: Date) => {
+    const currentTime = selectedTime || biddingStartTime;
+    setShowBiddingTimePicker(Platform.OS === 'ios');
+    setBiddingStartTime(currentTime);
   };
 
-  const onChangeEndDate = (event: any, selectedDate?: Date) => {
-    const currentDate = selectedDate || endDate;
-    setShowEndDatePicker(Platform.OS === 'ios');
-    setEndDate(currentDate);
+  const onChangeDepartureDate = (event: any, selectedDate?: Date) => {
+    const currentDate = selectedDate || departureDate;
+    setShowDepartureDatePicker(Platform.OS === 'ios');
+    setDepartureDate(currentDate);
   };
 
-  const onChangeEndTime = (event: any, selectedTime?: Date) => {
-    const currentTime = selectedTime || endTime;
-    setShowEndTimePicker(Platform.OS === 'ios');
-    setEndTime(currentTime);
-  };
-
-  const showDatePicker = (setter: React.Dispatch<React.SetStateAction<boolean>>) => {
-    setter(true);
+  const onChangeDepartureTime = (event: any, selectedTime?: Date) => {
+    const currentTime = selectedTime || departureTime;
+    setShowDepartureTimePicker(Platform.OS === 'ios');
+    setDepartureTime(currentTime);
   };
 
   const formatTime = (date: Date) => {
@@ -65,21 +101,188 @@ const EnterBiddingDetails = () => {
     return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   };
 
-  const toggleDropdown = (setter: React.Dispatch<React.SetStateAction<boolean>>, currentValue: boolean) => {
-    setter(!currentValue);
+  const validateForm = () => {
+    if (!minPrice || !maxPrice) {
+      Alert.alert('Validation Error', 'Please enter both minimum and maximum prices.');
+      return false;
+    }
+
+    const minPriceNum = parseFloat(minPrice);
+    const maxPriceNum = parseFloat(maxPrice);
+
+    if (isNaN(minPriceNum) || isNaN(maxPriceNum)) {
+      Alert.alert('Validation Error', 'Please enter valid numeric prices.');
+      return false;
+    }
+
+    if (minPriceNum >= maxPriceNum) {
+      Alert.alert('Validation Error', 'Maximum price must be greater than minimum price.');
+      return false;
+    }
+
+    if (minPriceNum < 0 || maxPriceNum < 0) {
+      Alert.alert('Validation Error', 'Prices cannot be negative.');
+      return false;
+    }
+
+    // Combine bidding start date and time
+    const combinedBiddingStartTime = new Date(biddingStartDate);
+    combinedBiddingStartTime.setHours(biddingStartTime.getHours());
+    combinedBiddingStartTime.setMinutes(biddingStartTime.getMinutes());
+
+    // Combine departure date and time
+    const combinedDepartureTime = new Date(departureDate);
+    combinedDepartureTime.setHours(departureTime.getHours());
+    combinedDepartureTime.setMinutes(departureTime.getMinutes());
+
+    if (combinedBiddingStartTime <= new Date()) {
+      Alert.alert('Validation Error', 'Bidding start time must be in the future.');
+      return false;
+    }
+
+    if (combinedDepartureTime <= new Date()) {
+      Alert.alert('Validation Error', 'Departure time must be in the future.');
+      return false;
+    }
+
+    // Bidding should end 2 hours before departure
+    const biddingEndTime = new Date(combinedDepartureTime.getTime() - (2 * 60 * 60 * 1000));
+    
+    if (combinedBiddingStartTime >= biddingEndTime) {
+      Alert.alert('Validation Error', 'Bidding must start more than 2 hours before departure time.');
+      return false;
+    }
+
+    return true;
   };
 
-  const selectDropdownItem = (setter: React.Dispatch<React.SetStateAction<string>>, value: string, visibilitySetter: React.Dispatch<React.SetStateAction<boolean>>) => {
-    setter(value);
-    visibilitySetter(false);
+  const handleCreateRoute = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    if (!isLocationDataComplete()) {
+      Alert.alert('Error', 'Route location data is incomplete.');
+      return;
+    }
+
+    setIsCreatingRoute(true);
+
+    try {
+      // Combine bidding start date and time
+      const combinedBiddingStartTime = new Date(biddingStartDate);
+      combinedBiddingStartTime.setHours(biddingStartTime.getHours());
+      combinedBiddingStartTime.setMinutes(biddingStartTime.getMinutes());
+
+      // Combine departure date and time
+      const combinedDepartureTime = new Date(departureDate);
+      combinedDepartureTime.setHours(departureTime.getHours());
+      combinedDepartureTime.setMinutes(departureTime.getMinutes());
+
+      // Mock driver ID - in a real app, this would come from authentication context
+      const driverId = '797c6f16-a06a-46b4-ae9f-9ded8aa4ab27';
+
+      // Build the route payload directly with current form data
+      const routePayload = {
+        driverId,
+        originLat: routeData.origin!.lat,
+        originLng: routeData.origin!.lng,
+        destinationLat: routeData.destination!.lat,
+        destinationLng: routeData.destination!.lng,
+        departureTime: combinedDepartureTime.toISOString(),
+        biddingStartTime: combinedBiddingStartTime.toISOString(),
+        detourToleranceKm: parseFloat(detourTolerance) || 5.0,
+        suggestedPriceMin: parseFloat(minPrice),
+        suggestedPriceMax: parseFloat(maxPrice),
+        // Enhanced fields for polyline support
+        routePolyline: routeData.selectedRoute!.encoded_polyline,
+        totalDistanceKm: routeData.selectedRoute!.distance,
+        estimatedDurationMinutes: Math.round(routeData.selectedRoute!.duration),
+      };
+
+      console.log('Creating route with payload:', routePayload);
+
+      // Create the route via API
+      const result = await ApiService.createRoute(routePayload);
+
+      console.log('Route created successfully:', result);
+
+      // Update route data in context for consistency (optional, since we're navigating away)
+      updateRouteData({
+        biddingStartTime: combinedBiddingStartTime,
+        departureTime: combinedDepartureTime,
+        detourToleranceKm: parseFloat(detourTolerance) || 5.0,
+        suggestedPriceMin: parseFloat(minPrice),
+        suggestedPriceMax: parseFloat(maxPrice),
+        vehicleCapacity: {
+          maxWeight: parseFloat(maxWeight) || 0,
+          maxVolume: parseFloat(maxVolume) || 0,
+        }
+      });
+
+      // Show success message and navigate to dashboard
+      Alert.alert(
+        'Route Created Successfully!',
+        `Your route has been created with ID: ${result.routeId}. You can now start receiving delivery requests.`,
+        [
+          {
+            text: 'View Dashboard',
+            onPress: () => {
+              clearRouteData();
+              router.push('/pages/driver/Dashboard');
+            },
+          },
+        ]
+      );
+
+    } catch (error) {
+      console.error('Error creating route:', error);
+      Alert.alert(
+        'Error Creating Route',
+        error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.',
+        [
+          { text: 'OK' }
+        ]
+      );
+    } finally {
+      setIsCreatingRoute(false);
+    }
   };
+
+  if (!isLocationDataComplete()) {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen
+          options={{
+            headerShown: true,
+            title: 'Route Details',
+            headerLeft: () => (
+              <TouchableOpacity onPress={() => router.back()}>
+                <Ionicons name="arrow-back" size={24} color="white" />
+              </TouchableOpacity>
+            ),
+          }}
+        />
+        <View style={styles.centeredContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color="#f44336" />
+          <Text style={styles.errorText}>Route data incomplete</Text>
+          <Text style={styles.errorSubtext}>Please select your route locations first.</Text>
+          <PrimaryButton 
+            title="Select Route" 
+            onPress={() => router.push('/pages/driver/create_route/SelectLocation')}
+            style={styles.actionButton}
+          />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Create Route',
+          title: 'Route Details',
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color="white" />
@@ -91,170 +294,218 @@ const EnterBiddingDetails = () => {
       {/* Progress Section */}
       <View style={styles.progressContainer}>
         <View style={styles.progressStep}>
-          <View style={[styles.progressCircle, styles.activeStep]}>
-            <Text style={styles.progressText}>1</Text>
+          <View style={[styles.progressCircle, styles.completedStep]}>
+            <Ionicons name="checkmark" size={16} color="white" />
           </View>
-          <Text style={[styles.progressLabel, styles.boldLabel]}>Route Details</Text>
+          <Text style={styles.progressLabel}>Route Selected</Text>
         </View>
-        <View style={styles.progressBar} />
+        <View style={[styles.progressBar, styles.completedBar]} />
         <View style={styles.progressStep}>
           <View style={[styles.progressCircle, styles.activeStep]}>
             <Text style={styles.progressText}>2</Text>
           </View>
-          <Text style={[styles.progressLabel, styles.boldLabel]}>Bidding & Capacity</Text>
+          <Text style={[styles.progressLabel, styles.boldLabel]}>Details & Pricing</Text>
         </View>
         <View style={styles.progressBar} />
         <View style={styles.progressStep}>
           <View style={styles.progressCircle}>
             <Text style={styles.progressText}>3</Text>
           </View>
-          <Text style={styles.progressLabel}>Pricing & Suggestions</Text>
-        </View>
-        <View style={styles.progressBar} />
-        <View style={styles.progressStep}>
-          <View style={styles.progressCircle}>
-            <Text style={styles.progressText}>4</Text>
-          </View>
-          <Text style={styles.progressLabel}>Overview</Text>
+          <Text style={styles.progressLabel}>Publish</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        {/* Content for Bidding Details */}
-        <Text style={styles.sectionTitle}>Bidding Period</Text>
+        {/* Route Summary */}
+        <View style={styles.routeSummaryCard}>
+          <Text style={styles.sectionTitle}>Selected Route</Text>
+          <View style={styles.routeSummaryContent}>
+            <Text style={styles.routeSummaryText}>
+              {originLocationName || routeData.origin?.address} → {destinationLocationName || routeData.destination?.address}
+            </Text>
+            <Text style={styles.routeStatsText}>
+              {routeData.selectedRoute?.distance.toFixed(1)} km • {Math.round(routeData.selectedRoute?.duration || 0)} min
+            </Text>
+          </View>
+        </View>
+
+        {/* Bidding Schedule Section */}
+        <Text style={styles.sectionTitle}>Bidding Schedule</Text>
         <PrimaryCard>
-          <Text style={styles.cardLabel}>Start Date & Time</Text>
+          <Text style={styles.cardLabel}>When should bidding start? (Bidding ends 2 hours before departure)</Text>
+          
           <View style={styles.inputRow}>
-            <TouchableOpacity style={styles.datePicker} onPress={() => showDatePicker(setShowStartDatePicker)}>
+            <TouchableOpacity style={styles.datePicker} onPress={() => setShowBiddingDatePicker(true)}>
               <Ionicons name="calendar-outline" size={20} color="#555" />
-              <Text style={styles.datePickerText}>{formatDate(startDate)}</Text>
+              <Text style={styles.datePickerText}>{formatDate(biddingStartDate)}</Text>
             </TouchableOpacity>
           </View>
-          {showStartDatePicker && (
+          
+          {showBiddingDatePicker && (
             <DateTimePicker
-              value={startDate}
+              value={biddingStartDate}
               mode="date"
               display="default"
-              onChange={onChangeStartDate}
+              onChange={onChangeBiddingDate}
+              minimumDate={new Date()}
             />
           )}
+          
           <View style={styles.inputRow}>
-            <TouchableOpacity style={styles.datePicker} onPress={() => showDatePicker(setShowStartTimePicker)}>
+            <TouchableOpacity style={styles.datePicker} onPress={() => setShowBiddingTimePicker(true)}>
               <Ionicons name="time-outline" size={20} color="#555" />
-              <Text style={styles.datePickerText}>{formatTime(startTime)}</Text>
+              <Text style={styles.datePickerText}>{formatTime(biddingStartTime)}</Text>
             </TouchableOpacity>
           </View>
-          {showStartTimePicker && (
+          
+          {showBiddingTimePicker && (
             <DateTimePicker
-              value={startTime}
+              value={biddingStartTime}
               mode="time"
               display="default"
-              onChange={onChangeStartTime}
+              onChange={onChangeBiddingTime}
             />
           )}
         </PrimaryCard>
 
+        {/* Departure Time Section */}
+        <Text style={styles.sectionTitle}>Departure Schedule</Text>
         <PrimaryCard>
-          <Text style={styles.cardLabel}>End Date & Time</Text>
+          <Text style={styles.cardLabel}>When do you plan to depart?</Text>
+          
           <View style={styles.inputRow}>
-            <TouchableOpacity style={styles.datePicker} onPress={() => showDatePicker(setShowEndDatePicker)}>
+            <TouchableOpacity style={styles.datePicker} onPress={() => setShowDepartureDatePicker(true)}>
               <Ionicons name="calendar-outline" size={20} color="#555" />
-              <Text style={styles.datePickerText}>{formatDate(endDate)}</Text>
+              <Text style={styles.datePickerText}>{formatDate(departureDate)}</Text>
             </TouchableOpacity>
           </View>
-          {showEndDatePicker && (
+          
+          {showDepartureDatePicker && (
             <DateTimePicker
-              value={endDate}
+              value={departureDate}
               mode="date"
               display="default"
-              onChange={onChangeEndDate}
+              onChange={onChangeDepartureDate}
+              minimumDate={new Date()}
             />
           )}
+          
           <View style={styles.inputRow}>
-            <TouchableOpacity style={styles.datePicker} onPress={() => showDatePicker(setShowEndTimePicker)}>
+            <TouchableOpacity style={styles.datePicker} onPress={() => setShowDepartureTimePicker(true)}>
               <Ionicons name="time-outline" size={20} color="#555" />
-              <Text style={styles.datePickerText}>{formatTime(endTime)}</Text>
+              <Text style={styles.datePickerText}>{formatTime(departureTime)}</Text>
             </TouchableOpacity>
           </View>
-          {showEndTimePicker && (
+          
+          {showDepartureTimePicker && (
             <DateTimePicker
-              value={endTime}
+              value={departureTime}
               mode="time"
               display="default"
-              onChange={onChangeEndTime}
+              onChange={onChangeDepartureTime}
             />
           )}
         </PrimaryCard>
 
-        <Text style={styles.sectionTitle}>Remaining Space in the Vehicle</Text>
+        {/* Pricing Section */}
+        <Text style={styles.sectionTitle}>Pricing Range</Text>
         <PrimaryCard>
-          <Text style={styles.cardLabel}>Total Parcel Volume</Text>
+          <Text style={styles.cardLabel}>Set your price range for deliveries (LKR)</Text>
+          
+          <View style={styles.priceInputContainer}>
+            <View style={styles.priceInputWrapper}>
+              <Text style={styles.priceLabel}>Minimum Price</Text>
+              <View style={styles.inputRow}>
+                <Ionicons name="cash-outline" size={20} color="#555" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="500"
+                  keyboardType="numeric"
+                  value={minPrice}
+                  onChangeText={setMinPrice}
+                />
+                <Text style={styles.currencyText}>LKR</Text>
+              </View>
+            </View>
+            
+            <View style={styles.priceInputWrapper}>
+              <Text style={styles.priceLabel}>Maximum Price</Text>
+              <View style={styles.inputRow}>
+                <Ionicons name="cash-outline" size={20} color="#555" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="2000"
+                  keyboardType="numeric"
+                  value={maxPrice}
+                  onChangeText={setMaxPrice}
+                />
+                <Text style={styles.currencyText}>LKR</Text>
+              </View>
+            </View>
+          </View>
+        </PrimaryCard>
+
+        {/* Vehicle Capacity Section */}
+        <Text style={styles.sectionTitle}>Vehicle Capacity (Optional)</Text>
+        <PrimaryCard>
+          <Text style={styles.cardLabel}>Available space for deliveries</Text>
+          
           <View style={styles.inputRow}>
             <Ionicons name="cube-outline" size={20} color="#555" style={styles.inputIcon} />
             <TextInput
-              style={[styles.textInput, styles.smallTextInput]}
-              placeholder="25"
+              style={styles.textInput}
+              placeholder="Maximum weight (kg)"
               keyboardType="numeric"
+              value={maxWeight}
+              onChangeText={setMaxWeight}
             />
-            <TextInput
-              style={[styles.textInput, styles.smallTextInput]}
-              placeholder="25"
-              keyboardType="numeric"
-            />
-            <TextInput
-              style={[styles.textInput, styles.smallTextInput]}
-              placeholder="15"
-              keyboardType="numeric"
-            />
-            <TouchableOpacity style={styles.dropdown} onPress={() => toggleDropdown(setShowVolumeUnitOptions, showVolumeUnitOptions)}>
-              <Text>{selectedVolumeUnit}</Text>
-              <Ionicons name="chevron-down" size={16} color="#555" />
-            </TouchableOpacity>
           </View>
-          {showVolumeUnitOptions && (
-            <View style={styles.dropdownOptionsContainer}>
-              <TouchableOpacity style={styles.dropdownOption} onPress={() => selectDropdownItem(setSelectedVolumeUnit, 'cm³', setShowVolumeUnitOptions)}>
-                <Text style={styles.dropdownOptionText}>cm³</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.dropdownOption} onPress={() => selectDropdownItem(setSelectedVolumeUnit, 'm³', setShowVolumeUnitOptions)}>
-                <Text style={styles.dropdownOptionText}>m³</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          
+          <View style={styles.inputRow}>
+            <Ionicons name="resize-outline" size={20} color="#555" style={styles.inputIcon} />
+            <TextInput
+              style={styles.textInput}
+              placeholder="Maximum volume (m³)"
+              keyboardType="numeric"
+              value={maxVolume}
+              onChangeText={setMaxVolume}
+            />
+          </View>
         </PrimaryCard>
 
-        <Text style={styles.sectionTitle}>Pickup Radius</Text>
+        {/* Detour Tolerance Section */}
+        <Text style={styles.sectionTitle}>Detour Tolerance</Text>
         <PrimaryCard>
-          <Text style={styles.cardLabel}>Maximum Pickup Radius from main route</Text>
+          <Text style={styles.cardLabel}>Maximum detour distance for pickups (km)</Text>
+          
           <View style={styles.inputRow}>
             <Ionicons name="location-outline" size={20} color="#555" style={styles.inputIcon} />
             <TextInput
               style={styles.textInput}
               placeholder="5"
               keyboardType="numeric"
+              value={detourTolerance}
+              onChangeText={setDetourTolerance}
             />
-            <TouchableOpacity style={styles.dropdown} onPress={() => toggleDropdown(setShowRadiusUnitOptions, showRadiusUnitOptions)}>
-              <Text>{selectedRadiusUnit}</Text>
-              <Ionicons name="chevron-down" size={16} color="#555" />
-            </TouchableOpacity>
+            <Text style={styles.currencyText}>km</Text>
           </View>
-          {showRadiusUnitOptions && (
-            <View style={styles.dropdownOptionsContainer}>
-              <TouchableOpacity style={styles.dropdownOption} onPress={() => selectDropdownItem(setSelectedRadiusUnit, 'km', setShowRadiusUnitOptions)}>
-                <Text style={styles.dropdownOptionText}>km</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.dropdownOption} onPress={() => selectDropdownItem(setSelectedRadiusUnit, 'm', setShowRadiusUnitOptions)}>
-                <Text style={styles.dropdownOptionText}>m</Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </PrimaryCard>
       </ScrollView>
 
       {/* Bottom Buttons */}
       <View style={styles.buttonContainer}>
-        <SecondaryButton onPress={() => router.push('/pages/driver/create_route/CreateRoute')} title="Back" style={styles.button} />
-        <PrimaryButton onPress={() => router.push('/pages/driver/create_route/EnterPricing')} title="Next" style={styles.button} />
+        <SecondaryButton 
+          onPress={() => router.back()} 
+          title="Back" 
+          style={styles.button}
+          disabled={isCreatingRoute}
+        />
+        <PrimaryButton 
+          onPress={handleCreateRoute} 
+          title={isCreatingRoute ? "Creating Route..." : "Create Route"} 
+          style={styles.button}
+          disabled={isCreatingRoute}
+        />
       </View>
     </View>
   );
@@ -361,51 +612,97 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    height: 40,
-    paddingHorizontal: 10,
   },
   datePickerText: {
-    marginLeft: 10,
     fontSize: 16,
+    marginLeft: 10,
     color: '#333',
+  },
+  priceInputContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  priceInputWrapper: {
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  priceLabel: {
+    fontSize: 12,
+    color: '#555',
+    marginBottom: 5,
+  },
+  currencyText: {
+    fontSize: 16,
+    color: '#555',
+    marginLeft: 10,
   },
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    backgroundColor: '#f8f8f8', // Match container background
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    backgroundColor: '#f8f8f8',
   },
   button: {
     flex: 1,
     marginHorizontal: 5,
   },
-  boldLabel: {
-    fontWeight: 'bold',
+  centeredContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
-  dropdownOptionsContainer: {
-    position: 'absolute',
-    top: '100%', // Position below the dropdown button
-    width: '100%',
+  errorText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginTop: 20,
+  },
+  errorSubtext: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 30,
+  },
+  actionButton: {
+    width: '80%',
+  },
+  routeSummaryCard: {
     backgroundColor: 'white',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    zIndex: 1, // Ensure it appears above other content
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 2,
     elevation: 3,
   },
-  dropdownOption: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+  routeSummaryContent: {
+    marginTop: 10,
   },
-  dropdownOptionText: {
+  routeSummaryText: {
     fontSize: 16,
+    fontWeight: 'bold',
     color: '#333',
+  },
+  routeStatsText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 5,
+  },
+  completedStep: {
+    backgroundColor: '#4CAF50', // Green for completed
+  },
+  completedBar: {
+    backgroundColor: '#4CAF50',
+  },
+  boldLabel: {
+    fontWeight: 'bold',
   },
 });
 

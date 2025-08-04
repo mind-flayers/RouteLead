@@ -7,6 +7,7 @@ import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import '../global.css';
 import { AuthProvider } from '../lib/auth';
+import { RouteCreationProvider } from '../contexts/RouteCreationContext';
 import { cacheService } from '../services/cacheService';
 
 export {
@@ -55,7 +56,9 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <RouteCreationProvider>
+        <RootLayoutNav />
+      </RouteCreationProvider>
     </AuthProvider>
   );
 }
