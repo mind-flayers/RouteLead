@@ -16,12 +16,12 @@ public interface RouteSegmentRepository extends JpaRepository<RouteSegment, UUID
     List<RouteSegment> findByRouteIdOrderBySegmentIndex(UUID routeId);
     
     /**
-     * Find segments by town name
+     * Find segments by location name
      */
-    List<RouteSegment> findByTownName(String townName);
+    List<RouteSegment> findByLocationName(String locationName);
     
     /**
-     * Find segments by route ID and town name
+     * Find segments by route ID and location name
      */
-    List<RouteSegment> findByRouteIdAndTownName(UUID routeId, String townName);
+    List<RouteSegment> findByRouteIdAndLocationName(UUID routeId, String locationName);
 } 

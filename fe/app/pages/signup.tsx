@@ -52,12 +52,7 @@ export default function SignupScreen() {
         lastName,
         phoneNumber
       });
-      setAlert({
-        visible: true,
-        title: 'Success!',
-        message: 'Your account has been created successfully! Please check your email to verify your account.',
-        type: 'success'
-      });
+      router.replace('/pages/welcome');
     } catch (error: any) {
       console.error('Signup error:', error);
       setAlert({
@@ -73,9 +68,6 @@ export default function SignupScreen() {
 
   const handleAlertDismiss = () => {
     setAlert(prev => ({ ...prev, visible: false }));
-    if (alert.type === 'success') {
-      router.replace('/pages/welcome');
-    }
   };
 
   const RoleButton = ({ role, label }: { role: UserRole; label: string }) => (

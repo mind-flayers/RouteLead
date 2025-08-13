@@ -40,12 +40,13 @@ export default function LoginScreen() {
       if (error) throw error;
 
       if (data?.user) {
-        setAlert({
-          visible: true,
-          title: 'Success!',
-          message: 'You have successfully signed in to RouteLead.',
-          type: 'success'
-        });
+        if (user?.role === 'CUSTOMER') {
+          router.replace('/pages/customer/Dashboard');
+        } else if (user?.role === 'DRIVER') {
+          router.replace('/pages/driver/Dashboard');
+        } else {
+          router.replace('/pages/welcome');
+        }
       }
     } catch (error: any) {
       setAlert({
@@ -61,15 +62,6 @@ export default function LoginScreen() {
 
   const handleAlertDismiss = () => {
     setAlert(prev => ({ ...prev, visible: false }));
-    if (alert.type === 'success') {
-      if (user?.role === 'CUSTOMER') {
-        router.replace('/pages/customer/Dashboard');
-      } else if (user?.role === 'DRIVER') {
-        router.replace('/pages/driver/Dashboard');
-      } else {
-        router.replace('/pages/welcome');
-      }
-    }
   };
 
   return (

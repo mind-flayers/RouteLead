@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -23,4 +24,7 @@ public class CreateRouteDto {
     private String routePolyline; // Google Maps encoded polyline
     private BigDecimal totalDistanceKm; // Total distance from polyline
     private Integer estimatedDurationMinutes; // Estimated travel time
+    
+    // Route segments with town names
+    private List<RouteSegmentRequestDto> segments;
 } 
