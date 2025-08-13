@@ -95,8 +95,8 @@ public class RouteServiceSimple {
                     segment.setDistanceKm(BigDecimal.valueOf(distance));
                 }
                 
-                // Set default town name (can be enhanced with reverse geocoding)
-                segment.setTownName("Location " + (i + 1));
+                // Set default location name (can be enhanced with reverse geocoding)
+                segment.setLocationName("Location " + (i + 1));
                 
                 segments.add(segment);
             }

@@ -474,15 +474,15 @@ const EnterBiddingDetails = () => {
         </PrimaryCard>
 
         {/* Detour Tolerance Section */}
-        <Text style={styles.sectionTitle}>Detour Tolerance</Text>
+        <Text style={styles.sectionTitle}>Maximum Pickup Distance</Text>
         <PrimaryCard>
-          <Text style={styles.cardLabel}>Maximum detour distance for pickups (km)</Text>
+          <Text style={styles.cardLabel}>Maximum pickup distance for pickups (km)</Text>
           
           <View style={styles.inputRow}>
             <Ionicons name="location-outline" size={20} color="#555" style={styles.inputIcon} />
             <TextInput
               style={styles.textInput}
-              placeholder="5"
+              placeholder="10"
               keyboardType="numeric"
               value={detourTolerance}
               onChangeText={setDetourTolerance}

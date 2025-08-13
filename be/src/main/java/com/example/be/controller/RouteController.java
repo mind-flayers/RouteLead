@@ -146,7 +146,7 @@ public class RouteController {
             segment1.setId(UUID.randomUUID());
             segment1.setRouteId(mockData.getId());
             segment1.setSegmentIndex(0);
-            segment1.setTownName("Colombo");
+            segment1.setLocationName("Colombo");
             segment1.setStartLat(new java.math.BigDecimal("6.9271"));
             segment1.setStartLng(new java.math.BigDecimal("79.8612"));
             segment1.setEndLat(new java.math.BigDecimal("6.9600"));
@@ -158,7 +158,7 @@ public class RouteController {
             segment2.setId(UUID.randomUUID());
             segment2.setRouteId(mockData.getId());
             segment2.setSegmentIndex(1);
-            segment2.setTownName("Kandy");
+            segment2.setLocationName("Kandy");
             segment2.setStartLat(new java.math.BigDecimal("6.9600"));
             segment2.setStartLng(new java.math.BigDecimal("80.0000"));
             segment2.setEndLat(new java.math.BigDecimal("6.9934"));
@@ -178,6 +178,62 @@ public class RouteController {
             errorResponse.put("message", e.getMessage());
             errorResponse.put("details", e.getClass().getSimpleName());
             errorResponse.put("path", "/api/routes/mock/details");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @PostMapping("/create")
+    public ResponseEntity<?> createRoute(@RequestBody CreateRouteDto createRouteDto) {
+        log.info("POST /api/routes/create - Creating new route for driver {}", createRouteDto.getDriverId());
+        
+        try {
+            // Validate required fields
+            if (createRouteDto.getDriverId() == null) {
+                return ResponseEntity.badRequest().body("Driver ID is required");
+            }
+            if (createRouteDto.getOriginLat() == null || createRouteDto.getOriginLng() == null) {
+                return ResponseEntity.badRequest().body("Origin coordinates are required");
+            }
+            if (createRouteDto.getDestinationLat() == null || createRouteDto.getDestinationLng() == null) {
+                return ResponseEntity.badRequest().body("Destination coordinates are required");
+            }
+            if (createRouteDto.getDepartureTime() == null) {
+                return ResponseEntity.badRequest().body("Departure time is required");
+            }
+            if (createRouteDto.getRoutePolyline() == null || createRouteDto.getRoutePolyline().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Route polyline is required");
+            }
+            
+            UUID routeId = service.createRoute(createRouteDto);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("routeId", routeId);
+            response.put("message", "Route created successfully");
+            response.put("status", "SUCCESS");
+            response.put("segmentsCount", createRouteDto.getSegments() != null ? createRouteDto.getSegments().size() : 0);
+            
+            log.info("Route created successfully with ID: {}", routeId);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid route data: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 400);
+            errorResponse.put("error", "Bad Request");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("path", "/api/routes/create");
+            return ResponseEntity.badRequest().body(errorResponse);
+            
+        } catch (Exception e) {
+            log.error("Error creating route: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", "Failed to create route: " + e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/api/routes/create");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }

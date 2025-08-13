@@ -11,23 +11,13 @@ public class RouteSegmentDto {
     private UUID id;
     private UUID routeId;
     private Integer segmentIndex;
-    private String townName;
+    private String locationName;
     private BigDecimal startLat;
     private BigDecimal startLng;
     private BigDecimal endLat;
     private BigDecimal endLng;
     private BigDecimal distanceKm;
     private ZonedDateTime createdAt;
-}
-
-@Data
-class RouteSegmentRequestDto {
-    private Integer segmentIndex;
-    private BigDecimal startLat;
-    private BigDecimal startLng;
-    private BigDecimal endLat;
-    private BigDecimal endLng;
-    private BigDecimal distanceKm;
 }
 
 @Data

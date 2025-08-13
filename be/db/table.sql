@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS public.route_segments (
   start_lat NUMERIC NOT NULL, start_lng NUMERIC NOT NULL,
   end_lat NUMERIC NOT NULL, end_lng NUMERIC NOT NULL,
   distance_km NUMERIC NOT NULL,
-  town_name VARCHAR(255) NOT NULL DEFAULT 'Unknown Location',
+  location_name VARCHAR(255) NOT NULL DEFAULT 'Unknown Location',
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(route_id, segment_index)
 );

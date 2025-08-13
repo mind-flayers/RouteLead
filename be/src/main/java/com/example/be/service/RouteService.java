@@ -2,6 +2,7 @@ package com.example.be.service;
 
 import com.example.be.dto.CreateRouteDto;
 import com.example.be.dto.RouteSegmentDto;
+import com.example.be.dto.RouteSegmentRequestDto;
 import com.example.be.dto.ReturnRouteUpdateRequestDto;
 import com.example.be.dto.RouteDetailsDto;
 import com.example.be.dto.BidSummaryDto;
@@ -81,49 +82,75 @@ public class RouteService {
         
         log.info("Route created with ID: {}", routeId);
 
-        // 3) Generate route segments using existing polyline service
+        // 3) Create route segments using provided segments data or fallback to automatic generation
         try {
-            // Use the existing break-polyline functionality to create segments
-            // Default segment distance of 10km (can be made configurable)
-            List<LatLng> segmentPoints = polyService.sampleByDistance(dto.getRoutePolyline(), 10);
-            
-            // Create and save route segments
             List<RouteSegment> segments = new ArrayList<>();
-            for (int i = 0; i < segmentPoints.size(); i++) {
-                LatLng point = segmentPoints.get(i);
+            
+            if (dto.getSegments() != null && !dto.getSegments().isEmpty()) {
+                // Use segments provided from frontend (with town names from Google Maps)
+                log.info("Creating {} segments from frontend data", dto.getSegments().size());
                 
-                RouteSegment segment = new RouteSegment();
-                // Create a temporary route object with the ID for the relationship
-                ReturnRoute tempRoute = new ReturnRoute();
-                tempRoute.setId(routeId);
-                segment.setRoute(tempRoute);
-                segment.setSegmentIndex(i);
-                segment.setStartLat(BigDecimal.valueOf(point.getLat()));
-                segment.setStartLng(BigDecimal.valueOf(point.getLng()));
-                
-                // For the last segment, use destination coordinates
-                if (i < segmentPoints.size() - 1) {
-                    LatLng nextPoint = segmentPoints.get(i + 1);
-                    segment.setEndLat(BigDecimal.valueOf(nextPoint.getLat()));
-                    segment.setEndLng(BigDecimal.valueOf(nextPoint.getLng()));
+                for (RouteSegmentRequestDto segmentDto : dto.getSegments()) {
+                    RouteSegment segment = new RouteSegment();
                     
-                    // Calculate distance between points
-                    double distance = calculateDistance(point, nextPoint);
-                    segment.setDistanceKm(BigDecimal.valueOf(distance));
-                } else {
-                    // Last segment ends at destination
-                    segment.setEndLat(dto.getDestinationLat());
-                    segment.setEndLng(dto.getDestinationLng());
+                    // Create a temporary route object with the ID for the relationship
+                    ReturnRoute tempRoute = new ReturnRoute();
+                    tempRoute.setId(routeId);
+                    segment.setRoute(tempRoute);
                     
-                    LatLng destination = new LatLng(dto.getDestinationLat().doubleValue(), dto.getDestinationLng().doubleValue());
-                    double distance = calculateDistance(point, destination);
-                    segment.setDistanceKm(BigDecimal.valueOf(distance));
+                    segment.setSegmentIndex(segmentDto.getSegmentIndex());
+                    segment.setStartLat(segmentDto.getStartLat());
+                    segment.setStartLng(segmentDto.getStartLng());
+                    segment.setEndLat(segmentDto.getEndLat());
+                    segment.setEndLng(segmentDto.getEndLng());
+                    segment.setDistanceKm(segmentDto.getDistanceKm());
+                    segment.setLocationName(segmentDto.getLocationName() != null ? segmentDto.getLocationName() : "Unknown Location");
+                    
+                    segments.add(segment);
                 }
+            } else {
+                // Fallback: Generate route segments using existing polyline service
+                log.info("No segments provided, generating segments from polyline");
                 
-                // Set default town name (can be enhanced with reverse geocoding)
-                segment.setTownName("Location " + (i + 1));
+                // Default segment distance of 10km (can be made configurable)
+                List<LatLng> segmentPoints = polyService.sampleByDistance(dto.getRoutePolyline(), 10);
                 
-                segments.add(segment);
+                for (int i = 0; i < segmentPoints.size(); i++) {
+                    LatLng point = segmentPoints.get(i);
+                    
+                    RouteSegment segment = new RouteSegment();
+                    // Create a temporary route object with the ID for the relationship
+                    ReturnRoute tempRoute = new ReturnRoute();
+                    tempRoute.setId(routeId);
+                    segment.setRoute(tempRoute);
+                    segment.setSegmentIndex(i);
+                    segment.setStartLat(BigDecimal.valueOf(point.getLat()));
+                    segment.setStartLng(BigDecimal.valueOf(point.getLng()));
+                    
+                    // For the last segment, use destination coordinates
+                    if (i < segmentPoints.size() - 1) {
+                        LatLng nextPoint = segmentPoints.get(i + 1);
+                        segment.setEndLat(BigDecimal.valueOf(nextPoint.getLat()));
+                        segment.setEndLng(BigDecimal.valueOf(nextPoint.getLng()));
+                        
+                        // Calculate distance between points
+                        double distance = calculateDistance(point, nextPoint);
+                        segment.setDistanceKm(BigDecimal.valueOf(distance));
+                    } else {
+                        // Last segment ends at destination
+                        segment.setEndLat(dto.getDestinationLat());
+                        segment.setEndLng(dto.getDestinationLng());
+                        
+                        LatLng destination = new LatLng(dto.getDestinationLat().doubleValue(), dto.getDestinationLng().doubleValue());
+                        double distance = calculateDistance(point, destination);
+                        segment.setDistanceKm(BigDecimal.valueOf(distance));
+                    }
+                    
+                    // Set default location name (can be enhanced with reverse geocoding)
+                    segment.setLocationName("Location " + (i + 1));
+                    
+                    segments.add(segment);
+                }
             }
             
             // Save all segments
@@ -170,7 +197,7 @@ public class RouteService {
         dto.setId(segment.getId());
         dto.setRouteId(segment.getRoute() != null ? segment.getRoute().getId() : null);
         dto.setSegmentIndex(segment.getSegmentIndex());
-        dto.setTownName(segment.getTownName());
+        dto.setLocationName(segment.getLocationName());
         dto.setStartLat(segment.getStartLat());
         dto.setStartLng(segment.getStartLng());
         dto.setEndLat(segment.getEndLat());

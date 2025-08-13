@@ -6,11 +6,22 @@ export interface LocationData {
   address: string;
 }
 
+export interface RouteSegment {
+  start_lat: number;
+  start_lng: number;
+  end_lat: number;
+  end_lng: number;
+  distance_km: number;
+  location_name: string;
+  segment_index: number;
+}
+
 export interface RouteData {
   polyline: string;
   distance: number; // in kilometers
   duration: number; // in minutes
   encoded_polyline: string;
+  segments?: RouteSegment[]; // Route segments with location names
 }
 
 export interface RouteCreationData {
@@ -107,6 +118,8 @@ export const RouteCreationProvider: React.FC<RouteCreationProviderProps> = ({ ch
       routePolyline: routeData.selectedRoute!.encoded_polyline,
       totalDistanceKm: routeData.selectedRoute!.distance,
       estimatedDurationMinutes: Math.round(routeData.selectedRoute!.duration),
+      // Include route segments for backend processing
+      segments: routeData.selectedRoute!.segments || [],
     };
   };
 
