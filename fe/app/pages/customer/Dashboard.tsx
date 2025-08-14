@@ -66,7 +66,7 @@ export default function CustomerDashboard() {
               width: tileSize,
               height: tileSize,
               marginLeft: idx % numColumns === 0 ? 0 : tileMargin,
-              backgroundColor: '#0D47A1',
+              backgroundColor: '#FFF7ED',
               justifyContent: 'center',
               alignItems: 'center',
               borderRadius: 12,
@@ -75,6 +75,8 @@ export default function CustomerDashboard() {
               shadowOpacity: 0.15,
               shadowRadius: 4,
               elevation: 3,
+              borderWidth: 1,
+              borderColor: '#FDBA74',
             }}
             onPress={() => {
               if (action.route) {
@@ -98,9 +100,9 @@ export default function CustomerDashboard() {
             </View>
 
             {/* Label */}
-            <Text className="text-sm font-medium text-white" style={{ textAlign: 'center' }}>
-  {action.label}
-</Text>
+            <Text className="text-sm font-medium text-gray-800" style={{ textAlign: 'center' }}>
+              {action.label}
+            </Text>
 
           </TouchableOpacity>
         ))}
