@@ -17,6 +17,7 @@ import java.util.UUID;
 @CrossOrigin(origins = "*")
 
 //test user: 797c6f16-a06a-46b4-ae9f-9ded8aa4ab27
+//test user: 05214edd-a8fa-4db5-89b9-57b3a3d99389
 public class AdminUserController {
 
     private final ProfileService profileService;
