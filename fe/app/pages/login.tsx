@@ -12,7 +12,7 @@ import {
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import CustomAlert from '../../components/CustomAlert';
-import { useAuth } from '../../lib/auth';
+// import { useAuth } from '../../lib/auth';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -25,7 +25,7 @@ export default function LoginScreen() {
     type: 'info' as 'success' | 'error' | 'info'
   });
 
-  const { user } = useAuth();
+  // const { user } = useAuth();
 
   const handleLogin = async () => {
     if (loading) return;
@@ -40,12 +40,23 @@ export default function LoginScreen() {
       if (error) throw error;
 
       if (data?.user) {
-        if (user?.role === 'CUSTOMER') {
+        // Fetch the latest role from the profile to avoid using stale context
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+
+        // Fallback to auth metadata role if profile is not yet available
+        const role = profile?.role ?? (data.user.user_metadata?.role as string | undefined);
+
+        if (role === 'CUSTOMER') {
           router.replace('/pages/customer/Dashboard');
-        } else if (user?.role === 'DRIVER') {
+        } else if (role === 'DRIVER') {
           router.replace('/pages/driver/Dashboard');
         } else {
-          router.replace('/pages/welcome');
+          // Default fallback
+          router.replace('/(tabs)/explore');
         }
       }
     } catch (error: any) {
