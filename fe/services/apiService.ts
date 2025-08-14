@@ -98,6 +98,98 @@ export interface PendingBid {
   createdAt: string;
 }
 
+// Bid-related types
+export interface BidDto {
+  id: string;
+  requestId: string;
+  routeId: string;
+  startIndex: number;
+  endIndex: number;
+  offeredPrice: number;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED';
+  createdAt: string;
+  updatedAt: string;
+  driverName?: string;
+  vehicleInfo?: string;
+  customerName?: string;
+  isPaid?: boolean; // Payment status
+  fromLocation?: string; // Route origin
+  toLocation?: string; // Route destination
+  estimatedTime?: string; // Estimated travel time
+  estimatedPrice?: number; // Estimated route price
+}
+
+// Bid API functions
+export const getBidById = async (bidId: string): Promise<BidDto> => {
+  try {
+    console.log('Fetching bid by ID:', bidId);
+    const response = await fetch(`${API_BASE_URL}/bids/${bidId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Bid data received:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching bid by ID:', error);
+    throw error;
+  }
+};
+
+export const getAllBids = async (): Promise<BidDto[]> => {
+  try {
+    console.log('Fetching all bids');
+    const response = await fetch(`${API_BASE_URL}/bids`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('All bids data received:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching all bids:', error);
+    throw error;
+  }
+};
+
+// Get bids by customer ID (if your backend supports this)
+export const getBidsByCustomerId = async (customerId: string): Promise<BidDto[]> => {
+  try {
+    console.log('Fetching bids for customer:', customerId);
+    const response = await fetch(`${API_BASE_URL}/bids/customer/${customerId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Customer bids data received:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching customer bids:', error);
+    throw error;
+  }
+};
+
 // API utility functions
 const getAuthHeaders = async () => {
   const token = await AsyncStorage.getItem('authToken');
