@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import PrimaryCard from '../../../components/ui/PrimaryCard';
@@ -7,9 +7,39 @@ import SecondaryButton from '../../../components/ui/SecondaryButton';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
 import IndigoButton from '../../../components/ui/IndigoButton';
 import { useNavigation } from '@react-navigation/native';
+import { useLocalSearchParams } from 'expo-router';
+import { useViewBids } from '@/hooks/useViewBids';
+import { formatCurrency, formatDate } from '@/services/apiService';
+import { calculateCountdown, isBiddingActive } from '@/utils/routeUtils';
 
 const ViewBids = () => {
   const navigation = useNavigation();
+  const { routeId } = useLocalSearchParams();
+  const actualRouteId = Array.isArray(routeId) ? routeId[0] : routeId || '1cc88146-8e0b-41fa-a81a-17168a1407ec'; // Fallback for testing
+  
+  // console.log('ViewBids - routeId from params:', routeId);
+  // console.log('ViewBids - actualRouteId:', actualRouteId);
+  
+  const [sortOption, setSortOption] = useState<'price' | 'time' | 'rating'>('price');
+  const [filterOption, setFilterOption] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all');
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  const { data, loading, error, refreshing, refresh, updateBidStatus } = useViewBids(actualRouteId, sortOption, filterOption);
+
+  // Update countdown timer every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Calculate real-time countdown
+  const getRealTimeCountdown = () => {
+    if (!data?.biddingEndTime) return 'Loading...';
+    return calculateCountdown(data.biddingEndTime);
+  };
 
   const handleBackPress = () => {
     navigation.goBack();
@@ -17,62 +47,152 @@ const ViewBids = () => {
 
   const handleViewDetails = () => {
     // Navigate to DeliveryManagement screen
-    // Assuming 'DeliveryManagement' is a defined route name
     (navigation as any).navigate('pages/driver/DeliveryManagement');
   };
 
-  const bids = [
-    {
-      id: '1',
-      name: 'Chris C',
-      avatar: require('../../../assets/images/profile_placeholder.jpeg'),
-      amount: '52.50',
-      timeAgo: '1 hr ago',
-      weight: '8 kg',
-      dimensions: '30×20×15 cm',
-      fromAddress: '456 Main Street, Colombo 03',
-      toAddress: '123 Elm Street, Apartment 4B, Mannar',
-      notes: 'Can you deliver by evening today?',
-    },
-    {
-      id: '2',
-      name: 'NithuShan M',
-      avatar: require('../../../assets/images/profile_placeholder.jpeg'),
-      amount: '45.00',
-      timeAgo: '3 hr ago',
-      weight: '5 kg',
-      dimensions: '20×15×10 cm',
-      fromAddress: '78 Galle Road, Colombo 04',
-      toAddress: '123 Elm Street, Jaffna',
-      notes: 'Please ensure careful handling of fragile items.',
-    },
-    {
-      id: '3',
-      name: 'Sanji J',
-      avatar: require('../../../assets/images/profile_placeholder.jpeg'),
-      amount: '38.00',
-      timeAgo: '2 hr ago',
-      weight: '3 kg',
-      dimensions: '15×15×5 cm',
-      fromAddress: '99 Kandy Road, Colombo 07',
-      toAddress: '123 Elm Street, Matale',
-      notes: 'Small package, urgent delivery requested.',
-    },
-  ];
+  const handleAcceptBid = useCallback(async (bidId: string) => {
+    Alert.alert(
+      'Accept Bid',
+      'Are you sure you want to accept this bid?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Accept', 
+          style: 'default',
+          onPress: async () => {
+            const success = await updateBidStatus(bidId, 'ACCEPTED');
+            if (success) {
+              Alert.alert('Success', 'Bid accepted successfully!');
+            }
+          }
+        }
+      ]
+    );
+  }, [updateBidStatus]);
 
-  const wonBids = [
-    {
-      id: '4',
-      name: 'Emily White',
-      avatar: require('../../../assets/images/profile_placeholder.jpeg'),
-      amount: '48.00',
-      weight: '6 kg',
-      dimensions: '25×20×10 cm',
-      fromAddress: '200 Negombo Road, Colombo 13',
-      toAddress: '123 Elm Street, Matale',
-      notes: 'Flexible with delivery time, just keep me updated.',
-    },
-  ];
+  const handleRejectBid = useCallback(async (bidId: string) => {
+    Alert.alert(
+      'Reject Bid',
+      'Are you sure you want to reject this bid?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Reject', 
+          style: 'destructive',
+          onPress: async () => {
+            const success = await updateBidStatus(bidId, 'REJECTED');
+            if (success) {
+              Alert.alert('Success', 'Bid rejected successfully!');
+            }
+          }
+        }
+      ]
+    );
+  }, [updateBidStatus]);
+
+  const renderBidCard = useCallback((bid: any, showActions = true) => {
+    const customerName = `${bid.customerFirstName || ''} ${bid.customerLastName || ''}`.trim();
+    
+    return (
+      <PrimaryCard key={bid.id} style={{ marginBottom: 16 }}>
+        {/* Customer Info */}
+        <View className="flex-row items-center mb-3">
+          <Image 
+            source={require('../../../assets/images/profile_placeholder.jpeg')} 
+            className="w-12 h-12 rounded-full"
+          />
+          <View className="ml-3 flex-1">
+            <Text className="text-lg font-bold">{customerName || 'Unknown Customer'}</Text>
+            <Text className="text-gray-500 text-sm">{formatDate(bid.createdAt)}</Text>
+          </View>
+          <View className="items-end">
+            <Text className="text-2xl font-bold text-green-600">
+              {formatCurrency(bid.offeredPrice)}
+            </Text>
+            <Text className="text-xs text-gray-500">
+              Status: {bid.status}
+            </Text>
+          </View>
+        </View>
+
+        {/* Parcel Details */}
+        <View className="mb-3">
+          <Text className="text-sm font-medium text-gray-700 mb-1">
+            {bid.weightKg}kg • {bid.volumeM3}m³
+          </Text>
+          {bid.description && (
+            <Text className="text-sm text-gray-600 mb-2">{bid.description}</Text>
+          )}
+        </View>
+
+        {/* Pickup Location */}
+        <View className="flex-row items-start mb-2">
+          <Ionicons name="location" size={16} color="#10b981" style={{ marginTop: 2 }} />
+          <View className="ml-2 flex-1">
+            <Text className="text-sm font-medium text-gray-700">Pickup</Text>
+            <Text className="text-sm text-gray-600">
+              {bid.pickupLocationName || `${bid.pickupLat}, ${bid.pickupLng}`}
+            </Text>
+          </View>
+        </View>
+
+        {/* Delivery Location */}
+        <View className="flex-row items-start mb-3">
+          <Ionicons name="location" size={16} color="#ef4444" style={{ marginTop: 2 }} />
+          <View className="ml-2 flex-1">
+            <Text className="text-sm font-medium text-gray-700">Delivery</Text>
+            <Text className="text-sm text-gray-600">
+              {bid.dropoffLocationName || `${bid.dropoffLat}, ${bid.dropoffLng}`}
+            </Text>
+          </View>
+        </View>
+
+        {/* Special Instructions */}
+        {bid.specialInstructions && (
+          <View className="mb-3 p-2 bg-yellow-50 rounded">
+            <Text className="text-sm font-medium text-yellow-800">Special Instructions:</Text>
+            <Text className="text-sm text-yellow-700">{bid.specialInstructions}</Text>
+          </View>
+        )}
+
+        {/* Action Buttons */}
+        {showActions && bid.status === 'PENDING' && (
+          <View className="flex-row justify-between mt-3">
+            <TouchableOpacity 
+              onPress={() => handleAcceptBid(bid.id)}
+              className="flex-1 bg-green-500 py-2 px-4 rounded-lg mr-2"
+            >
+              <Text className="text-white font-bold text-center">Accept</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => handleRejectBid(bid.id)}
+              className="flex-1 bg-red-500 py-2 px-4 rounded-lg ml-2"
+            >
+              <Text className="text-white font-bold text-center">Reject</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </PrimaryCard>
+    );
+  }, [handleAcceptBid, handleRejectBid]);
+
+  if (loading && !refreshing) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-100">
+        <View className="flex-row items-center p-4 bg-white border-b border-gray-200">
+          <TouchableOpacity onPress={handleBackPress} className="p-2">
+            <Ionicons name="arrow-back" size={24} color="black" />
+          </TouchableOpacity>
+          <Text className="flex-1 text-center text-xl font-bold">View Bids</Text>
+          <View className="w-10" />
+        </View>
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#f97316" />
+          <Text className="text-gray-600 mt-2">Loading bids...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
@@ -82,119 +202,163 @@ const ViewBids = () => {
           <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-xl font-bold">View Bids</Text>
-        <View className="w-10" />{/* Placeholder for alignment */}
+        <View className="w-10" />
       </View>
 
-      <ScrollView className="flex-1">
-        {/* Route ID and Details Card */}
-        <View className="p-4 bg-white mb-4">
-          <Text className="text-lg font-bold mb-2">Route ID: ASDSA423423</Text>
-          <View className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-            <View className="flex-row items-center mb-2">
-              <Ionicons name="location-sharp" size={20} color="#6B7280" />
-              <Text className="ml-2 text-base font-semibold">Colombo</Text>
-            </View>
-            <View className="items-center my-1">
-              <Ionicons name="arrow-down" size={20} color="#6B7280" />
-            </View>
-            <View className="flex-row items-center mb-2">
-              <Ionicons name="location-sharp" size={20} color="#6B7280" />
-              <Text className="ml-2 text-base font-semibold">Badulla</Text>
-            </View>
-            <View className="flex-row justify-between items-center mt-4 pt-4 border-t border-gray-200">
-              <View className="flex-row items-center">
-                <FontAwesome name="clock-o" size={16} color="#6B7280" />
-                <Text className="ml-2 text-sm text-gray-600">02 Days | 02:56:48 Hrs Left</Text>
-              </View>
-              <View className="bg-yellow-100 px-3 py-1 rounded-full">
-                <Text className="text-yellow-700 text-xs font-semibold">Active</Text>
-              </View>
-            </View>
-          </View>
+      {loading && !refreshing ? (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#f97316" />
+          <Text className="text-gray-600 mt-2">Loading bids...</Text>
         </View>
-
-        {/* Sort By and Filter */}
-        <View className="flex-row justify-between items-center px-4 py-2 bg-white mb-4">
-          <TouchableOpacity className="flex-row items-center border border-gray-300 rounded-md px-3 py-2">
-            <Text className="text-gray-700 mr-1">Sort By: Time</Text>
-            <Ionicons name="chevron-down" size={16} color="gray" />
-          </TouchableOpacity>
-          <TouchableOpacity className="flex-row items-center border border-gray-300 rounded-md px-3 py-2">
-            <Ionicons name="filter" size={16} color="gray" />
-            <Text className="text-gray-700 ml-1">Filter</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Bids List */}
-        <View className="px-4">
-          {bids.map((bid) => (
-            <PrimaryCard key={bid.id} className="mb-4 p-4">
-              <View className="flex-row items-center justify-between mb-3">
-                <View className="flex-row items-center">
-                  <Image source={bid.avatar} className="w-10 h-10 rounded-full mr-3" />
-                  <Text className="text-lg font-bold">{bid.name}</Text>
+      ) : (
+        <ScrollView 
+          className="flex-1"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={refresh} colors={['#f97316']} />
+          }
+        >
+          {data && (
+          <>
+            {/* Route Details Card */}
+            <View className="p-4 bg-white mb-4">
+              <Text className="text-lg font-bold mb-2">Route ID: {data.routeId.substring(0, 8)}...</Text>
+              <View className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                <View className="flex-row items-center mb-2">
+                  <Ionicons name="location-sharp" size={20} color="#6B7280" />
+                  <Text className="ml-2 text-base font-semibold" numberOfLines={1}>
+                    {data.routeOriginLocationName || `${data.routeOriginLat}, ${data.routeOriginLng}`}
+                  </Text>
                 </View>
-                <Text className="text-gray-500 text-sm">
-                  <FontAwesome name="clock-o" size={14} color="#6B7280" /> {bid.timeAgo}
+                <View className="items-center my-1">
+                  <Ionicons name="arrow-down" size={20} color="#6B7280" />
+                </View>
+                <View className="flex-row items-center mb-2">
+                  <Ionicons name="location-sharp" size={20} color="#6B7280" />
+                  <Text className="ml-2 text-base font-semibold" numberOfLines={1}>
+                    {data.routeDestinationLocationName || `${data.routeDestinationLat}, ${data.routeDestinationLng}`}
+                  </Text>
+                </View>
+                <View className="flex-row items-center justify-between mt-3">
+                  <View className="flex-row items-center">
+                    <Ionicons name="time-outline" size={16} color="#6B7280" />
+                    <Text className="ml-1 text-sm text-gray-600">
+                      Bidding ends: {getRealTimeCountdown()}
+                    </Text>
+                  </View>
+                  <View className={`px-3 py-1 rounded-full ${data.isActive && getRealTimeCountdown() !== 'Ended' ? 'bg-green-100' : 'bg-red-100'}`}>
+                    <Text className={`text-xs font-bold ${data.isActive && getRealTimeCountdown() !== 'Ended' ? 'text-green-600' : 'text-red-600'}`}>
+                      {data.isActive && getRealTimeCountdown() !== 'Ended' ? 'Active' : 'Ended'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* Filter and Sort Options */}
+            <View className="p-4 bg-white mb-4">
+              <Text className="text-lg font-bold mb-3">Filter & Sort</Text>
+              
+              {/* Sort Options */}
+              <View className="mb-3">
+                <Text className="text-sm font-medium text-gray-700 mb-2">Sort by:</Text>
+                <View className="flex-row flex-wrap">
+                  {[
+                    { key: 'price', label: 'Price' },
+                    { key: 'time', label: 'Time' },
+                    { key: 'rating', label: 'Rating' }
+                  ].map((option) => (
+                    <TouchableOpacity
+                      key={option.key}
+                      onPress={() => setSortOption(option.key as any)}
+                      className={`mr-2 mb-2 px-3 py-1 rounded-full ${
+                        sortOption === option.key ? 'bg-orange-500' : 'bg-gray-200'
+                      }`}
+                    >
+                      <Text className={`text-sm ${
+                        sortOption === option.key ? 'text-white' : 'text-gray-700'
+                      }`}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Filter Options */}
+              <View>
+                <Text className="text-sm font-medium text-gray-700 mb-2">Filter by status:</Text>
+                <View className="flex-row flex-wrap">
+                  {[
+                    { key: 'all', label: 'All' },
+                    { key: 'pending', label: 'Pending' },
+                    { key: 'accepted', label: 'Accepted' },
+                    { key: 'rejected', label: 'Rejected' }
+                  ].map((option) => (
+                    <TouchableOpacity
+                      key={option.key}
+                      onPress={() => setFilterOption(option.key as any)}
+                      className={`mr-2 mb-2 px-3 py-1 rounded-full ${
+                        filterOption === option.key ? 'bg-blue-500' : 'bg-gray-200'
+                      }`}
+                    >
+                      <Text className={`text-sm ${
+                        filterOption === option.key ? 'text-white' : 'text-gray-700'
+                      }`}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            {/* Bids Section */}
+            <View className="p-4">
+              <Text className="text-lg font-bold mb-3">
+                Bids ({data?.bids?.filter(bid => 
+                  filterOption === 'all' || bid.status.toLowerCase() === filterOption
+                ).length || 0})
+              </Text>
+              
+              {error ? (
+                <View className="flex-1 justify-center items-center py-10">
+                  <Ionicons name="alert-circle-outline" size={48} color="#ef4444" />
+                  <Text className="text-red-600 text-center mt-2 font-medium">Error loading bids</Text>
+                  <Text className="text-gray-600 text-center mt-1">{error}</Text>
+                </View>
+              ) : (!data?.bids || data.bids.filter(bid => 
+                filterOption === 'all' || bid.status.toLowerCase() === filterOption
+              ).length === 0) ? (
+                <View className="flex-1 justify-center items-center py-10">
+                  <Ionicons name="mail-outline" size={48} color="#9ca3af" />
+                  <Text className="text-gray-600 text-center mt-2 font-medium">No bids found</Text>
+                  <Text className="text-gray-500 text-center mt-1">
+                    {filterOption === 'all' 
+                      ? 'No bids have been placed for this route yet'
+                      : `No ${filterOption} bids found`
+                    }
+                  </Text>
+                </View>
+              ) : (
+                data.bids
+                  .filter(bid => filterOption === 'all' || bid.status.toLowerCase() === filterOption)
+                  .map(bid => renderBidCard(bid, true))
+              )}
+            </View>
+
+            {/* Accepted Bids Section */}
+            {data?.acceptedBids?.length > 0 && (
+              <View className="p-4 border-t border-gray-200">
+                <Text className="text-lg font-bold mb-3 text-green-600">
+                  Won Bids ({data?.acceptedBids?.length || 0})
                 </Text>
+                {data?.acceptedBids?.map(bid => renderBidCard(bid, false)) || []}
               </View>
-              <Text className="text-orange-500 text-2xl font-bold mb-3">LKR {bid.amount}</Text>
-              <View className="flex-row items-center mb-1">
-                <MaterialCommunityIcons name="package-variant" size={18} color="#6B7280" />
-                <Text className="ml-2 text-gray-700">{bid.weight} {bid.dimensions}</Text>
-              </View>
-              <Text className="text-gray-600 font-semibold mb-1">From: </Text>
-              <View className="flex-row items-center mb-3">
-                <Ionicons name="location-sharp" size={18} color="#6B7280" />
-                <Text className="ml-2 text-gray-700">{bid.fromAddress}</Text>
-              </View>
-              <Text className="text-gray-600 font-semibold mb-1">To: </Text>
-              <View className="flex-row items-center mb-3">
-                <Ionicons name="location-sharp" size={18} color="#6B7280" />
-                <Text className="ml-2 text-gray-700">{bid.toAddress}</Text>
-              </View>
-              <Text className="text-blue-600 font-semibold mb-4">Notes: <Text className="text-gray-700 font-normal">{bid.notes}</Text></Text>
-              <View className="flex-row justify-between">
-                <SecondaryButton title="Reject Bid" onPress={() => console.log('Reject Bid')} />
-                <PrimaryButton title="Accept Bid" onPress={() => console.log('Accept Bid')} />
-              </View>
-            </PrimaryCard>
-          ))}
-        </View>
-
-        {/* Won Bids Section */}
-        <View className="px-4 mt-4 mb-8">
-          <Text className="text-lg font-bold mb-4">Won Bids ({wonBids.length})</Text>
-          {wonBids.map((bid) => (
-            <PrimaryCard key={bid.id} className="mb-4 p-4 text-orange-100">
-              <View className="flex-row items-center justify-between mb-3">
-                <View className="flex-row items-center">
-                  <Image source={bid.avatar} className="w-10 h-10 rounded-full mr-3" />
-                  <Text className="text-lg font-bold">{bid.name}</Text>
-                </View>
-                <Ionicons name="checkmark-circle" size={24} color="green" />
-              </View>
-              <Text className="text-orange-500 text-2xl font-bold mb-3">LKR {bid.amount}</Text>
-              <View className="flex-row items-center mb-1">
-                <MaterialCommunityIcons name="package-variant" size={18} color="#6B7280" />
-                <Text className="ml-2 text-gray-700">{bid.weight} {bid.dimensions}</Text>
-              </View>
-              <Text className="text-gray-600 font-semibold mb-1">From: </Text>
-              <View className="flex-row items-center mb-3">
-                <Ionicons name="location-sharp" size={18} color="#6B7280" />
-                <Text className="ml-2 text-gray-700">{bid.fromAddress}</Text>
-              </View>
-              <Text className="text-gray-600 font-semibold mb-1">To: </Text>
-              <View className="flex-row items-center mb-3">
-                <Ionicons name="location-sharp" size={18} color="#6B7280" />
-                <Text className="ml-2 text-gray-700">{bid.toAddress}</Text>
-              </View>
-              <Text className="text-blue-600 font-semibold mb-4">Notes: <Text className="text-gray-700 font-normal">{bid.notes}</Text></Text>
-              <IndigoButton title="View Details" onPress={handleViewDetails} />
-            </PrimaryCard>
-          ))}
-        </View>
-      </ScrollView>
+            )}
+          </>
+        )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 };

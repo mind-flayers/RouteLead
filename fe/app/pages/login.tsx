@@ -40,9 +40,10 @@ export default function LoginScreen() {
       if (error) throw error;
 
       if (data?.user) {
-        if (user?.role === 'CUSTOMER') {
+        const userRole = data.user?.user_metadata?.role;
+        if (userRole === 'CUSTOMER') {
           router.replace('/pages/customer/Dashboard');
-        } else if (user?.role === 'DRIVER') {
+        } else if (userRole === 'DRIVER') {
           router.replace('/pages/driver/Dashboard');
         } else {
           router.replace('/pages/welcome');

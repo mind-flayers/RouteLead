@@ -1,6 +1,8 @@
 package com.example.be.controller;
 
 import com.example.be.model.ReturnRoute;
+import com.example.be.dto.MyRouteDto;
+import com.example.be.dto.ViewBidsResponseDto;
 import com.example.be.service.RouteService;
 import com.example.be.types.RouteStatus;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +27,7 @@ public class DriverController {
     }
 
     @GetMapping("/routes")
-    public ResponseEntity<List<ReturnRoute>> getDriverRoutes(
+    public ResponseEntity<List<MyRouteDto>> getDriverRoutes(
             @RequestParam UUID driverId,
             @RequestParam(required = false) String status) {
         
@@ -43,7 +45,7 @@ public class DriverController {
                 }
             }
             
-            List<ReturnRoute> routes = routeService.getRoutesByDriver(driverId, routeStatus);
+            List<MyRouteDto> routes = routeService.getMyRoutes(driverId, routeStatus);
             log.info("Found {} routes for driver {} with status {}", routes.size(), driverId, routeStatus);
             return ResponseEntity.ok(routes);
         } catch (Exception e) {
@@ -115,7 +117,52 @@ public class DriverController {
 
     // Keep the existing endpoint for backwards compatibility
     @GetMapping("/my-routes")
-    public String getMyRoutes() {
-        return "Driver's routes (protected) - Use /routes endpoint with driverId parameter";
+    public ResponseEntity<List<MyRouteDto>> getMyRoutes(
+            @RequestParam UUID driverId,
+            @RequestParam(required = false) String status) {
+        
+        log.info("GET /api/driver/my-routes - driverId: {}, status: {}", driverId, status);
+        
+        try {
+            RouteStatus routeStatus = null;
+            if (status != null && !status.isEmpty()) {
+                routeStatus = RouteStatus.valueOf(status.toUpperCase());
+            }
+            List<MyRouteDto> routes = routeService.getMyRoutes(driverId, routeStatus);
+            log.info("Found {} routes for driver {} with status {}", routes.size(), driverId, status);
+            return ResponseEntity.ok(routes);
+        } catch (Exception e) {
+            log.error("Error fetching my routes for driver {}: ", driverId, e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Get detailed bids for a specific route
+     */
+    @GetMapping("/routes/{routeId}/view-bids")
+    public ResponseEntity<ViewBidsResponseDto> getRouteBids(
+            @PathVariable UUID routeId,
+            @RequestParam UUID driverId,
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String filter) {
+        
+        log.info("GET /api/driver/routes/{}/view-bids - driverId: {}, sort: {}, filter: {}", 
+                routeId, driverId, sort, filter);
+        
+        try {
+            ViewBidsResponseDto response = routeService.getViewBidsResponse(routeId, driverId, sort, filter);
+            log.info("Found {} total bids for route {}", response.getTotalBidsCount(), routeId);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            log.error("Error fetching bids for route {}: {}", routeId, e.getMessage());
+            if (e.getMessage().contains("not found") || e.getMessage().contains("access denied")) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            log.error("Error fetching bids for route {}: ", routeId, e);
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }
