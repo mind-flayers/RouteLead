@@ -109,7 +109,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: 20,
   },
   label: {
-    fontFamily: 'Montserrat, sans-serif',
+    fontFamily: 'Outfit, sans-serif',
     fontSize: 16,
     letterSpacing: 0.2,
   },
@@ -132,7 +132,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: 16,
     cursor: 'pointer',
     marginBottom: 8,
-    fontFamily: 'Montserrat, sans-serif',
+    fontFamily: 'Outfit, sans-serif',
   },
   helpRow: {
     display: 'flex',
@@ -162,7 +162,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     alignItems: 'center',
     gap: 4,
-    fontFamily: 'Montserrat, sans-serif',
+    fontFamily: 'Outfit, sans-serif',
   },
 };
 

@@ -85,6 +85,8 @@ const DisputePage: React.FC = () => {
 	const [search, setSearch] = useState('');
 	const [filter, setFilter] = useState('All');
 	const [loading, setLoading] = useState(true);
+	const [currentPage, setCurrentPage] = useState(1);
+	const pageSize = 10;
 
 	useEffect(() => {
 		async function fetchDisputes() {
@@ -116,10 +118,18 @@ const DisputePage: React.FC = () => {
 		return statusMatch && (
 			d.id.toLowerCase().includes(search.toLowerCase()) ||
 			(d.claimant_profile?.first_name?.toLowerCase().includes(search.toLowerCase())) ||
-			(d.return_routes?.driver_profile?.first_name?.toLowerCase().includes(search.toLowerCase())) ||
-			(d.type?.toLowerCase().includes(search.toLowerCase()))
+			(d.return_routes?.driver_profile?.first_name?.toLowerCase().includes(search.toLowerCase()))
 		);
 	});
+
+	// Pagination calculations
+	useEffect(() => { setCurrentPage(1); }, [search, filter]);
+	const totalFiltered = filteredDisputes.length;
+	const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+	useEffect(() => { if (currentPage > totalPages) setCurrentPage(totalPages); }, [totalPages, currentPage]);
+	const startIndex = (currentPage - 1) * pageSize;
+	const endIndexExclusive = Math.min(startIndex + pageSize, totalFiltered);
+	const pageDisputes = filteredDisputes.slice(startIndex, endIndexExclusive);
 
 	if (loading) {
 		return <div style={{ padding: '2rem', textAlign: 'center', color: NAVY_BLUE }}>Loading disputes...</div>;
@@ -242,15 +252,14 @@ const DisputePage: React.FC = () => {
 					>
 						<thead>
 							<tr style={{ color: '#7B7B93', fontWeight: 700, fontSize: 15, textAlign: 'left' }}>
-								<th style={thStyle}>Claimant</th>
-								<th style={thStyle}>Respondent</th>
-								<th style={thStyle}>Type</th>
-								<th style={thStyle}>Status</th>
+								<th style={thStyle}>Claimant (Filed By)</th>
+								<th style={thStyle}>Respondent (Driver)</th>
 								<th style={thStyle}>Date Filed</th>
+								<th style={thStyle}>Status</th>
 							</tr>
 						</thead>
 						<tbody>
-							{filteredDisputes.map((d) => {
+							{pageDisputes.map((d) => {
 								const statusKey = (d.status || '').charAt(0).toUpperCase() + (d.status || '').slice(1).toLowerCase();
 								return (
 									<tr
@@ -269,33 +278,32 @@ const DisputePage: React.FC = () => {
 										<td style={{ ...cellStyle, fontWeight: 600, color: '#444' }}>
 											{d.return_routes?.driver_profile?.first_name || 'No Driver'}
 										</td>
-										<td style={cellStyle}>{d.type}</td>
-										<td style={{ ...cellStyle, textAlign: 'center', verticalAlign: 'middle' }}>
-											<span style={{
-												background: statusBgColors[statusKey] || '#eee',
-												color: statusColors[statusKey] || '#222',
-												borderRadius: 8,
-												padding: '4px 0',
-												width: 110,
-												display: 'inline-block',
-												textAlign: 'center',
-												fontWeight: 600,
-												fontSize: 14,
-												userSelect: 'none',
-												border: '2px solid transparent',
-												transition: 'background 0.2s, color 0.2s, border 0.2s',
-												margin: '0 auto',
-											}}>
-												{d.status}
-											</span>
-										</td>
 										<td style={cellStyle}>
-										{d.created_at ? new Date(d.created_at).toLocaleDateString('en-US', {
-											year: 'numeric',
-											month: 'short',
-											day: 'numeric'
-										}) : 'N/A'}
-									</td>
+									{d.created_at ? new Date(d.created_at).toLocaleDateString('en-US', {
+										year: 'numeric',
+										month: 'short',
+										day: 'numeric'
+									}) : 'N/A'}
+								</td>
+								<td style={{ ...cellStyle, textAlign: 'center', verticalAlign: 'middle' }}>
+									<span style={{
+										background: statusBgColors[statusKey] || '#eee',
+										color: statusColors[statusKey] || '#222',
+										borderRadius: 8,
+										padding: '4px 0',
+										width: 110,
+										display: 'inline-block',
+										textAlign: 'center',
+										fontWeight: 600,
+										fontSize: 14,
+										userSelect: 'none',
+										border: '2px solid transparent',
+										transition: 'background 0.2s, color 0.2s, border 0.2s',
+										margin: '0 auto',
+									}}>
+										{d.status}
+									</span>
+								</td>
 									</tr>
 								);
 							})}
@@ -313,7 +321,7 @@ const DisputePage: React.FC = () => {
 							gap: 8,
 						}}
 					>
-						<span>Showing 1 - {filteredDisputes.length} of {disputes.length} disputes</span>
+						<span>Showing {totalFiltered === 0 ? 0 : startIndex + 1} - {Math.min(endIndexExclusive, totalFiltered)} of {totalFiltered} disputes</span>
 						<div style={{ display: 'flex', gap: 8 }}>
 							<button style={{
 								background: '#fff',
@@ -324,8 +332,12 @@ const DisputePage: React.FC = () => {
 								fontSize: 15,
 								color: NAVY_BLUE,
 								marginLeft: 8,
-								cursor: 'pointer',
-							}}>Previous</button>
+								cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+								opacity: currentPage === 1 ? 0.5 : 1,
+							}}
+								onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+								disabled={currentPage === 1}
+							>Previous</button>
 							<button style={{
 								background: '#fff',
 								border: `1px solid ${NAVY_BLUE}22`,
@@ -335,8 +347,12 @@ const DisputePage: React.FC = () => {
 								fontSize: 15,
 								color: NAVY_BLUE,
 								marginLeft: 8,
-								cursor: 'pointer',
-							}}>Next</button>
+								cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
+								opacity: currentPage >= totalPages ? 0.5 : 1,
+							}}
+								onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+								disabled={currentPage >= totalPages}
+							>Next</button>
 						</div>
 					</div>
 					{/* Responsive Table Notice */}
@@ -445,19 +461,9 @@ const DisputePage: React.FC = () => {
 							icon="🟢"
 						/>
 						<MetricCard
-							label="Pending Resolution"
-							value={pendingCount}
-							icon="🟠"
-						/>
-						<MetricCard
 							label="Resolved Disputes"
 							value={closedCount}
 							icon="🔵"
-						/>
-						<MetricCard
-							label="Value Impact"
-							value={`$${valueImpact.toFixed(2)}`}
-							icon="💲"
 						/>
 					</div>
 					{/* Details */}
@@ -507,43 +513,10 @@ const DisputePage: React.FC = () => {
 										color: NAVY_BLUE,
 										borderBottom: `3px solid ${NAVY_BLUE}`,
 										background: '#fff',
-										cursor: 'pointer',
+										cursor: 'default',
 									}}
 								>
 									Claim Details
-								</div>
-								<div
-									style={{
-										padding: '8px 18px',
-										fontWeight: 600,
-										color: '#A1A1AA',
-										background: '#fff',
-										cursor: 'not-allowed',
-									}}
-								>
-									Evidence
-								</div>
-								<div
-									style={{
-										padding: '8px 18px',
-										fontWeight: 600,
-										color: '#A1A1AA',
-										background: '#fff',
-										cursor: 'not-allowed',
-									}}
-								>
-									Communication Log
-								</div>
-								<div
-									style={{
-										padding: '8px 18px',
-										fontWeight: 600,
-										color: '#A1A1AA',
-										background: '#fff',
-										cursor: 'not-allowed',
-									}}
-								>
-									Resolution
 								</div>
 							</div>
 							{/* Claim Details from table data */}
@@ -560,11 +533,11 @@ const DisputePage: React.FC = () => {
 										Claimant
 									</div>
 									<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-										<img
-											src={selected.claimantAvatar}
-											alt={selected.profiles?.first_name || selected.user_id}
-											style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: '2px solid #F3EDE7' }}
-										/>						<div>
+											<img
+												src={selected.claimantAvatar || '/images/login-cover.png'}
+												alt={selected.profiles?.first_name || selected.user_id}
+												style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: '2px solid #F3EDE7' }}
+											/>										<div>
 							<div style={{ fontWeight: 600 }}>
 								{selected.claimant_profile?.first_name || selected.user_id}
 							</div>
@@ -591,7 +564,7 @@ const DisputePage: React.FC = () => {
 					</div>
 					<div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
 						<img
-							src={selected.respondentAvatar}
+							src={selected.respondentAvatar || '/images/login-cover.png'}
 							alt={selected.return_routes?.driver_profile?.first_name || 'No Driver'}
 							style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: '2px solid #F3EDE7' }}
 						/>
@@ -625,14 +598,6 @@ const DisputePage: React.FC = () => {
 									flexWrap: 'wrap',
 								}}
 							>
-								<div style={{ flex: 1, minWidth: 120 }}>
-									<div style={{ fontWeight: 700, color: '#222', fontSize: 15, marginBottom: 4 }}>
-										Dispute Type
-									</div>
-									<div style={{ fontWeight: 600, color: NAVY_BLUE }}>
-										{selected.type}
-									</div>
-								</div>
 								<div style={{ flex: 1, minWidth: 120 }}>
 									<div style={{ fontWeight: 700, color: '#222', fontSize: 15, marginBottom: 4 }}>
 										Date Filed

@@ -1,20 +1,36 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const NAVY_BLUE = '#1A237E';
 const ROYAL_ORANGE = '#FF8C00';
 
 const Settings = () => {
-  const [appName, setAppName] = useState('RouteLead');
   const [supportEmail, setSupportEmail] = useState('support@routelead.com');
+  const [supportPhone, setSupportPhone] = useState('+94 71 234 5678');
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
   const [pendingSave, setPendingSave] = useState(false);
 
+  // Prefill support phone with admin's phone number
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/users');
+        const data = await res.json();
+        const admin = Array.isArray(data) ? data.find((u: any) => String(u.role || '').toUpperCase() === 'ADMIN' && (u.phone_number || u.phoneNumber)) : null;
+        if (admin) {
+          setSupportPhone(admin.phoneNumber || admin.phone_number);
+        }
+      } catch {
+        // ignore if unavailable
+      }
+    })();
+  }, []);
+
   const handleReset = () => {
-    setAppName('RouteLead Dashboard');
     setSupportEmail('support@routelead.com');
+    setSupportPhone('+94 71 234 5678');
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -98,12 +114,12 @@ const Settings = () => {
         >
           <div style={{ flex: 1, minWidth: 260, maxWidth: 420, marginBottom: 24 }}>
             <label style={{ fontWeight: 600, marginBottom: 6, display: 'block', color: NAVY_BLUE }}>
-              Application Name
+              Support Contact Number
             </label>
             <input
-              type="text"
-              value={appName}
-              onChange={e => setAppName(e.target.value)}
+              type="tel"
+              value={supportPhone}
+              onChange={e => setSupportPhone(e.target.value)}
               style={{
                 width: '100%',
                 padding: '12px 16px',
@@ -115,7 +131,7 @@ const Settings = () => {
                 outline: 'none',
                 transition: 'border 0.2s',
               }}
-              placeholder="Enter application name"
+              placeholder="Enter support phone (e.g., +94 71 234 5678)"
             />
           </div>
           <div style={{ flex: 1, minWidth: 260, maxWidth: 420, marginBottom: 24 }}>
