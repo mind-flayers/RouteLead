@@ -6,6 +6,15 @@ import { useAuth } from '../../lib/auth';
 export default function WelcomeScreen() {
   const { user, signOut } = useAuth();
 
+  useEffect(() => {
+    // Immediately redirect based on role so this page is not shown post-login
+    if (user?.role === 'CUSTOMER') {
+      router.replace('/pages/customer/Dashboard');
+    } else if (user?.role === 'DRIVER') {
+      router.replace('/pages/driver/Dashboard');
+    }
+  }, [user]);
+
   const getWelcomeMessage = () => {
     if (!user) return 'Welcome!';
     switch (user.role) {
@@ -54,7 +63,7 @@ export default function WelcomeScreen() {
 
         <TouchableOpacity
           className="bg-primary rounded-xl p-4 w-full mb-4"
-          onPress={() => router.push('/(tabs)')}
+          onPress={() => router.push('/(tabs)/explore')}
         >
           <Text className="text-white text-lg font-bold text-center">
             Go to Dashboard
