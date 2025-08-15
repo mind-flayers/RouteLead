@@ -59,7 +59,16 @@ const barOptions = {
   },
   scales: {
     x: { grid: { display: false } },
-    y: { grid: { color: '#F3EDE7' }, beginAtZero: true },
+    y: {
+      grid: { color: '#F3EDE7' },
+      beginAtZero: true,
+      ticks: {
+        precision: 0,
+        callback: function(value: any) {
+          return Number.isInteger(value) ? value : '';
+        }
+      }
+    },
   },
 };
 
@@ -88,6 +97,9 @@ const Dashboard: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [routes, setRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [trendMonths, setTrendMonths] = useState<string[]>([]);
+  const [trendUsers, setTrendUsers] = useState<number[]>([]);
+  const [trendRevenue, setTrendRevenue] = useState<number[]>([]);
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeRoutes: 0,
@@ -112,24 +124,25 @@ const Dashboard: React.FC = () => {
         const routesData = await routesRes.json();
         setRoutes(routesData.routes || []);
 
-        // Calculate stats (excluding admins)
-        const nonAdminUsers = usersData.filter((u: any) => u.role !== 'ADMIN');
+        // Calculate stats (excluding admins, case-insensitive)
+        const normalizeRole = (r: any) => String(r || '').toUpperCase();
+        const nonAdminUsers = usersData.filter((u: any) => normalizeRole(u.role) !== 'ADMIN');
         const totalUsers = nonAdminUsers.length;
-        const drivers = nonAdminUsers.filter((u: any) => u.role === 'DRIVER').length;
-        const customers = nonAdminUsers.filter((u: any) => u.role === 'CUSTOMER').length;
+        const drivers = nonAdminUsers.filter((u: any) => normalizeRole(u.role) === 'DRIVER').length;
+        const customers = nonAdminUsers.filter((u: any) => normalizeRole(u.role) === 'CUSTOMER').length;
         const activeRoutes = routesData.routes?.length || 0;
         const pendingDisputes = 0; // TODO: Add disputes API when available
-        const revenue = 0; // TODO: Add revenue calculation when available
+        const revenue = 0; // Placeholder; card will reflect latest trendRevenue below
 
-        setStats({
+        setStats(prev => ({
           totalUsers,
           activeRoutes,
           pendingDisputes,
-          revenue,
+          revenue: prev.revenue,
           drivers,
           customers,
           admins: 0
-        });
+        }));
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       }
@@ -139,13 +152,34 @@ const Dashboard: React.FC = () => {
     fetchData();
   }, []);
 
+  // Fetch real monthly trends for users from backend
+  useEffect(() => {
+    async function fetchTrends() {
+      try {
+        const res = await fetch('/api/admin/trends');
+        const data = await res.json();
+        if (data && Array.isArray(data.trends)) {
+          setTrendMonths(data.trends.map((t: any) => t.month));
+          setTrendUsers(data.trends.map((t: any) => t.users));
+          setTrendRevenue(data.trends.map((t: any) => t.revenue ?? 0));
+          // Update revenue card to show latest month's revenue
+          const latestRevenue = data.trends.length > 0 ? (data.trends[data.trends.length - 1].revenue ?? 0) : 0;
+          setStats(prev => ({ ...prev, revenue: latestRevenue }));
+        }
+      } catch (e) {
+        // keep defaults on failure
+      }
+    }
+    fetchTrends();
+  }, []);
+
   // Prepare chart data based on real data
   const barData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    labels: trendMonths.length > 0 ? trendMonths : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
     datasets: [
       {
         label: 'User Growth',
-        data: [stats.totalUsers * 0.1, stats.totalUsers * 0.2, stats.totalUsers * 0.3, stats.totalUsers * 0.4, stats.totalUsers * 0.5, stats.totalUsers],
+        data: trendUsers.length > 0 ? trendUsers : [0, 0, 0, 0, 0, 0],
         backgroundColor: '#FF8C00',
         borderRadius: 8,
         maxBarThickness: 32,
@@ -165,11 +199,11 @@ const Dashboard: React.FC = () => {
   };
 
   const incomeChartData = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+    labels: trendMonths.length > 0 ? trendMonths : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
     datasets: [
       {
         label: 'Monthly Income',
-        data: [stats.revenue * 0.1, stats.revenue * 0.2, stats.revenue * 0.3, stats.revenue * 0.4, stats.revenue * 0.5, stats.revenue],
+        data: trendRevenue.length > 0 ? trendRevenue : [0, 0, 0, 0, 0, 0],
         backgroundColor: '#1A237E',
         borderRadius: 8,
         maxBarThickness: 32,

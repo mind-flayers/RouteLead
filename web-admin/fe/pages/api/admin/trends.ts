@@ -42,26 +42,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const year = startYear + Math.floor((marchMonth + i) / 12);
       
       const startOfMonth = new Date(year, monthIndex, 1);
-      const endOfMonth = new Date(year, monthIndex + 1, 0);
-      
+      // Use FIRST DAY OF NEXT MONTH as exclusive upper bound to include full current month
+      const startOfNextMonth = new Date(year, monthIndex + 1, 1);
+
       const startDate = startOfMonth.toISOString();
-      const endDate = endOfMonth.toISOString();
+      const endDate = startOfNextMonth.toISOString();
       
       // Month name (Mar, Apr, etc.)
       const monthName = startOfMonth.toLocaleString('default', { month: 'short' });
       
       // Fetch data for this month
-      const [userCount, routeCount, bidCount] = await Promise.all([
+      const [userCount, routeCount, bidCount, revenueTotal] = await Promise.all([
         getUserCountForMonth(startDate, endDate),
         getRouteCountForMonth(startDate, endDate),
-        getBidCountForMonth(startDate, endDate)
+        getBidCountForMonth(startDate, endDate),
+        getRevenueForMonth(startDate, endDate)
       ]);
       
       monthlyData.push({
         month: monthName,
         users: userCount,
         routes: routeCount,
-        bids: bidCount
+        bids: bidCount,
+        revenue: revenueTotal
       });
     }
 
@@ -76,6 +79,7 @@ async function getUserCountForMonth(startDate: string, endDate: string): Promise
   const { count, error } = await adminSupabase
     .from('profiles')
     .select('*', { count: 'exact', head: true })
+    .neq('role', 'ADMIN')
     .gte('created_at', startDate)
     .lt('created_at', endDate);
   
@@ -121,4 +125,26 @@ async function getBidCountForMonth(startDate: string, endDate: string): Promise<
   }
   
   return count || 0;
+}
+
+async function getRevenueForMonth(startDate: string, endDate: string): Promise<number> {
+  try {
+    const { data, error } = await adminSupabase
+      .from('earnings')
+      .select('app_fee, earned_at')
+      .gte('earned_at', startDate)
+      .lt('earned_at', endDate);
+    if (error) {
+      console.error('Error getting revenue for month:', error);
+      return 0;
+    }
+    const total = (data || []).reduce((sum: number, row: any) => {
+      const v = typeof row.app_fee === 'string' ? parseFloat(row.app_fee) : Number(row.app_fee || 0);
+      return sum + (isNaN(v) ? 0 : v);
+    }, 0);
+    return Math.round(total);
+  } catch (e) {
+    console.error('Unexpected error in getRevenueForMonth:', e);
+    return 0;
+  }
 }
