@@ -31,7 +31,7 @@ export default function PastDeliveries() {
           <View className="flex-row justify-between">
             <TouchableOpacity
               className="bg-[#0D47A1] px-5 py-2 rounded-md"
-              onPress={() => {/* Complaints logic or navigation */}}
+              onPress={() => router.push('/pages/customer/Complaints')}
             >
               <Text className="text-white font-semibold">Complaints</Text>
             </TouchableOpacity>

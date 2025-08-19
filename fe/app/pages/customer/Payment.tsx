@@ -62,34 +62,15 @@ export default function Payment() {
          {/* Pay Now Button */}
         <TouchableOpacity
           className="bg-[#FFA726] mx-6 py-4 rounded-md flex-row items-center justify-center mt-2"
-          onPress={() => {/* Handle payment */}}
+          onPress={() => {
+            // Handle payment logic here
+            console.log('Processing payment...');
+            // Navigate to booking confirmation after payment
+            router.push('/pages/customer/BookingConfirmation');
+          }}
         >
           <Ionicons name="lock-closed-outline" size={20} color="#fff" />
           <Text style={styles.buttonText}>Pay now</Text>
-        </TouchableOpacity>
-
-        {/* Booking Confirmation Button */}
-        <TouchableOpacity
-  className="bg-[#0D47A1] mx-6 py-4 rounded-md flex-row items-center justify-center mt-4"
-  onPress={() => router.push('/pages/customer/BookingConfirmation')}
->
-  <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-  <Text style={styles.buttonText}>Booking Confirmation</Text>
-</TouchableOpacity>
-
-        {/* Chat Button */}
-        <TouchableOpacity
-          className="bg-white border border-[#FFA726] mx-6 py-4 rounded-md flex-row items-center justify-center mt-4"
-          onPress={() => {/* Navigate to chat page */}}
-        >
-          <Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFA726" />
-          <Text style={styles.chatButtonText}>Chat</Text>
-        </TouchableOpacity>
-
-        {/* Add new card */}
-        <TouchableOpacity className="flex-row items-center justify-center mt-6">
-          <Ionicons name="add" size={18} color="#FFA726" />
-          <Text style={styles.addCardText}>Add new card</Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -122,17 +103,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
     fontSize: 16,
-    marginLeft: 8,
-  },
-  chatButtonText: {
-    color: '#FFA726',
-    fontWeight: '600',
-    fontSize: 16,
-    marginLeft: 8,
-  },
-  addCardText: {
-    color: '#FFA726',
-    fontWeight: '600',
     marginLeft: 8,
   },
 });
