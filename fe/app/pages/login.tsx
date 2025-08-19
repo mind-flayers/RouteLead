@@ -40,6 +40,7 @@ export default function LoginScreen() {
       if (error) throw error;
 
       if (data?.user) {
+
         // Fetch the latest role from the profile to avoid using stale context
         const { data: profile } = await supabase
           .from('profiles')
@@ -53,6 +54,7 @@ export default function LoginScreen() {
         if (role === 'CUSTOMER') {
           router.replace('/pages/customer/Dashboard');
         } else if (role === 'DRIVER') {
+
           router.replace('/pages/driver/Dashboard');
         } else {
           // Default fallback
