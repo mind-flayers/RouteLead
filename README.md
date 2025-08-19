@@ -105,7 +105,6 @@ cd be
 chmod +x gradlew
 
 # Run the app
-override
 ./gradlew bootRun
 ```
 
