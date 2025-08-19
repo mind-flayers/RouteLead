@@ -13,6 +13,7 @@ const Analytics = () => {
   const [routes, setRoutes] = useState<any[]>([]);
   const [bids, setBids] = useState<any[]>([]);
   const [disputes, setDisputes] = useState<any[]>([]);
+  const [activitiesUpdatedAt, setActivitiesUpdatedAt] = useState<Date | null>(null);
 
   // Stats
   const [stats, setStats] = useState<any[]>([]);
@@ -51,12 +52,13 @@ const Analytics = () => {
           }
         };
         
-        const [usersRes, routesRes, trendsRes, categoriesRes, activitiesRes] = await Promise.all([
+        const [usersRes, routesRes, trendsRes, categoriesRes, activitiesRes, disputesRes] = await Promise.all([
           fetchWithTimeout('/api/admin/users').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
           fetchWithTimeout('/api/admin/routes').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
           fetchWithTimeout('/api/admin/trends').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
           fetchWithTimeout('/api/admin/dispute-categories').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
-          fetchWithTimeout('/api/admin/activities').catch(err => ({ ok: false, json: () => Promise.resolve({}) }))
+          fetchWithTimeout('/api/admin/activities').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/disputes').catch(err => ({ ok: false, json: () => Promise.resolve({}) }))
         ]);
         
         // Parse response data
@@ -65,10 +67,12 @@ const Analytics = () => {
         const trendsData = await trendsRes.json();
         const categoriesData = await categoriesRes.json();
         const activitiesData = await activitiesRes.json();
+        const disputesData = await disputesRes.json();
         
         // Set state with fetched data
         setUsers(usersData);
         setRoutes(routesData.routes || []);          // Convert trends data to the format needed by our charts
+        setDisputes(disputesData.disputes || []);
         if (trendsData.trends && trendsData.trends.length > 0) {
           const routePoints = trendsData.trends.map((item: any) => item.routes);
           const bidPoints = trendsData.trends.map((item: any) => item.bids);
@@ -137,6 +141,12 @@ const Analytics = () => {
         
         const blockedAccounts = nonAdminUsers.filter((u: any) => normalizeStatus(u.verification_status) === 'REJECTED').length;
 
+        // From trends for latest month values (if present)
+        const latestTrend = (trendsData.trends && trendsData.trends.length > 0) ? trendsData.trends[trendsData.trends.length - 1] : null;
+        const newUsersThisMonth = latestTrend ? (latestTrend.users || 0) : 0;
+        const revenueThisMonth = latestTrend ? (latestTrend.revenue || 0) : 0;
+        const openDisputes = (disputesData.disputes || []).filter((d: any) => String(d.status || '').toUpperCase() === 'OPEN').length;
+
         setStats([
           {
             label: 'Total Users',
@@ -162,6 +172,21 @@ const Analytics = () => {
             label: 'Total Routes Posted',
             value: routesData.routes?.length || 0,
             desc: 'Total routes in system',
+          },
+          {
+            label: 'New Users (This Month)',
+            value: newUsersThisMonth,
+            desc: 'Added from trends',
+          },
+          {
+            label: 'Revenue (This Month)',
+            value: `Rs.${revenueThisMonth}`,
+            desc: 'App fee total',
+          },
+          {
+            label: 'Open Disputes',
+            value: openDisputes,
+            desc: 'Awaiting resolution',
           },
         ]);
 
@@ -195,7 +220,33 @@ const Analytics = () => {
     fetchAll();
   }, []);
 
+  // Realtime refresh for activities (poll every 10 seconds)
+  useEffect(() => {
+    let cancelled = false;
+    const refreshActivities = async () => {
+      try {
+        const res = await fetch('/api/admin/activities');
+        const data = await res.json();
+        if (!cancelled && data && Array.isArray(data.activities)) {
+          setActivities(data.activities);
+          setActivitiesUpdatedAt(new Date());
+        }
+      } catch (e) {
+        // ignore transient errors
+      }
+    };
+    const intervalId = setInterval(refreshActivities, 10000);
+    // Prime once quickly
+    refreshActivities();
+    return () => { cancelled = true; clearInterval(intervalId); };
+  }, []);
+
   const maxDemographic = demographics.length > 0 ? Math.max(...demographics.map(d => d.value)) : 1;
+  // Route status overview counts
+  const openRoutes = routes.filter((r: any) => r.status === 'OPEN').length;
+  const pendingRoutes = routes.filter((r: any) => r.status === 'PENDING').length;
+  const activeRoutes = routes.filter((r: any) => r.status === 'ACTIVE').length;
+  const suspendedRoutes = routes.filter((r: any) => r.status === 'SUSPENDED').length;
 
   if (loading) {
     return <div style={{ padding: 32, textAlign: 'center', color: NAVY_BLUE }}>Loading analytics...</div>;
@@ -415,22 +466,22 @@ const Analytics = () => {
             Distribution of user roles across the platform.
           </div>
           {/* Real Bar Chart using SVG */}
-          <div style={{ width: '100%', height: 180, marginBottom: 10, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-            <svg width="100%" height="100%" viewBox="0 0 140 160" style={{ width: '100%', maxWidth: 140 }}>
+          <div style={{ width: '100%', height: 220, marginBottom: 10, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', overflow: 'visible' }}>
+            <svg width="100%" height="100%" viewBox="0 0 200 200" style={{ width: '100%', maxWidth: 220, overflow: 'visible' }}>
               {/* Y axis lines and labels */}
               {[0, 0.25, 0.5, 0.75, 1].map((t, i) => (
                 <g key={i}>
                   <line
                     x1={30}
-                    x2={120}
-                    y1={160 - t * 140}
-                    y2={160 - t * 140}
+                    x2={180}
+                    y1={180 - t * 150}
+                    y2={180 - t * 150}
                     stroke="#E5E7EB"
                     strokeDasharray="2,2"
                   />
                   <text
                     x={24}
-                    y={164 - t * 140}
+                    y={184 - t * 150}
                     fontSize="11"
                     fill="#A1A1AA"
                     textAnchor="end"
@@ -442,22 +493,22 @@ const Analytics = () => {
               ))}
               {/* Bars */}
               {demographics.map((d, i) => {
-                const barHeight = (d.value / maxDemographic) * 140;
-                const x = 40 + i * 50;
+                const barHeight = (d.value / maxDemographic) * 150;
+                const x = 50 + i * 70;
                 const color = i === 0 ? '#4F46E5' : '#FF8C00';
                 return (
                   <g key={d.label}>
                     <rect
                       x={x}
-                      y={160 - barHeight}
-                      width={36}
+                      y={180 - barHeight}
+                      width={44}
                       height={barHeight}
                       rx={8}
                       fill={color}
                     />
                     <text
-                      x={x + 18}
-                      y={160 - barHeight - 8}
+                      x={x + 22}
+                      y={180 - barHeight - 10}
                       fontSize="13"
                       fill={NAVY_BLUE}
                       fontWeight={700}
@@ -466,11 +517,12 @@ const Analytics = () => {
                       {d.value}
                     </text>
                     <text
-                      x={x + 18}
-                      y={172}
-                      fontSize="13"
+                      x={x + 22}
+                      y={192}
+                      fontSize="14"
                       fill="#7B7B93"
                       textAnchor="middle"
+                      dominantBaseline="hanging"
                     >
                       {d.label}
                     </text>
@@ -481,9 +533,9 @@ const Analytics = () => {
           </div>
         </div>
       </div>
-      {/* Dispute Categories & Activities */}
+      {/* Overview & Activities */}
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 22 }}>
-        {/* Dispute Categories */}
+        {/* Route Status Overview (replaces Dispute Categories) */}
         <div style={{
           background: '#fff',
           borderRadius: 14,
@@ -495,47 +547,36 @@ const Analytics = () => {
           minHeight: 320,
           display: 'flex',
           flexDirection: 'column',
+          justifyContent: 'space-between'
         }}>
-          <div style={{ fontWeight: 700, fontSize: 17, color: NAVY_BLUE, marginBottom: 8 }}>
-            Top Dispute Categories
-          </div>
-          <div style={{ color: '#7B7B93', fontSize: 14, marginBottom: 10 }}>
-            Breakdown of disputes by common categories.
-          </div>
-          <div style={{ width: '100%', height: 160, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {/* Simple pie chart */}
-            <svg width="120" height="120" viewBox="0 0 120 120">
-              {(() => {
-                const total = disputeCategories.reduce((sum, d) => sum + d.value, 0) || 1;
-                let start = 0;
-                return disputeCategories.map((d, i) => {
-                  const angle = (d.value / total) * 360;
-                  const large = angle > 180 ? 1 : 0;
-                  const r = 50;
-                  const x1 = 60 + r * Math.cos((Math.PI * (start - 90)) / 180);
-                  const y1 = 60 + r * Math.sin((Math.PI * (start - 90)) / 180);
-                  const x2 = 60 + r * Math.cos((Math.PI * (start + angle - 90)) / 180);
-                  const y2 = 60 + r * Math.sin((Math.PI * (start + angle - 90)) / 180);
-                  const path = `
-                    M60,60
-                    L${x1},${y1}
-                    A${r},${r} 0 ${large} 1 ${x2},${y2}
-                    Z
-                  `;
-                  start += angle;
-                  return <path key={d.label} d={path} fill={d.color} />;
-                });
-              })()}
-            </svg>
-          </div>
-          <div style={{ fontSize: 13, color: '#7B7B93', marginTop: 2 }}>
-            {disputeCategories.map((d, i) => (
-              <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                <span style={{ width: 12, height: 12, background: d.color, borderRadius: '50%', display: 'inline-block' }} />
-                <span style={{ color: d.color, fontWeight: 700 }}>{d.label}</span>
-                <span style={{ color: '#7B7B93' }}>{d.value}</span>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 17, color: NAVY_BLUE, marginBottom: 8 }}>
+              Route Status Overview
+            </div>
+            <div style={{ color: '#7B7B93', fontSize: 14, marginBottom: 10 }}>
+              Current distribution of route statuses.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ background: '#F8F6F4', borderRadius: 10, padding: '12px 14px' }}>
+                <div style={{ fontSize: 13, color: '#7B7B93' }}>Open</div>
+                <div style={{ fontWeight: 800, fontSize: 22, color: NAVY_BLUE }}>{openRoutes}</div>
               </div>
-            ))}
+              <div style={{ background: '#FFF7ED', borderRadius: 10, padding: '12px 14px' }}>
+                <div style={{ fontSize: 13, color: '#7B7B93' }}>Pending</div>
+                <div style={{ fontWeight: 800, fontSize: 22, color: ROYAL_ORANGE }}>{pendingRoutes}</div>
+              </div>
+              <div style={{ background: '#EEF2FF', borderRadius: 10, padding: '12px 14px' }}>
+                <div style={{ fontSize: 13, color: '#7B7B93' }}>Active</div>
+                <div style={{ fontWeight: 800, fontSize: 22, color: NAVY_BLUE }}>{activeRoutes}</div>
+              </div>
+              <div style={{ background: '#F4F4F5', borderRadius: 10, padding: '12px 14px' }}>
+                <div style={{ fontSize: 13, color: '#7B7B93' }}>Suspended</div>
+                <div style={{ fontWeight: 800, fontSize: 22, color: '#6B7280' }}>{suspendedRoutes}</div>
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: '#A1A1AA' }}>
+            Updated from real-time routes data
           </div>
         </div>
         {/* Recent Activities */}
@@ -560,9 +601,9 @@ const Analytics = () => {
             {/* Status message */}
             <div style={{ fontSize: 13, color: '#7B7B93', marginBottom: 12 }}>
               {activities.length > 0 
-                ? `Showing the latest ${activities.length} system activities`
-                : 'No recent system activities found'
-              }
+                ? `Showing the latest ${activities.length} system activities` 
+                : 'No recent system activities found'}
+              {activitiesUpdatedAt ? ` • Updated ${activitiesUpdatedAt.toLocaleTimeString()}` : ''}
             </div>
             
             {/* Activities list - with proper error handling and guaranteed rendering */}

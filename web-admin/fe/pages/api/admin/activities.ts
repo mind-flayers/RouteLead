@@ -54,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: `bid-${b.id}`,
         type: 'BID_PLACED',
         icon: '💰',
-        text: `New bid placed: $${b.bid_amount || 'N/A'}`,
+        text: `New bid placed: Rs.${b.bid_amount || 'N/A'}`,
         time: getTimeElapsed(new Date(b.created_at)),
         created_at: b.created_at
       })),
