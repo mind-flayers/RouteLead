@@ -13,7 +13,7 @@ import java.util.UUID;
 
 @Slf4j
 @RestController
-@RequestMapping("/customer/bids")
+@RequestMapping("/api/customer/bids")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class CustomerBidController {

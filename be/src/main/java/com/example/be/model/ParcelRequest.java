@@ -1,6 +1,7 @@
 package com.example.be.model;
 
 import com.example.be.types.ParcelStatus;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.persistence.EnumType;
 import lombok.Getter;
@@ -28,28 +29,47 @@ public class ParcelRequest {
     @JoinColumn(name = "customer_id", nullable = false)
     private Profile customer;
 
+    @JsonProperty("customerId")
+    @Transient
+    private UUID customerId;
+
+    public UUID getCustomerId() {
+        return customerId != null ? customerId : (customer != null ? customer.getId() : null);
+    }
+
+    public void setCustomerId(UUID customerId) {
+        this.customerId = customerId;
+    }
+
     @Column(name = "pickup_lat", nullable = false, precision = 10, scale = 8)
+    @JsonProperty("pickupLat")
     private BigDecimal pickupLat;
 
     @Column(name = "pickup_lng", nullable = false, precision = 11, scale = 8)
+    @JsonProperty("pickupLng")
     private BigDecimal pickupLng;
 
     @Column(name = "dropoff_lat", nullable = false, precision = 10, scale = 8)
+    @JsonProperty("dropoffLat")
     private BigDecimal dropoffLat;
 
     @Column(name = "dropoff_lng", nullable = false, precision = 11, scale = 8)
+    @JsonProperty("dropoffLng")
     private BigDecimal dropoffLng;
 
     @Column(name = "weight_kg", nullable = false, precision = 10, scale = 2)
+    @JsonProperty("weightKg")
     private BigDecimal weightKg;
 
     @Column(name = "volume_m3", nullable = false, precision = 10, scale = 2)
+    @JsonProperty("volumeM3")
     private BigDecimal volumeM3;
 
     @Column(name = "description")
     private String description;
 
     @Column(name = "max_budget", nullable = false, precision = 10, scale = 2)
+    @JsonProperty("maxBudget")
     private BigDecimal maxBudget;
 
     @Column(name = "deadline", nullable = false)
@@ -96,6 +116,11 @@ public class ParcelRequest {
         }
         if (parcelPhotos == null) {
             parcelPhotos = List.of();
+        }
+        
+        // Validate volume is positive
+        if (volumeM3 != null && volumeM3.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Volume must be greater than 0");
         }
     }
 

@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import PrimaryCard from '@/components/ui/PrimaryCard';
 import { Config } from '@/constants/Config';
+import { RouteDetailsService, RouteDetailsData } from '@/services/routeDetailsService';
 
 export default function RouteDetails() {
   const params = useLocalSearchParams();
-  const [routeData, setRouteData] = useState<any>(null);
+  const [routeData, setRouteData] = useState<RouteDetailsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
   
   // Extract route data from params (matching MyRoutes structure)
   const routeId = params.id as string || '1cc88146-8e0b-41fa-a81a-17168a1407ec';
@@ -24,30 +26,82 @@ export default function RouteDetails() {
   const highestBid = params.highestBid as string || 'LKR 250.00';
 
   useEffect(() => {
-    fetchRouteDetails();
-  }, []);
+    loadRouteDetails();
+  }, [routeId]);
 
-  const fetchRouteDetails = async () => {
+  // Load route details with caching
+  const loadRouteDetails = async () => {
     try {
       setLoading(true);
-      // Use the mock endpoint for now - replace with real endpoint when available
-      const response = await fetch(`${Config.API_BASE}/routes/1cc88146-8e0b-41fa-a81a-17168a1407ec/details`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch route details');
+      setError(null);
+      
+      // Use the service to get route details (with caching)
+      const routeDetails = await RouteDetailsService.getRouteDetails(routeId, false);
+      
+      if (routeDetails) {
+        setRouteData(routeDetails);
+        setIsOffline(false);
+        console.log('Route details loaded successfully');
+      } else {
+        throw new Error('No route details available');
       }
-      const data = await response.json();
-      setRouteData(data);
-      console.log(data);
     } catch (err) {
-      console.error('Error fetching route details:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch route details');
+      console.error('Error loading route details:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load route details');
+      setIsOffline(true);
     } finally {
       setLoading(false);
     }
   };
 
+  // Refresh route details
+  const refreshRouteDetails = async () => {
+    try {
+      setError(null);
+      setLoading(true);
+      
+      // Force refresh from API
+      const routeDetails = await RouteDetailsService.getRouteDetails(routeId, true);
+      
+      if (routeDetails) {
+        setRouteData(routeDetails);
+        setIsOffline(false);
+        console.log('Route details refreshed successfully');
+      } else {
+        throw new Error('No route details available');
+      }
+    } catch (err) {
+      console.error('Error refreshing route details:', err);
+      setError(err instanceof Error ? err.message : 'Failed to refresh route details');
+      setIsOffline(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Clear cached route details
+  const clearCachedRouteDetails = async () => {
+    try {
+      await RouteDetailsService.clearCachedRouteDetails(routeId);
+      console.log('Cached route details cleared');
+      Alert.alert('Success', 'Cached route details have been cleared');
+    } catch (error) {
+      console.error('Failed to clear cached route details:', error);
+      Alert.alert('Error', 'Failed to clear cached data');
+    }
+  };
+
+  // Get cache statistics
+  const getCacheStats = async () => {
+    try {
+      const stats = await RouteDetailsService.getRouteDetailsCacheStats();
+      console.log('Route details cache statistics:', stats);
+      Alert.alert('Cache Stats', `Total cached routes: ${stats.totalCachedRoutes}\nCache keys: ${stats.cacheKeys.length}`);
+    } catch (error) {
+      console.error('Failed to get cache stats:', error);
+      Alert.alert('Error', 'Failed to get cache statistics');
+    }
+  };
 
   if (loading) {
     return (
@@ -62,6 +116,9 @@ export default function RouteDetails() {
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#FF6B35" />
           <Text className="mt-4 text-gray-600">Loading route details...</Text>
+          {isOffline && (
+            <Text className="mt-2 text-orange-600 text-sm">Loading from cache...</Text>
+          )}
         </View>
       </SafeAreaView>
     );
@@ -81,12 +138,23 @@ export default function RouteDetails() {
           <Ionicons name="alert-circle" size={48} color="#EF4444" />
           <Text className="mt-4 text-lg font-semibold text-gray-800">Error Loading Route</Text>
           <Text className="mt-2 text-gray-600 text-center">{error}</Text>
-          <TouchableOpacity 
-            onPress={fetchRouteDetails}
-            className="mt-4 bg-orange-500 px-6 py-3 rounded-lg"
-          >
-            <Text className="text-white font-semibold">Retry</Text>
-          </TouchableOpacity>
+          {isOffline && (
+            <Text className="mt-2 text-orange-600 text-sm">You&apos;re currently offline</Text>
+          )}
+          <View className="flex-row mt-4 space-x-2">
+            <TouchableOpacity 
+              onPress={refreshRouteDetails}
+              className="bg-orange-500 px-4 py-3 rounded-lg"
+            >
+              <Text className="text-white font-semibold">Retry</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={getCacheStats}
+              className="bg-gray-500 px-4 py-3 rounded-lg"
+            >
+              <Text className="text-white font-semibold">Cache Info</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -117,10 +185,29 @@ export default function RouteDetails() {
           <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
         <Text className="text-xl font-bold">Route Details</Text>
-        <View className="w-6" /> {/* Spacer for centering */}
+        <View className="flex-row items-center space-x-2">
+          {isOffline && (
+            <Ionicons name="cloud-offline" size={20} color="#FF6B35" />
+          )}
+          <TouchableOpacity onPress={refreshRouteDetails}>
+            <Ionicons name="refresh" size={20} color="#FF6B35" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, paddingBottom: 80 }}>
+        {/* Cache Status Indicator */}
+        {isOffline && (
+          <View className="mb-4 bg-orange-50 p-3 rounded-lg border border-orange-200">
+            <View className="flex-row items-center">
+              <Ionicons name="information-circle" size={16} color="#FF6B35" />
+              <Text className="ml-2 text-orange-700 text-sm">
+                Showing cached data - You&apos;re offline
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Route Image */}
         <View className="mb-4">
           <Image
@@ -212,6 +299,25 @@ export default function RouteDetails() {
           
         </PrimaryCard>
 
+        {/* Cache Management Buttons */}
+        <PrimaryCard style={{ marginBottom: 16 }}>
+          <Text className="text-base font-semibold mb-3">Cache Management</Text>
+          <View className="flex-row justify-between">
+            <TouchableOpacity 
+              onPress={clearCachedRouteDetails}
+              className="bg-red-500 px-4 py-2 rounded-lg flex-1 mr-2"
+            >
+              <Text className="text-white text-center font-semibold">Clear Cache</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={getCacheStats}
+              className="bg-gray-500 px-4 py-2 rounded-lg flex-1 ml-2"
+            >
+              <Text className="text-white text-center font-semibold">Cache Info</Text>
+            </TouchableOpacity>
+          </View>
+        </PrimaryCard>
+
         {/* Action Buttons */}
         <View className="flex-row justify-between mb-10">
           <PrimaryButton
@@ -235,8 +341,6 @@ export default function RouteDetails() {
           />
         </View>
       </ScrollView>
-
-
     </SafeAreaView>
   );
 }

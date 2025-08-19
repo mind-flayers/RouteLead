@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Config } from '@/constants/Config';
+import { supabase } from '@/lib/supabase';
 
 export default function RequestParcel() {
   const router = useRouter();
@@ -17,15 +18,81 @@ export default function RequestParcel() {
   const [width, setWidth] = useState('');
   const [height, setHeight] = useState('');
   const [description, setDescription] = useState('');
+  const [pickupContactName, setPickupContactName] = useState('');
+  const [pickupContactPhone, setPickupContactPhone] = useState('');
+  const [deliveryContactName, setDeliveryContactName] = useState('');
+  const [deliveryContactPhone, setDeliveryContactPhone] = useState('');
   const [requestingParcel, setRequestingParcel] = useState(false);
-  
-  // TODO: Replace with actual customerId from context or authentication
-  const customerId = '70ba4867-edcb-4628-b614-7bb60e935862';
+  const [customerId, setCustomerId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [calculatedVolume, setCalculatedVolume] = useState<number | null>(null);
+
+  // Calculate volume when dimensions change
+  useEffect(() => {
+    const lengthValue = parseFloat(length);
+    const widthValue = parseFloat(width);
+    const heightValue = parseFloat(height);
+    
+    if (!isNaN(lengthValue) && !isNaN(widthValue) && !isNaN(heightValue) && 
+        lengthValue > 0 && widthValue > 0 && heightValue > 0) {
+      const volumeM3 = (lengthValue * widthValue * heightValue) / 1000000;
+      setCalculatedVolume(volumeM3);
+    } else {
+      setCalculatedVolume(null);
+    }
+  }, [length, width, height]);
+
+  // Get authenticated user ID
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (error || !user) {
+          Alert.alert('Authentication Error', 'Please log in to request a parcel.');
+          router.push('/pages/login');
+          return;
+        }
+        
+        // Print whole user data
+        console.log('Whole user data:', JSON.stringify(user, null, 2));
+        console.log('User ID:', user.id);
+        console.log('User email:', user.email);
+        console.log('User metadata:', user.user_metadata);
+        
+        setCustomerId(user.id);
+        
+        // Auto-fill contact information from user metadata
+        const userMetadata = user.user_metadata || {};
+        const fullName = userMetadata.full_name || userMetadata.name || user.email?.split('@')[0] || 'Customer';
+        const phone = userMetadata.phone || userMetadata.phone_number || '+94 999999999';
+        
+        setPickupContactName(fullName);
+        setPickupContactPhone(phone);
+        setDeliveryContactName(fullName);
+        setDeliveryContactPhone(phone);
+      } catch (err) {
+        console.error('Error getting current user:', err);
+        Alert.alert('Error', 'Failed to get user information.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getCurrentUser();
+  }, []);
 
   const handleRequestParcel = async () => {
+    // Check if user is authenticated
+    if (!customerId) {
+      Alert.alert('Authentication Error', 'Please log in to request a parcel.');
+      return;
+    }
+
     // Validate all required fields
-    if (!weight || !length || !width || !height || !description) {
-      Alert.alert('Validation Error', 'Please fill in all fields.');
+    if (!weight || !length || !width || !height || !description || 
+        !pickupContactName || !pickupContactPhone || !deliveryContactName || !deliveryContactPhone) {
+      Alert.alert('Validation Error', 'Please fill in all fields including contact information.');
       return;
     }
     
@@ -50,10 +117,17 @@ export default function RequestParcel() {
       
       // Calculate volume from dimensions (convert cm³ to m³)
       const volumeM3 = (lengthValue * widthValue * heightValue) / 1000000;
+      console.log('Volume calculation:', {
+        length: lengthValue,
+        width: widthValue,
+        height: heightValue,
+        volumeCm3: lengthValue * widthValue * heightValue,
+        volumeM3: volumeM3
+      });
       
       // Create parcel request
       const requestData = {
-        customer: { id: customerId },
+        customerId: customerId,
         pickupLat: 6.9271, // TODO: Get from route details
         pickupLng: 79.8612, // TODO: Get from route details
         dropoffLat: 6.9934, // TODO: Get from route details
@@ -63,10 +137,10 @@ export default function RequestParcel() {
         description: description,
         maxBudget: 1000.00, // TODO: Get from user input or default
         deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
-        pickupContactName: "Customer", // TODO: Get from user profile
-        pickupContactPhone: "+94 999999999", // TODO: Get from user profile
-        deliveryContactName: "Customer", // TODO: Get from user profile
-        deliveryContactPhone: "+94 999999999" // TODO: Get from user profile
+        pickupContactName: pickupContactName,
+        pickupContactPhone: pickupContactPhone,
+        deliveryContactName: deliveryContactName,
+        deliveryContactPhone: deliveryContactPhone
       };
       
       console.log('Sending parcel request to backend:', requestData);
@@ -85,29 +159,25 @@ export default function RequestParcel() {
         throw new Error(`Failed to request parcel: ${response.status} - ${errorText}`);
       }
       
-      // Check if response has content before parsing JSON
-      const responseText = await response.text();
-      console.log('Backend response:', responseText);
-      
-      let result = null;
-      if (responseText && responseText.trim()) {
-        try {
-          result = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error('JSON parse error:', parseError);
-          // If it's a 201 status, the request was successful even without JSON response
-          if (response.status === 201) {
-            result = { success: true };
-          } else {
-            throw new Error(`Invalid JSON response: ${responseText}`);
-          }
-        }
-      } else if (response.status === 201) {
-        // Empty response but 201 status means success
-        result = { success: true };
-      }
+      // Parse response JSON to get created request ID
+      const result = await response.json().catch(() => ({} as any));
+      const createdRequestId = result?.id as string | undefined;
+      console.log('Created parcel request ID:', createdRequestId);
       Alert.alert('Success!', 'Your parcel request has been submitted successfully.', [
-        { text: 'OK', onPress: () => router.push('/pages/customer/RequestConfirmation') }
+        { text: 'OK', onPress: () => router.push({
+          pathname: '/pages/customer/RequestConfirmation',
+          params: {
+            routeId: routeId,
+            requestId: createdRequestId,
+            weight: `${weightValue} kg`,
+            volume: `${volumeM3.toFixed(4)} m³`,
+            description: description,
+            pickupContactName: pickupContactName,
+            pickupContactPhone: pickupContactPhone,
+            deliveryContactName: deliveryContactName,
+            deliveryContactPhone: deliveryContactPhone
+          }
+        }) }
       ]);
     } catch (err) {
       console.error('Error requesting parcel:', err);
@@ -116,6 +186,14 @@ export default function RequestParcel() {
       setRequestingParcel(false);
     }
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -164,15 +242,67 @@ export default function RequestParcel() {
             placeholder="Height (cm)"
             placeholderTextColor="#555"
             style={[styles.input, { flex: 1, marginLeft: 4 }]}
-          />
-        </View>
-        <Text style={styles.label}>Description</Text>
+                     />
+         </View>
+         
+         {/* Volume Display */}
+         {calculatedVolume !== null && (
+           <View style={styles.volumeInfo}>
+             <Text style={styles.volumeLabel}>Calculated Volume:</Text>
+             <Text style={styles.volumeValue}>{calculatedVolume.toFixed(4)} m³</Text>
+           </View>
+         )}
+         
+         <Text style={styles.label}>Description</Text>
         <TextInput
           value={description}
           onChangeText={setDescription}
           placeholder="Describe your parcel (e.g., Fragile electronics, books, etc.)"
           placeholderTextColor="#555"
           style={styles.input}
+        />
+      </View>
+
+      {/* Contact Information */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Pickup Contact Information</Text>
+        <Text style={styles.label}>Contact Name</Text>
+        <TextInput
+          value={pickupContactName}
+          onChangeText={setPickupContactName}
+          placeholder="Enter pickup contact name"
+          placeholderTextColor="#555"
+          style={styles.input}
+        />
+        <Text style={styles.label}>Contact Phone</Text>
+        <TextInput
+          value={pickupContactPhone}
+          onChangeText={setPickupContactPhone}
+          placeholder="Enter pickup contact phone"
+          placeholderTextColor="#555"
+          style={styles.input}
+          keyboardType="phone-pad"
+        />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Delivery Contact Information</Text>
+        <Text style={styles.label}>Contact Name</Text>
+        <TextInput
+          value={deliveryContactName}
+          onChangeText={setDeliveryContactName}
+          placeholder="Enter delivery contact name"
+          placeholderTextColor="#555"
+          style={styles.input}
+        />
+        <Text style={styles.label}>Contact Phone</Text>
+        <TextInput
+          value={deliveryContactPhone}
+          onChangeText={setDeliveryContactPhone}
+          placeholder="Enter delivery contact phone"
+          placeholderTextColor="#555"
+          style={styles.input}
+          keyboardType="phone-pad"
         />
       </View>
 
@@ -201,6 +331,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1976D2',
+    marginBottom: 12,
   },
   routeInfo: {
     backgroundColor: '#E3F2FD',
@@ -252,5 +388,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     fontSize: 16,
+  },
+  volumeInfo: {
+    backgroundColor: '#E8F5E8',
+    padding: 12,
+    borderRadius: 6,
+    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  volumeLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#2E7D32',
+  },
+  volumeValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1B5E20',
   },
 });

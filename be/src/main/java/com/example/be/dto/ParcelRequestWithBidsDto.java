@@ -19,6 +19,10 @@ public class ParcelRequestWithBidsDto {
     private java.math.BigDecimal maxBudget;
     private java.time.ZonedDateTime deadline;
     private com.example.be.types.ParcelStatus status;
+    private String pickupContactName;
+    private String pickupContactPhone;
+    private String deliveryContactName;
+    private String deliveryContactPhone;
     private java.time.ZonedDateTime createdAt;
     private java.time.ZonedDateTime updatedAt;
     

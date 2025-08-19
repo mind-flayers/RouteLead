@@ -294,6 +294,34 @@ class CacheManager {
   }
 
   /**
+   * Get all cache keys
+   */
+  async getAllKeys(): Promise<string[]> {
+    try {
+      return [...(await AsyncStorage.getAllKeys())];
+    } catch (error) {
+      console.warn('Failed to get all cache keys:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get cache item with metadata
+   */
+  async getCacheItem<T>(key: string): Promise<CacheItem<T> | null> {
+    try {
+      const data = await AsyncStorage.getItem(key);
+      if (data) {
+        return JSON.parse(data);
+      }
+      return null;
+    } catch (error) {
+      console.warn('Failed to get cache item:', error);
+      return null;
+    }
+  }
+
+  /**
    * Get cache statistics
    */
   getCacheStats(): {

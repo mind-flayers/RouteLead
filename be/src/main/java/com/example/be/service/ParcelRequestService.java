@@ -3,6 +3,7 @@ package com.example.be.service;
 import com.example.be.model.ParcelRequest;
 import com.example.be.repository.ParcelRequestRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,6 +12,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ParcelRequestService {
     private final ParcelRequestRepository repo;
 
@@ -21,6 +23,9 @@ public class ParcelRequestService {
 
     @Transactional
     public void createNative(ParcelRequest pr) {
+        log.info("Service: Creating parcel request with volume: {} m³", pr.getVolumeM3());
+        log.info("Service: Weight: {} kg, Description: {}", pr.getWeightKg(), pr.getDescription());
+        
         repo.insertParcelRequestWithEnum(
             pr.getCustomer() != null ? pr.getCustomer().getId() : null,
             pr.getPickupLat(),
@@ -33,6 +38,10 @@ public class ParcelRequestService {
             pr.getMaxBudget(),
             pr.getDeadline(),
             pr.getStatus().name(),
+            pr.getPickupContactName(),
+            pr.getPickupContactPhone(),
+            pr.getDeliveryContactName(),
+            pr.getDeliveryContactPhone(),
             pr.getCreatedAt() != null ? pr.getCreatedAt() : java.time.ZonedDateTime.now(),
             pr.getUpdatedAt() != null ? pr.getUpdatedAt() : java.time.ZonedDateTime.now()
         );
@@ -52,6 +61,10 @@ public class ParcelRequestService {
             pr.getMaxBudget(),
             pr.getDeadline(),
             pr.getStatus().name(),
+            pr.getPickupContactName(),
+            pr.getPickupContactPhone(),
+            pr.getDeliveryContactName(),
+            pr.getDeliveryContactPhone(),
             pr.getCreatedAt() != null ? pr.getCreatedAt() : java.time.ZonedDateTime.now(),
             pr.getUpdatedAt() != null ? pr.getUpdatedAt() : java.time.ZonedDateTime.now()
         );

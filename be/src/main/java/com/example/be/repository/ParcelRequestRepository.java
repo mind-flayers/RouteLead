@@ -10,10 +10,12 @@ import java.util.List;
 import java.util.UUID;
 
 public interface ParcelRequestRepository extends JpaRepository<ParcelRequest, UUID> {
-    List<ParcelRequest> findByCustomerId(UUID customerId);
+    // Find parcel requests by customer ID using custom query
+    @Query("SELECT pr FROM ParcelRequest pr WHERE pr.customer.id = :customerId")
+    List<ParcelRequest> findByCustomerId(@org.springframework.data.repository.query.Param("customerId") UUID customerId);
 
-    @Query(value = "INSERT INTO parcel_requests (customer_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, weight_kg, volume_m3, description, max_budget, deadline, status, created_at, updated_at) " +
-            "VALUES (:customerId, :pickupLat, :pickupLng, :dropoffLat, :dropoffLng, :weightKg, :volumeM3, :description, :maxBudget, :deadline, CAST(:status AS parcel_status), :createdAt, :updatedAt) " +
+    @Query(value = "INSERT INTO parcel_requests (customer_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, weight_kg, volume_m3, description, max_budget, deadline, status, pickup_contact_name, pickup_contact_phone, delivery_contact_name, delivery_contact_phone, created_at, updated_at) " +
+            "VALUES (:customerId, :pickupLat, :pickupLng, :dropoffLat, :dropoffLng, :weightKg, :volumeM3, :description, :maxBudget, :deadline, CAST(:status AS parcel_status), :pickupContactName, :pickupContactPhone, :deliveryContactName, :deliveryContactPhone, :createdAt, :updatedAt) " +
             "RETURNING id", nativeQuery = true)
     UUID insertParcelRequestWithEnumAndReturnId(
             UUID customerId,
@@ -27,14 +29,18 @@ public interface ParcelRequestRepository extends JpaRepository<ParcelRequest, UU
             java.math.BigDecimal maxBudget,
             java.time.ZonedDateTime deadline,
             String status,
+            String pickupContactName,
+            String pickupContactPhone,
+            String deliveryContactName,
+            String deliveryContactPhone,
             java.time.ZonedDateTime createdAt,
             java.time.ZonedDateTime updatedAt
     );
     
     @Modifying
     @Transactional
-    @Query(value = "INSERT INTO parcel_requests (customer_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, weight_kg, volume_m3, description, max_budget, deadline, status, created_at, updated_at) " +
-            "VALUES (:customerId, :pickupLat, :pickupLng, :dropoffLat, :dropoffLng, :weightKg, :volumeM3, :description, :maxBudget, :deadline, CAST(:status AS parcel_status), :createdAt, :updatedAt)", nativeQuery = true)
+    @Query(value = "INSERT INTO parcel_requests (customer_id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, weight_kg, volume_m3, description, max_budget, deadline, status, pickup_contact_name, pickup_contact_phone, delivery_contact_name, delivery_contact_phone, created_at, updated_at) " +
+            "VALUES (:customerId, :pickupLat, :pickupLng, :dropoffLat, :dropoffLng, :weightKg, :volumeM3, :description, :maxBudget, :deadline, CAST(:status AS parcel_status), :pickupContactName, :pickupContactPhone, :deliveryContactName, :deliveryContactPhone, :createdAt, :updatedAt)", nativeQuery = true)
     void insertParcelRequestWithEnum(
             UUID customerId,
             java.math.BigDecimal pickupLat,
@@ -47,6 +53,10 @@ public interface ParcelRequestRepository extends JpaRepository<ParcelRequest, UU
             java.math.BigDecimal maxBudget,
             java.time.ZonedDateTime deadline,
             String status,
+            String pickupContactName,
+            String pickupContactPhone,
+            String deliveryContactName,
+            String deliveryContactPhone,
             java.time.ZonedDateTime createdAt,
             java.time.ZonedDateTime updatedAt
     );

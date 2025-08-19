@@ -15,7 +15,7 @@ import java.util.HashMap;
 
 @Slf4j
 @RestController
-@RequestMapping("/bids")
+@RequestMapping("/api/bids")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class BidController {

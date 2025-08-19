@@ -21,6 +21,10 @@ public class ParcelRequestDto {
     private BigDecimal maxBudget;
     private ZonedDateTime deadline;
     private ParcelStatus status;
+    private String pickupContactName;
+    private String pickupContactPhone;
+    private String deliveryContactName;
+    private String deliveryContactPhone;
     private ZonedDateTime createdAt;
     private ZonedDateTime updatedAt;
 }
@@ -36,6 +40,10 @@ class ParcelRequestCreateDto {
     private String description;
     private BigDecimal maxBudget;
     private ZonedDateTime deadline;
+    private String pickupContactName;
+    private String pickupContactPhone;
+    private String deliveryContactName;
+    private String deliveryContactPhone;
 }
 
 @Data
@@ -50,4 +58,8 @@ class ParcelRequestUpdateDto {
     private BigDecimal maxBudget;
     private ZonedDateTime deadline;
     private ParcelStatus status;
+    private String pickupContactName;
+    private String pickupContactPhone;
+    private String deliveryContactName;
+    private String deliveryContactPhone;
 } 
