@@ -5,24 +5,24 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const adminSupabase = createClient(supabaseUrl, serviceRoleKey);
 
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY!;
+// Prefer backend API for place names; fallback to Google if needed
+const BACKEND_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
 
-async function reverseGeocode(lat: number, lng: number) {
+async function fetchPlaceNames(originLat: number, originLng: number, destLat: number, destLng: number) {
   try {
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`;
+    const url = `${BACKEND_BASE_URL}/api/routes/directions?originLat=${originLat}&originLng=${originLng}&destLat=${destLat}&destLng=${destLng}`;
     const res = await fetch(url);
     if (!res.ok) {
-      console.error('Geocoding failed:', res.status, res.statusText);
-      return '';
+      return { origin_name: '', destination_name: '' };
     }
     const data = await res.json();
-    if (data.results && data.results.length > 0) {
-      return data.results[0].formatted_address;
-    }
-    return '';
+    const first = Array.isArray(data.routes) && data.routes.length > 0 ? data.routes[0] : null;
+    return {
+      origin_name: first?.start_address || '',
+      destination_name: first?.end_address || ''
+    };
   } catch (e) {
-    console.error('Geocoding error:', e);
-    return '';
+    return { origin_name: '', destination_name: '' };
   }
 }
 
@@ -71,8 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Optionally reverse geocode for the response
-    const origin_name = await reverseGeocode(data.origin_lat, data.origin_lng);
-    const destination_name = await reverseGeocode(data.destination_lat, data.destination_lng);
+    const { origin_name, destination_name } = await fetchPlaceNames(data.origin_lat, data.origin_lng, data.destination_lat, data.destination_lng);
     const route = {
       ...data,
       origin_name,
@@ -104,8 +103,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!data) {
       return res.status(404).json({ error: 'Route not found' });
     }
-    const origin_name = await reverseGeocode(data.origin_lat, data.origin_lng);
-    const destination_name = await reverseGeocode(data.destination_lat, data.destination_lng);
+    const { origin_name, destination_name } = await fetchPlaceNames(data.origin_lat, data.origin_lng, data.destination_lat, data.destination_lng);
     const route = {
       ...data,
       driver: data.profiles,
@@ -133,8 +131,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Reverse geocode origin and destination for each route
   const routes = await Promise.all((data || []).map(async (route) => {
-    const origin_name = await reverseGeocode(route.origin_lat, route.origin_lng);
-    const destination_name = await reverseGeocode(route.destination_lat, route.destination_lng);
+    const { origin_name, destination_name } = await fetchPlaceNames(route.origin_lat, route.origin_lng, route.destination_lat, route.destination_lng);
     return {
       ...route,
       driver: route.profiles,

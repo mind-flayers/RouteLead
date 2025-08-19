@@ -98,6 +98,98 @@ export interface PendingBid {
   createdAt: string;
 }
 
+// Bid-related types
+export interface BidDto {
+  id: string;
+  requestId: string;
+  routeId: string;
+  startIndex: number;
+  endIndex: number;
+  offeredPrice: number;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'COMPLETED' | 'CANCELLED';
+  createdAt: string;
+  updatedAt: string;
+  driverName?: string;
+  vehicleInfo?: string;
+  customerName?: string;
+  isPaid?: boolean; // Payment status
+  fromLocation?: string; // Route origin
+  toLocation?: string; // Route destination
+  estimatedTime?: string; // Estimated travel time
+  estimatedPrice?: number; // Estimated route price
+}
+
+// Bid API functions
+export const getBidById = async (bidId: string): Promise<BidDto> => {
+  try {
+    console.log('Fetching bid by ID:', bidId);
+    const response = await fetch(`${API_BASE_URL}/bids/${bidId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Bid data received:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching bid by ID:', error);
+    throw error;
+  }
+};
+
+export const getAllBids = async (): Promise<BidDto[]> => {
+  try {
+    console.log('Fetching all bids');
+    const response = await fetch(`${API_BASE_URL}/bids`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('All bids data received:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching all bids:', error);
+    throw error;
+  }
+};
+
+// Get bids by customer ID (if your backend supports this)
+export const getBidsByCustomerId = async (customerId: string): Promise<BidDto[]> => {
+  try {
+    console.log('Fetching bids for customer:', customerId);
+    const response = await fetch(`${API_BASE_URL}/bids/customer/${customerId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('Customer bids data received:', data);
+    return data;
+  } catch (error) {
+    console.error('Error fetching customer bids:', error);
+    throw error;
+  }
+};
+
 // API utility functions
 const getAuthHeaders = async () => {
   const token = await AsyncStorage.getItem('authToken');
@@ -114,6 +206,69 @@ const handleApiResponse = async (response: Response) => {
   }
   return response.json();
 };
+
+// Route interfaces
+export interface MyRoute {
+  id: string;
+  originLat: number;
+  originLng: number;
+  destinationLat: number;
+  destinationLng: number;
+  departureTime: string;
+  status: 'INITIATED' | 'OPEN' | 'BOOKED' | 'COMPLETED' | 'CANCELLED';
+  originLocationName?: string;
+  destinationLocationName?: string;
+  createdAt: string;
+  biddingEndTime: string;
+  bidCount: number;
+  highestBidAmount?: number;
+}
+
+export interface DetailedBid {
+  id: string;
+  requestId: string;
+  routeId: string;
+  offeredPrice: number;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  createdAt: string;
+  
+  // Customer details
+  customerFirstName?: string;
+  customerLastName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  
+  // Parcel details
+  pickupLat: number;
+  pickupLng: number;
+  dropoffLat: number;
+  dropoffLng: number;
+  weightKg: number;
+  volumeM3: number;
+  description?: string;
+  pickupLocationName?: string;
+  dropoffLocationName?: string;
+  
+  // Bid details
+  specialInstructions?: string;
+  pickupTime?: string;
+  deliveryTime?: string;
+}
+
+export interface ViewBidsResponse {
+  routeId: string;
+  routeOriginLat: number;
+  routeOriginLng: number;
+  routeDestinationLat: number;
+  routeDestinationLng: number;
+  routeOriginLocationName?: string;
+  routeDestinationLocationName?: string;
+  departureTime: string;
+  biddingEndTime: string;
+  isActive: boolean;
+  bids: DetailedBid[];
+  acceptedBids: DetailedBid[];
+}
 
 // API Service
 export class ApiService {
@@ -314,6 +469,107 @@ export class ApiService {
 
   private static deg2rad(deg: number): number {
     return deg * (Math.PI/180);
+  }
+
+  // MyRoutes API
+  static async getMyRoutes(driverId: string, status?: string): Promise<MyRoute[]> {
+    try {
+      const statusParam = status ? `&status=${status}` : '';
+      const response = await fetch(
+        `${API_BASE_URL}/driver/routes?driverId=${driverId}${statusParam}`,
+        {
+          method: 'GET',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch routes: ${response.status}`);
+      }
+
+      const routes = await response.json();
+      
+      // Transform the response to match our MyRoute interface with async location formatting
+      const routesWithLocations = await Promise.all(routes.map(async (route: any) => {
+        // Format location names if they're coordinates
+        const originLocationName = route.originLocationName || 
+          await formatLocation(`${route.originLat}, ${route.originLng}`);
+        const destinationLocationName = route.destinationLocationName || 
+          await formatLocation(`${route.destinationLat}, ${route.destinationLng}`);
+
+        return {
+          id: route.id,
+          originLat: route.originLat,
+          originLng: route.originLng,
+          destinationLat: route.destinationLat,
+          destinationLng: route.destinationLng,
+          departureTime: route.departureTime,
+          status: route.status,
+          originLocationName,
+          destinationLocationName,
+          createdAt: route.createdAt,
+          biddingEndTime: route.departureTime, // Use departure time for now
+          bidCount: route.totalBidsCount || 0,
+          highestBidAmount: route.highestBidAmount,
+        };
+      }));
+
+      return routesWithLocations;
+    } catch (error) {
+      console.error('Error fetching my routes:', error);
+      throw error;
+    }
+  }
+
+  // ViewBids API
+  static async getViewBids(routeId: string, sort?: string, filter?: string): Promise<ViewBidsResponse> {
+    try {
+      const params = new URLSearchParams();
+      // Add mock driver ID for now - in real app, get from auth context
+      params.append('driverId', '797c6f16-a06a-46b4-ae9f-9ded8aa4ab27');
+      if (sort) params.append('sort', sort);
+      if (filter) params.append('filter', filter);
+      
+      const queryString = params.toString();
+      const url = `${API_BASE_URL}/driver/routes/${routeId}/view-bids?${queryString}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: await getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch bids: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching view bids:', error);
+      throw error;
+    }
+  }
+
+  // Bid Status Update API
+  static async updateBidStatus(bidId: string, status: 'ACCEPTED' | 'REJECTED'): Promise<DetailedBid> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL.replace('/api', '')}/bids/${bidId}/status`,
+        {
+          method: 'PATCH',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({ status }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to update bid status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating bid status:', error);
+      throw error;
+    }
   }
 };
 

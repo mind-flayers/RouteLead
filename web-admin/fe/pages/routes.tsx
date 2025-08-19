@@ -11,13 +11,17 @@ const statusColors: { [key: string]: string } = {
   OPEN: GREEN,
   PENDING: ROYAL_ORANGE,
   SUSPENDED: GREY,
-  BLOCKED: '#EF4444',
   ACTIVE: GREEN,
 };
 
 const RouteDashboard = () => {
   const [statusFilter, setStatusFilter] = useState('All');
-  const [search, setSearch] = useState('');
+  const [originFilter, setOriginFilter] = useState('');
+  const [destinationFilter, setDestinationFilter] = useState('');
+  const [driverFilter, setDriverFilter] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+  // Removed date filters per requirement
   const [routes, setRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -75,6 +79,22 @@ const RouteDashboard = () => {
     verticalAlign: 'middle',
   };
 
+  // Constrain wide text columns to avoid excessive gaps between columns
+  const originCellStyle: React.CSSProperties = {
+    ...cellStyle,
+    maxWidth: 260,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  };
+  const destinationCellStyle: React.CSSProperties = {
+    ...cellStyle,
+    maxWidth: 300,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  };
+
   const rowStyle: React.CSSProperties = {
     borderBottom: '1px solid #F3EDE7',
     fontSize: 15,
@@ -96,20 +116,32 @@ const RouteDashboard = () => {
     cursor: 'pointer',
   };
 
-  // Filtered routes based on search and status
+  // Filtered routes based on filters
   const filteredRoutes = routes.filter((route) => {
-    const matchesSearch =
-      (route.origin || '').toLowerCase().includes(search.toLowerCase()) ||
-      (route.destination || '').toLowerCase().includes(search.toLowerCase()) ||
-      (route.driver_id || '').toLowerCase().includes(search.toLowerCase()) ||
-      (route.id || '').toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'All' || route.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesOrigin = originFilter.trim() === '' || (route.origin_name || route.origin || '').toLowerCase().includes(originFilter.toLowerCase());
+    const matchesDestination = destinationFilter.trim() === '' || (route.destination_name || route.destination || '').toLowerCase().includes(destinationFilter.toLowerCase());
+    const matchesDriver = driverFilter.trim() === '' || (`${route.driver?.first_name || ''} ${route.driver?.last_name || ''}`.trim()).toLowerCase().includes(driverFilter.toLowerCase());
+
+    return matchesStatus && matchesOrigin && matchesDestination && matchesDriver;
   });
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, originFilter, destinationFilter, driverFilter, routes.length]);
+
+  const totalFiltered = filteredRoutes.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [totalPages, currentPage]);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndexExclusive = Math.min(startIndex + pageSize, totalFiltered);
+  const pageRoutes = filteredRoutes.slice(startIndex, endIndexExclusive);
 
   const openRoutes = routes.filter(r => r.status === 'OPEN').length;
   const pendingRoutes = routes.filter(r => r.status === 'PENDING').length;
-  const blockedRoutes = routes.filter(r => r.status === 'BLOCKED').length;
   // Add more as needed
 
   return (
@@ -181,22 +213,7 @@ const RouteDashboard = () => {
           <div style={{ fontWeight: 800, fontSize: 32, marginBottom: 4 }}>{pendingRoutes}</div>
           <div style={{ fontSize: 15, color: ROYAL_ORANGE, marginBottom: 8 }}>Awaiting approval</div>
         </div>
-        <div style={{
-          flex: 1,
-          minWidth: 220,
-          background: '#EF4444',
-          color: '#fff',
-          borderRadius: 12,
-          padding: '1.6rem 2rem',
-          boxShadow: '0 2px 12px #EF444422',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-        }}>
-          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Blocked Routes</div>
-          <div style={{ fontWeight: 800, fontSize: 32, marginBottom: 4 }}>{blockedRoutes}</div>
-          <div style={{ fontSize: 15, color: '#fff', marginBottom: 8 }}>Blocked by admin</div>
-        </div>
+        {/* Removed Blocked Routes card per requirement */}
       </div>
       <div style={{
         background: '#fff',
@@ -208,11 +225,48 @@ const RouteDashboard = () => {
         overflowX: 'auto',
       }}>
         <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+          {/* Global search removed per requirement */}
           <input
             type="text"
-            placeholder="Search routes..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            placeholder="Filter origin..."
+            value={originFilter}
+            onChange={e => setOriginFilter(e.target.value)}
+            style={{
+              flex: 1,
+              padding: '0.7rem 1.2rem',
+              borderRadius: 10,
+              border: `1px solid ${NAVY_BLUE}22`,
+              background: '#F8F6F4',
+              fontSize: 15,
+              fontFamily: 'Montserrat, sans-serif',
+              outline: 'none',
+              minWidth: 180,
+              maxWidth: 320,
+            }}
+          />
+          <input
+            type="text"
+            placeholder="Filter destination..."
+            value={destinationFilter}
+            onChange={e => setDestinationFilter(e.target.value)}
+            style={{
+              flex: 1,
+              padding: '0.7rem 1.2rem',
+              borderRadius: 10,
+              border: `1px solid ${NAVY_BLUE}22`,
+              background: '#F8F6F4',
+              fontSize: 15,
+              fontFamily: 'Montserrat, sans-serif',
+              outline: 'none',
+              minWidth: 180,
+              maxWidth: 320,
+            }}
+          />
+          <input
+            type="text"
+            placeholder="Filter driver name..."
+            value={driverFilter}
+            onChange={e => setDriverFilter(e.target.value)}
             style={{
               flex: 1,
               padding: '0.7rem 1.2rem',
@@ -231,9 +285,9 @@ const RouteDashboard = () => {
             <option value="OPEN">Open</option>
             <option value="PENDING">Pending</option>
             <option value="SUSPENDED">Suspended</option>
-            <option value="BLOCKED">Blocked</option>
             <option value="ACTIVE">Active</option>
           </select>
+          {/* Date filters removed per requirement */}
         </div>
         {loading ? (
           <div style={{ padding: 24, textAlign: 'center' }}>Loading routes...</div>
@@ -243,25 +297,26 @@ const RouteDashboard = () => {
             minWidth: 700,
             borderCollapse: 'separate',
             borderSpacing: 0,
-            fontFamily: 'Montserrat, sans-serif'
+            fontFamily: 'Montserrat, sans-serif',
+            tableLayout: 'fixed'
           }}>
             <thead>
               <tr style={{ color: '#7B7B93', fontWeight: 700, fontSize: 15, textAlign: 'left' }}>
-                <th style={thStyle}>Driver Name</th>
-                <th style={thStyle}>Origin</th>
-                <th style={thStyle}>Destination</th>
-                <th style={thStyle}>Status</th>
-                <th style={thStyle}>Created At</th>
+                <th style={{ ...thStyle, width: '18%' }}>Driver Name</th>
+                <th style={{ ...thStyle, width: '28%' }}>Origin</th>
+                <th style={{ ...thStyle, width: '34%' }}>Destination</th>
+                <th style={{ ...thStyle, width: '12%' }}>Status</th>
+                <th style={{ ...thStyle, width: '8%' }}>Created At</th>
               </tr>
             </thead>
             <tbody>
-              {filteredRoutes.map((route) => (
+              {pageRoutes.map((route) => (
                 <tr key={route.id} style={rowStyle}>
                   <td style={cellStyle}>
                     {route.driver ? `${route.driver?.first_name} ${route.driver?.last_name}` : ''}
                   </td>
-                  <td style={cellStyle}>{route.origin || ''}</td>
-                  <td style={cellStyle}>{route.destination || ''}</td>
+                  <td style={originCellStyle}>{route.origin_name || route.origin || ''}</td>
+                  <td style={destinationCellStyle}>{route.destination_name || route.destination || ''}</td>
                   <td style={cellStyle}>
                     <span style={labelButtonStyle(statusColors[route.status] || GREY)}>{route.status}</span>
                   </td>
@@ -271,6 +326,34 @@ const RouteDashboard = () => {
             </tbody>
           </table>
         )}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginTop: 16,
+          color: '#7B7B93',
+          fontSize: 14,
+          flexWrap: 'wrap',
+          gap: 8,
+        }}>
+          <span>Showing {totalFiltered === 0 ? 0 : startIndex + 1} - {Math.min(endIndexExclusive, totalFiltered)} of {totalFiltered} routes</span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              style={{ background: '#fff', border: `1px solid ${NAVY_BLUE}22`, borderRadius: 8, padding: '4px 18px', fontWeight: 600, fontSize: 15, color: NAVY_BLUE, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+              onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </button>
+            <button
+              style={{ background: '#fff', border: `1px solid ${NAVY_BLUE}22`, borderRadius: 8, padding: '4px 18px', fontWeight: 600, fontSize: 15, color: NAVY_BLUE, opacity: currentPage >= totalPages ? 0.5 : 1, cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
+              onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+            >
+              Next
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

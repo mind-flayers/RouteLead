@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.Comparator;
 
 @Slf4j
 @Service
@@ -244,6 +245,344 @@ public class RouteService {
             return routeRepo.findByDriverIdAndStatusNative(driverId, status.name());
         } else {
             return routeRepo.findByDriverId(driverId);
+        }
+    }
+
+    /**
+     * Get driver's routes with enhanced information including location names and bid counts
+     */
+    public List<com.example.be.dto.MyRouteDto> getMyRoutes(UUID driverId, RouteStatus status) {
+        log.info("Fetching enhanced routes for driver: {} with status: {}", driverId, status);
+        
+        List<ReturnRoute> routes = getRoutesByDriver(driverId, status);
+        List<com.example.be.dto.MyRouteDto> myRoutes = new ArrayList<>();
+        
+        for (ReturnRoute route : routes) {
+            com.example.be.dto.MyRouteDto myRoute = new com.example.be.dto.MyRouteDto();
+            
+            // Basic route information
+            myRoute.setId(route.getId());
+            myRoute.setDriverId(route.getDriver().getId());
+            myRoute.setOriginLat(route.getOriginLat());
+            myRoute.setOriginLng(route.getOriginLng());
+            myRoute.setDestinationLat(route.getDestinationLat());
+            myRoute.setDestinationLng(route.getDestinationLng());
+            myRoute.setDepartureTime(route.getDepartureTime());
+            myRoute.setStatus(route.getStatus().name());
+            myRoute.setCreatedAt(route.getCreatedAt());
+            myRoute.setBiddingStart(route.getBiddingStart());
+            myRoute.setSuggestedPriceMin(route.getSuggestedPriceMin());
+            myRoute.setSuggestedPriceMax(route.getSuggestedPriceMax());
+            myRoute.setTotalDistanceKm(route.getTotalDistanceKm());
+            myRoute.setEstimatedDurationMinutes(route.getEstimatedDurationMinutes());
+            
+            // Resolve location names from coordinates
+            try {
+                myRoute.setOriginLocationName(getLocationName(route.getOriginLat(), route.getOriginLng()));
+                myRoute.setDestinationLocationName(getLocationName(route.getDestinationLat(), route.getDestinationLng()));
+            } catch (Exception e) {
+                log.warn("Could not resolve location names for route {}: {}", route.getId(), e.getMessage());
+                myRoute.setOriginLocationName("Unknown Location");
+                myRoute.setDestinationLocationName("Unknown Location");
+            }
+            
+            // Get bid information
+            try {
+                List<com.example.be.dto.BidDto> bids = bidService.getBidsByRouteIdAndStatus(route.getId(), null);
+                myRoute.setTotalBidsCount(bids.size());
+                
+                // Find highest bid amount
+                BigDecimal highestBid = bids.stream()
+                    .map(com.example.be.dto.BidDto::getOfferedPrice)
+                    .max(BigDecimal::compareTo)
+                    .orElse(BigDecimal.ZERO);
+                myRoute.setHighestBidAmount(highestBid);
+            } catch (Exception e) {
+                log.warn("Could not fetch bid information for route {}: {}", route.getId(), e.getMessage());
+                myRoute.setTotalBidsCount(0);
+                myRoute.setHighestBidAmount(BigDecimal.ZERO);
+            }
+            
+            // Calculate countdown to bidding end (bidding ends 2 hours before departure)
+            if (route.getDepartureTime() != null) {
+                ZonedDateTime biddingEnd = route.getDepartureTime().minusHours(2);
+                ZonedDateTime now = ZonedDateTime.now();
+                
+                if (now.isBefore(biddingEnd)) {
+                    long minutesUntilEnd = java.time.Duration.between(now, biddingEnd).toMinutes();
+                    myRoute.setHoursUntilBiddingEnds(minutesUntilEnd / 60);
+                    myRoute.setMinutesUntilBiddingEnds(minutesUntilEnd % 60);
+                    myRoute.setBiddingActive(true);
+                } else {
+                    myRoute.setHoursUntilBiddingEnds(0L);
+                    myRoute.setMinutesUntilBiddingEnds(0L);
+                    myRoute.setBiddingActive(false);
+                }
+            } else {
+                myRoute.setHoursUntilBiddingEnds(0L);
+                myRoute.setMinutesUntilBiddingEnds(0L);
+                myRoute.setBiddingActive(false);
+            }
+            
+            myRoutes.add(myRoute);
+        }
+        
+        return myRoutes;
+    }
+
+    /**
+     * Helper method to get location name from coordinates
+     */
+    private String getLocationName(BigDecimal lat, BigDecimal lng) throws Exception {
+        if (lat == null || lng == null) {
+            return "Unknown Location";
+        }
+        
+        com.google.maps.model.LatLng latLng = new com.google.maps.model.LatLng(
+            lat.doubleValue(), lng.doubleValue()
+        );
+        
+        com.google.maps.model.GeocodingResult[] results = maps.reverseGeocode(latLng);
+        
+        if (results != null && results.length > 0) {
+            // Look for locality (city/town) in the address components
+            for (com.google.maps.model.AddressComponent component : results[0].addressComponents) {
+                for (com.google.maps.model.AddressComponentType type : component.types) {
+                    if (type == com.google.maps.model.AddressComponentType.LOCALITY ||
+                        type == com.google.maps.model.AddressComponentType.ADMINISTRATIVE_AREA_LEVEL_2) {
+                        return component.longName;
+                    }
+                }
+            }
+            // Fallback to formatted address if no locality found
+            return results[0].formattedAddress;
+        }
+        
+        return "Unknown Location";
+    }
+
+    /**
+     * Get detailed bids view for a specific route
+     */
+    public com.example.be.dto.ViewBidsResponseDto getViewBidsResponse(UUID routeId, UUID driverId, String sort, String filter) {
+        log.info("Getting view bids response for route: {} by driver: {}", routeId, driverId);
+        
+        // Verify route belongs to driver
+        ReturnRoute route = routeRepo.findById(routeId)
+            .orElseThrow(() -> new RuntimeException("Route not found: " + routeId));
+        
+        if (!route.getDriver().getId().equals(driverId)) {
+            throw new RuntimeException("Access denied: Route does not belong to driver");
+        }
+        
+        com.example.be.dto.ViewBidsResponseDto response = new com.example.be.dto.ViewBidsResponseDto();
+        
+        // Set route information
+        response.setRouteId(routeId);
+        response.setRouteDisplayId(routeId.toString().substring(0, 8).toUpperCase()); // First 8 chars
+        response.setStatus(route.getStatus().name());
+        response.setDepartureTime(route.getDepartureTime());
+        
+        // Resolve location names
+        try {
+            response.setOriginLocationName(getLocationName(route.getOriginLat(), route.getOriginLng()));
+            response.setDestinationLocationName(getLocationName(route.getDestinationLat(), route.getDestinationLng()));
+        } catch (Exception e) {
+            log.warn("Could not resolve location names for route {}: {}", routeId, e.getMessage());
+            response.setOriginLocationName("Unknown Location");
+            response.setDestinationLocationName("Unknown Location");
+        }
+        
+        // Calculate countdown
+        if (route.getDepartureTime() != null) {
+            ZonedDateTime biddingEnd = route.getDepartureTime().minusHours(2);
+            ZonedDateTime now = ZonedDateTime.now();
+            
+            if (now.isBefore(biddingEnd)) {
+                long minutesUntilEnd = java.time.Duration.between(now, biddingEnd).toMinutes();
+                response.setHoursUntilBiddingEnds(minutesUntilEnd / 60);
+                response.setMinutesUntilBiddingEnds(minutesUntilEnd % 60);
+                response.setBiddingActive(true);
+                response.setBiddingStatus("ACTIVE");
+            } else {
+                response.setHoursUntilBiddingEnds(0L);
+                response.setMinutesUntilBiddingEnds(0L);
+                response.setBiddingActive(false);
+                response.setBiddingStatus("ENDED");
+            }
+        } else {
+            response.setHoursUntilBiddingEnds(0L);
+            response.setMinutesUntilBiddingEnds(0L);
+            response.setBiddingActive(false);
+            response.setBiddingStatus("ENDED");
+        }
+        
+        // Get all bids for the route
+        List<com.example.be.dto.DriverBidHistoryDto> allBids = bidService.getDriverBidHistory(driverId, null);
+        
+        // Filter bids for this route
+        List<com.example.be.dto.DriverBidHistoryDto> routeBids = allBids.stream()
+            .filter(bid -> bid.getRouteId().equals(routeId))
+            .collect(Collectors.toList());
+        
+        // Convert to detailed bid DTOs and categorize
+        List<com.example.be.dto.DetailedBidDto> pendingBids = new ArrayList<>();
+        List<com.example.be.dto.DetailedBidDto> acceptedBids = new ArrayList<>();
+        List<com.example.be.dto.DetailedBidDto> rejectedBids = new ArrayList<>();
+        
+        for (com.example.be.dto.DriverBidHistoryDto bid : routeBids) {
+            com.example.be.dto.DetailedBidDto detailedBid = convertToDetailedBid(bid);
+            
+            switch (bid.getStatus()) {
+                case PENDING:
+                    pendingBids.add(detailedBid);
+                    break;
+                case ACCEPTED:
+                    acceptedBids.add(detailedBid);
+                    break;
+                case REJECTED:
+                    rejectedBids.add(detailedBid);
+                    break;
+            }
+        }
+        
+        // Apply sorting
+        if (sort != null) {
+            Comparator<com.example.be.dto.DetailedBidDto> comparator = getComparator(sort);
+            pendingBids.sort(comparator);
+            acceptedBids.sort(comparator);
+            rejectedBids.sort(comparator);
+        }
+        
+        // Apply filtering
+        if (filter != null && !filter.trim().isEmpty()) {
+            pendingBids = applyFilter(pendingBids, filter);
+            acceptedBids = applyFilter(acceptedBids, filter);
+            rejectedBids = applyFilter(rejectedBids, filter);
+        }
+        
+        // Set bid lists
+        response.setPendingBids(pendingBids);
+        response.setAcceptedBids(acceptedBids);
+        response.setRejectedBids(rejectedBids);
+        
+        // Set summary information
+        response.setTotalBidsCount(routeBids.size());
+        response.setPendingBidsCount(pendingBids.size());
+        response.setAcceptedBidsCount(acceptedBids.size());
+        response.setRejectedBidsCount(rejectedBids.size());
+        
+        // Find highest bid
+        BigDecimal highestBid = routeBids.stream()
+            .map(com.example.be.dto.DriverBidHistoryDto::getOfferedPrice)
+            .max(BigDecimal::compareTo)
+            .orElse(BigDecimal.ZERO);
+        response.setHighestBidAmount(highestBid);
+        
+        return response;
+    }
+    
+    /**
+     * Convert DriverBidHistoryDto to DetailedBidDto
+     */
+    private com.example.be.dto.DetailedBidDto convertToDetailedBid(com.example.be.dto.DriverBidHistoryDto bid) {
+        com.example.be.dto.DetailedBidDto detailed = new com.example.be.dto.DetailedBidDto();
+        
+        // Basic bid information
+        detailed.setBidId(bid.getBidId());
+        detailed.setRequestId(bid.getRequestId());
+        detailed.setRouteId(bid.getRouteId());
+        detailed.setStartIndex(bid.getStartIndex());
+        detailed.setEndIndex(bid.getEndIndex());
+        detailed.setOfferedPrice(bid.getOfferedPrice());
+        detailed.setStatus(bid.getStatus().name());
+        detailed.setCreatedAt(bid.getCreatedAt());
+        detailed.setUpdatedAt(bid.getUpdatedAt());
+        
+        // Customer information
+        detailed.setCustomerFirstName(bid.getCustomerFirstName());
+        detailed.setCustomerLastName(bid.getCustomerLastName());
+        
+        // Parcel information
+        detailed.setDescription(bid.getDescription());
+        detailed.setWeightKg(bid.getWeightKg());
+        detailed.setVolumeM3(bid.getVolumeM3());
+        detailed.setMaxBudget(bid.getMaxBudget());
+        detailed.setDeadline(bid.getDeadline());
+        
+        // Location information
+        detailed.setPickupLat(bid.getPickupLat());
+        detailed.setPickupLng(bid.getPickupLng());
+        detailed.setDropoffLat(bid.getDropoffLat());
+        detailed.setDropoffLng(bid.getDropoffLng());
+        
+        // Resolve location names
+        try {
+            detailed.setPickupLocationName(getLocationName(bid.getPickupLat(), bid.getPickupLng()));
+            detailed.setDropoffLocationName(getLocationName(bid.getDropoffLat(), bid.getDropoffLng()));
+        } catch (Exception e) {
+            detailed.setPickupLocationName("Unknown Location");
+            detailed.setDropoffLocationName("Unknown Location");
+        }
+        
+        // Calculate time ago
+        detailed.setTimeAgo(calculateTimeAgo(bid.getCreatedAt()));
+        
+        // Format parcel size
+        if (bid.getVolumeM3() != null) {
+            detailed.setParcelSize(String.format("%.2f m³", bid.getVolumeM3().doubleValue()));
+        } else {
+            detailed.setParcelSize("Unknown size");
+        }
+        
+        return detailed;
+    }
+    
+    /**
+     * Get comparator for sorting bids
+     */
+    private Comparator<com.example.be.dto.DetailedBidDto> getComparator(String sort) {
+        switch (sort.toLowerCase()) {
+            case "price":
+                return Comparator.comparing(com.example.be.dto.DetailedBidDto::getOfferedPrice).reversed();
+            case "time":
+                return Comparator.comparing(com.example.be.dto.DetailedBidDto::getCreatedAt).reversed();
+            case "customer":
+                return Comparator.comparing(com.example.be.dto.DetailedBidDto::getCustomerFullName);
+            default:
+                return Comparator.comparing(com.example.be.dto.DetailedBidDto::getCreatedAt).reversed();
+        }
+    }
+    
+    /**
+     * Apply filter to bid list
+     */
+    private List<com.example.be.dto.DetailedBidDto> applyFilter(List<com.example.be.dto.DetailedBidDto> bids, String filter) {
+        return bids.stream()
+            .filter(bid -> 
+                bid.getCustomerFullName().toLowerCase().contains(filter.toLowerCase()) ||
+                bid.getDescription() != null && bid.getDescription().toLowerCase().contains(filter.toLowerCase()) ||
+                bid.getPickupLocationName().toLowerCase().contains(filter.toLowerCase()) ||
+                bid.getDropoffLocationName().toLowerCase().contains(filter.toLowerCase())
+            )
+            .collect(Collectors.toList());
+    }
+    
+    /**
+     * Calculate time ago string
+     */
+    private String calculateTimeAgo(ZonedDateTime dateTime) {
+        if (dateTime == null) return "Unknown";
+        
+        ZonedDateTime now = ZonedDateTime.now();
+        long minutes = java.time.Duration.between(dateTime, now).toMinutes();
+        
+        if (minutes < 60) {
+            return minutes + " min ago";
+        } else if (minutes < 1440) { // 24 hours
+            return (minutes / 60) + " hr ago";
+        } else {
+            return (minutes / 1440) + " day(s) ago";
         }
     }
 

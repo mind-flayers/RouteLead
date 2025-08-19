@@ -101,4 +101,68 @@ public class ProfileService {
                 })
                 .collect(Collectors.toList());
     }
+
+    // New methods for additional database fetching
+
+    @Transactional(readOnly = true)
+    public List<ProfileDto> getProfilesByRole(UserRole role) {
+        List<Profile> profiles = profileRepository.findByRole(role);
+        return profiles.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProfileDto> getVerifiedProfiles() {
+        List<Profile> profiles = profileRepository.findByIsVerifiedTrue();
+        return profiles.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProfileDto> getProfilesByCity(String city) {
+        List<Profile> profiles = profileRepository.findByCity(city);
+        return profiles.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProfileDto> getProfilesByRoleAndVerification(UserRole role, Boolean isVerified) {
+        List<Profile> profiles = profileRepository.findByRoleAndIsVerified(role, isVerified);
+        return profiles.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProfileDto> searchProfilesByName(String name) {
+        List<Profile> profiles = profileRepository.findByNameContainingIgnoreCase(name);
+        return profiles.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public long getProfileCountByRole(UserRole role) {
+        return profileRepository.countByRole(role);
+    }
+
+    // Helper method to convert Profile to ProfileDto
+    private ProfileDto convertToDto(Profile profile) {
+        ProfileDto dto = new ProfileDto();
+        dto.setId(profile.getId());
+        dto.setEmail(profile.getEmail());
+        dto.setRole(profile.getRole());
+        dto.setFirstName(profile.getFirstName());
+        dto.setLastName(profile.getLastName());
+        dto.setPhoneNumber(profile.getPhoneNumber());
+        dto.setNicNumber(profile.getNicNumber());
+        dto.setProfilePhotoUrl(profile.getProfilePhotoUrl());
+        dto.setIsVerified(profile.getIsVerified());
+        dto.setCreatedAt(profile.getCreatedAt());
+        dto.setUpdatedAt(profile.getUpdatedAt());
+        return dto;
+    }
 }

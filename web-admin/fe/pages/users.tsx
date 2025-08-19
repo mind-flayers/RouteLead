@@ -33,6 +33,22 @@ const verificationStatusColors: { [key: string]: string } = {
   REJECTED: '#EF4444',
 };
 
+// Map backend verification status to display label
+const getDisplayStatus = (status?: string): string => {
+	if (!status) return 'Active';
+	const s = String(status).toUpperCase();
+	switch (s) {
+		case 'APPROVED':
+			return 'Active';
+		case 'REJECTED':
+			return 'On Hold';
+		case 'PENDING':
+			return 'Pending';
+		default:
+			return status;
+	}
+};
+
 const labelButtonStyle = (color: string, active: boolean = false): React.CSSProperties => ({
 	background: color + '22',
 	color,
@@ -118,6 +134,8 @@ const UserManagement: React.FC = () => {
 	const [editUser, setEditUser] = useState<any | null>(null);
 	const [editForm, setEditForm] = useState<any>({});
 	const [editLoading, setEditLoading] = useState(false);
+	const [currentPage, setCurrentPage] = useState(1);
+	const pageSize = 10;
 
 	useEffect(() => {
 		async function fetchUsers() {
@@ -128,7 +146,7 @@ const UserManagement: React.FC = () => {
 				// Map snake_case to camelCase and exclude admin users
 				setUserList(
 					data
-						.filter((u: any) => u.role !== 'ADMIN') // Exclude admin users
+						.filter((u: any) => String(u.role || '').toUpperCase() !== 'ADMIN') // Exclude admin users (case-insensitive)
 						.map((u: any) => ({
 							...u,
 							firstName: u.firstName || u.first_name,
@@ -151,18 +169,25 @@ const UserManagement: React.FC = () => {
 		setRole('All Roles');
 		setStatus('All Statuses');
 		setVerification('All Verification Statuses');
+		setCurrentPage(1);
 	};
 
 	// Optionally, you can implement status/verification change logic for real data here
 
 	const filteredUsers = userList
-		.filter((u) => u.role !== 'ADMIN')
+		.filter((u) => String(u.role || '').toUpperCase() !== 'ADMIN')
 		.filter((u) => {
 			const name = (u.firstName || '') + ' ' + (u.lastName || '');
+			const searchLower = search.toLowerCase();
+			const searchDigits = search.replace(/\D/g, '');
+			const phoneStr = String(u.phoneNumber || '').toLowerCase();
+			const phoneDigits = String(u.phoneNumber || '').replace(/\D/g, '');
 			const matchesSearch =
-				name.toLowerCase().includes(search.toLowerCase()) ||
-				(u.email || '').toLowerCase().includes(search.toLowerCase()) ||
-				(u.id || '').toLowerCase().includes(search.toLowerCase());
+				name.toLowerCase().includes(searchLower) ||
+				(u.email || '').toLowerCase().includes(searchLower) ||
+				(u.id || '').toLowerCase().includes(searchLower) ||
+				phoneStr.includes(searchLower) ||
+				(!!searchDigits && phoneDigits.includes(searchDigits));
 			const matchesRole = role === 'All Roles' || u.role === role;
 			// You may want to map your real status/verification fields here
 			return matchesSearch && matchesRole;
@@ -173,6 +198,23 @@ const UserManagement: React.FC = () => {
 			if (a.verification_status !== 'REJECTED' && b.verification_status === 'REJECTED') return -1;
 			return 0;
 		});
+
+	// Reset to first page when filters change
+	useEffect(() => {
+		setCurrentPage(1);
+	}, [search, role]);
+
+	// Pagination calculations
+	const totalFiltered = filteredUsers.length;
+	const totalPages = Math.max(1, Math.ceil(totalFiltered / pageSize));
+	useEffect(() => {
+		if (currentPage > totalPages) {
+			setCurrentPage(totalPages);
+		}
+	}, [totalPages, currentPage]);
+	const startIndex = (currentPage - 1) * pageSize;
+	const endIndexExclusive = Math.min(startIndex + pageSize, totalFiltered);
+	const pageUsers = filteredUsers.slice(startIndex, endIndexExclusive);
 
 	// Stat counts based on filteredUsers
 	const totalUsers = filteredUsers.length;
@@ -312,14 +354,14 @@ const UserManagement: React.FC = () => {
 								<th style={thStyle}>Email</th>
 								<th style={thStyle}>Phone Number</th>
 								<th style={thStyle}>Role</th>
-								<th style={thStyle}>Verified</th>
+								<th style={thStyle}>eMail</th>
 								<th style={thStyle}>Status</th>
 								<th style={thStyle}>Registered</th>
 								<th style={thStyle}>Actions</th>
 							</tr>
 						</thead>
 						<tbody>
-							{filteredUsers.map((u) => (
+							{pageUsers.map((u) => (
 								<tr key={u.id} style={rowStyle}>
 									{/* <td style={cellStyle}>{u.id}</td> */}
 									<td style={cellStyle}>{u.firstName || ''}</td>
@@ -336,7 +378,7 @@ const UserManagement: React.FC = () => {
 									</td>
 									<td style={cellStyle}>
 										<span style={labelButtonStyle(verificationStatusColors[u.verification_status || 'APPROVED'] || '#7B7B93')}>
-											{u.verification_status || 'APPROVED'}
+											{getDisplayStatus(u.verification_status || 'APPROVED')}
 										</span>
 									</td>
 									<td style={cellStyle}>{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : ''}</td>
@@ -500,10 +542,22 @@ const UserManagement: React.FC = () => {
 					flexWrap: 'wrap',
 					gap: 8,
 				}}>
-					<span>Showing 1 - {filteredUsers.length} of {userList.length} users</span>
+					<span>Showing {totalFiltered === 0 ? 0 : startIndex + 1} - {Math.min(endIndexExclusive, totalFiltered)} of {totalFiltered} users</span>
 					<div style={{ display: 'flex', gap: 8 }}>
-						<button style={paginationBtnStyle}>Previous</button>
-						<button style={paginationBtnStyle}>Next</button>
+						<button
+							style={{ ...paginationBtnStyle, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+							onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+							disabled={currentPage === 1}
+						>
+							Previous
+						</button>
+						<button
+							style={{ ...paginationBtnStyle, opacity: currentPage >= totalPages ? 0.5 : 1, cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer' }}
+							onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+							disabled={currentPage >= totalPages}
+						>
+							Next
+						</button>
 					</div>
 				</div>
 			</div>

@@ -88,7 +88,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 700,
     fontSize: 20,
     color: '#222',
-    fontFamily: 'Montserrat, sans-serif',
+    fontFamily: 'Outfit, sans-serif',
   },
   center: {
     flex: 1,
@@ -102,7 +102,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: '1px solid #E5E7EB',
     background: '#F8F6F4',
     fontSize: 16,
-    fontFamily: 'Montserrat, sans-serif',
+    fontFamily: 'Outfit, sans-serif',
     outline: 'none',
   },
   right: {
@@ -153,7 +153,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#EF4444',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    fontFamily: 'Montserrat, sans-serif',
+    fontFamily: 'Outfit, sans-serif',
   },
 };
 
