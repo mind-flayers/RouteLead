@@ -12,6 +12,10 @@ export default function RequestParcel() {
   const routeId = params.routeId as string;
   const origin = params.origin as string;
   const destination = params.destination as string;
+  const pickupLat = params.pickupLat as string;
+  const pickupLng = params.pickupLng as string;
+  const dropoffLat = params.dropoffLat as string;
+  const dropoffLng = params.dropoffLng as string;
 
   const [weight, setWeight] = useState('');
   const [length, setLength] = useState('');
@@ -26,6 +30,7 @@ export default function RequestParcel() {
   const [customerId, setCustomerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [calculatedVolume, setCalculatedVolume] = useState<number | null>(null);
+  const [maxBudget, setMaxBudget] = useState('1000.00'); // Add max budget state with default value
 
   // Calculate volume when dimensions change
   useEffect(() => {
@@ -91,8 +96,14 @@ export default function RequestParcel() {
 
     // Validate all required fields
     if (!weight || !length || !width || !height || !description || 
-        !pickupContactName || !pickupContactPhone || !deliveryContactName || !deliveryContactPhone) {
-      Alert.alert('Validation Error', 'Please fill in all fields including contact information.');
+        !pickupContactName || !pickupContactPhone || !deliveryContactName || !deliveryContactPhone || !maxBudget) {
+      Alert.alert('Validation Error', 'Please fill in all fields including contact information and max budget.');
+      return;
+    }
+    
+    // Validate coordinates
+    if (!pickupLat || !pickupLng || !dropoffLat || !dropoffLng) {
+      Alert.alert('Validation Error', 'Please select pickup and dropoff locations from the map first.');
       return;
     }
     
@@ -101,14 +112,15 @@ export default function RequestParcel() {
     const lengthValue = parseFloat(length);
     const widthValue = parseFloat(width);
     const heightValue = parseFloat(height);
+    const maxBudgetValue = parseFloat(maxBudget);
     
-    if (isNaN(weightValue) || isNaN(lengthValue) || isNaN(widthValue) || isNaN(heightValue)) {
+    if (isNaN(weightValue) || isNaN(lengthValue) || isNaN(widthValue) || isNaN(heightValue) || isNaN(maxBudgetValue)) {
       Alert.alert('Validation Error', 'Please enter valid numeric values for all fields.');
       return;
     }
     
-    if (weightValue <= 0 || lengthValue <= 0 || widthValue <= 0 || heightValue <= 0) {
-      Alert.alert('Validation Error', 'Weight and dimensions must be greater than 0.');
+    if (weightValue <= 0 || lengthValue <= 0 || widthValue <= 0 || heightValue <= 0 || maxBudgetValue <= 0) {
+      Alert.alert('Validation Error', 'Weight, dimensions, and max budget must be greater than 0.');
       return;
     }
     
@@ -128,14 +140,14 @@ export default function RequestParcel() {
       // Create parcel request
       const requestData = {
         customerId: customerId,
-        pickupLat: 6.9271, // TODO: Get from route details
-        pickupLng: 79.8612, // TODO: Get from route details
-        dropoffLat: 6.9934, // TODO: Get from route details
-        dropoffLng: 81.0550, // TODO: Get from route details
+        pickupLat: parseFloat(pickupLat) || 6.9271, // Use coordinates from map selection
+        pickupLng: parseFloat(pickupLng) || 79.8612, // Use coordinates from map selection
+        dropoffLat: parseFloat(dropoffLat) || 6.9934, // Use coordinates from map selection
+        dropoffLng: parseFloat(dropoffLng) || 81.0550, // Use coordinates from map selection
         weightKg: weightValue,
         volumeM3: volumeM3,
         description: description,
-        maxBudget: 1000.00, // TODO: Get from user input or default
+        maxBudget: maxBudgetValue, // Use the user input max budget
         deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
         pickupContactName: pickupContactName,
         pickupContactPhone: pickupContactPhone,
@@ -163,6 +175,48 @@ export default function RequestParcel() {
       const result = await response.json().catch(() => ({} as any));
       const createdRequestId = result?.id as string | undefined;
       console.log('Created parcel request ID:', createdRequestId);
+      
+             // Automatically create the first bid with the max budget
+       console.log('Route ID for automatic bid:', routeId, 'Type:', typeof routeId);
+       
+       // Validate that routeId is a valid UUID
+       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+       const isValidUuid = uuidRegex.test(routeId);
+       console.log('Is valid UUID:', isValidUuid);
+       
+       if (createdRequestId && routeId && routeId !== 'custom' && routeId !== '' && isValidUuid) {
+        try {
+          const bidData = {
+            routeId: routeId,
+            offeredPrice: maxBudgetValue
+          };
+          
+          console.log('Creating automatic bid:', bidData);
+          
+          const bidResponse = await fetch(`${Config.API_BASE}/parcel-requests/${createdRequestId}/bids`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify(bidData),
+          });
+          
+                     if (bidResponse.ok) {
+             const bidResult = await bidResponse.json();
+             console.log('Automatic bid created successfully:', bidResult);
+           } else {
+             const errorText = await bidResponse.text();
+             console.error('Failed to create automatic bid:', errorText);
+             console.error('Bid request data:', bidData);
+             console.error('Response status:', bidResponse.status);
+           }
+                 } catch (bidErr) {
+           console.error('Error creating automatic bid:', bidErr);
+         }
+       } else if (routeId && !isValidUuid) {
+         console.log('Skipping automatic bid creation - routeId is not a valid UUID:', routeId);
+       }
+      
       Alert.alert('Success!', 'Your parcel request has been submitted successfully.', [
         { text: 'OK', onPress: () => router.push({
           pathname: '/pages/customer/RequestConfirmation',
@@ -172,6 +226,7 @@ export default function RequestParcel() {
             weight: `${weightValue} kg`,
             volume: `${volumeM3.toFixed(4)} m³`,
             description: description,
+            maxBudget: maxBudgetValue.toString(), // Pass max budget to confirmation page
             pickupContactName: pickupContactName,
             pickupContactPhone: pickupContactPhone,
             deliveryContactName: deliveryContactName,
@@ -201,6 +256,12 @@ export default function RequestParcel() {
       <View style={styles.routeInfo}>
         <Text style={styles.routeTitle}>Route Details</Text>
         <Text style={styles.routeText}>{origin} → {destination}</Text>
+        <Text style={styles.coordinatesText}>
+          Pickup: {pickupLat}, {pickupLng}
+        </Text>
+        <Text style={styles.coordinatesText}>
+          Dropoff: {dropoffLat}, {dropoffLng}
+        </Text>
       </View>
       
       {/* Parcel Request Details */}
@@ -258,6 +319,16 @@ export default function RequestParcel() {
           value={description}
           onChangeText={setDescription}
           placeholder="Describe your parcel (e.g., Fragile electronics, books, etc.)"
+          placeholderTextColor="#555"
+          style={styles.input}
+        />
+        
+        <Text style={styles.label}>Maximum Budget (LKR)</Text>
+        <TextInput
+          value={maxBudget}
+          onChangeText={setMaxBudget}
+          keyboardType="numeric"
+          placeholder="Enter your maximum budget (e.g., 1000.00)"
           placeholderTextColor="#555"
           style={styles.input}
         />
@@ -353,6 +424,11 @@ const styles = StyleSheet.create({
   routeText: {
     fontSize: 14,
     color: '#424242',
+  },
+  coordinatesText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
   },
   section: {
     backgroundColor: '#f3f4f6',

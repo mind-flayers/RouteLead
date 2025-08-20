@@ -185,7 +185,7 @@ export default function MyBids() {
                   <TouchableOpacity className="bg-[#FFF3E0] px-4 py-2 rounded-md mr-2" onPress={() => confirmAndDelete(r.id)} disabled={!!deleting[r.id]}>
                     <Text className="text-[#FFA726] font-semibold">{deleting[r.id] ? 'Deleting...' : 'Delete'}</Text>
                   </TouchableOpacity>
-                  {r.status === 'OPEN' && (
+                  {(r.status === 'OPEN' || r.status === 'MATCHED') && (
                     <TouchableOpacity
                       className="bg-[#0D47A1] px-4 py-2 rounded-md flex-1"
                       onPress={() => router.push({
@@ -195,6 +195,7 @@ export default function MyBids() {
                           weight: `${r.weightKg} kg`,
                           volume: `${r.volumeM3} m³`,
                           description: r.description || '',
+                          maxBudget: r.maxBudget ? r.maxBudget.toString() : '1000.00',
                           pickupContactName: r.pickupContactName || '',
                           pickupContactPhone: r.pickupContactPhone || '',
                           deliveryContactName: r.deliveryContactName || '',

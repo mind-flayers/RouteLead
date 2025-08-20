@@ -42,7 +42,7 @@ public class Payment {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_status", nullable = false, columnDefinition = "payment_status_enum")
-    private PaymentStatusEnum paymentStatus = PaymentStatusEnum.PENDING;
+    private PaymentStatusEnum paymentStatus = PaymentStatusEnum.pending;
 
     @Column(name = "transaction_id")
     private String transactionId;
@@ -71,7 +71,7 @@ public class Payment {
             currency = "LKR";
         }
         if (paymentStatus == null) {
-            paymentStatus = PaymentStatusEnum.PENDING;
+            paymentStatus = PaymentStatusEnum.pending;
         }
     }
 

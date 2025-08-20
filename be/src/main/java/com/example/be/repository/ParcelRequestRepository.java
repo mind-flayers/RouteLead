@@ -78,4 +78,34 @@ public interface ParcelRequestRepository extends JpaRepository<ParcelRequest, UU
             "INNER JOIN bids b ON pr.id = b.request_id " +
             "WHERE b.route_id = :routeId ORDER BY pr.created_at DESC", nativeQuery = true)
     List<ParcelRequest> findByRouteIdNative(@org.springframework.data.repository.query.Param("routeId") UUID routeId);
+
+    // Delete related payments for parcel request
+    @Modifying
+    @Query(value = "DELETE FROM payments WHERE bid_id IN (SELECT id FROM bids WHERE request_id = :requestId)", nativeQuery = true)
+    void deleteRelatedPayments(@org.springframework.data.repository.query.Param("requestId") UUID requestId);
+
+    // Delete related earnings for parcel request
+    @Modifying
+    @Query(value = "DELETE FROM earnings WHERE bid_id IN (SELECT id FROM bids WHERE request_id = :requestId)", nativeQuery = true)
+    void deleteRelatedEarnings(@org.springframework.data.repository.query.Param("requestId") UUID requestId);
+
+    // Delete related conversations for parcel request
+    @Modifying
+    @Query(value = "DELETE FROM conversations WHERE bid_id IN (SELECT id FROM bids WHERE request_id = :requestId)", nativeQuery = true)
+    void deleteRelatedConversations(@org.springframework.data.repository.query.Param("requestId") UUID requestId);
+
+    // Delete related delivery tracking for parcel request
+    @Modifying
+    @Query(value = "DELETE FROM delivery_tracking WHERE bid_id IN (SELECT id FROM bids WHERE request_id = :requestId)", nativeQuery = true)
+    void deleteRelatedDeliveryTracking(@org.springframework.data.repository.query.Param("requestId") UUID requestId);
+
+    // Delete related disputes for parcel request
+    @Modifying
+    @Query(value = "DELETE FROM disputes WHERE related_bid_id IN (SELECT id FROM bids WHERE request_id = :requestId)", nativeQuery = true)
+    void deleteRelatedDisputes(@org.springframework.data.repository.query.Param("requestId") UUID requestId);
+
+    // Delete related bids for parcel request
+    @Modifying
+    @Query(value = "DELETE FROM bids WHERE request_id = :requestId", nativeQuery = true)
+    void deleteRelatedBids(@org.springframework.data.repository.query.Param("requestId") UUID requestId);
 }

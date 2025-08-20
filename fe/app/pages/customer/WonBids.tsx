@@ -130,7 +130,40 @@ export default function WonBids() {
 
   const handleProceedToPayment = (bidId: string) => {
     console.log('Proceeding to payment for bid:', bidId);
-    router.push('/pages/customer/Payment');
+    
+         // Get current user ID and bid details
+     const getPaymentParams = async () => {
+       try {
+         // Get current authenticated user from Supabase
+         const { data: { user }, error: authError } = await supabase.auth.getUser();
+         
+         if (authError || !user) {
+           throw new Error('User not authenticated');
+         }
+         
+         const bid = wonBids.find(b => b.id === bidId);
+         
+         if (!bid) {
+           Alert.alert('Error', 'Bid not found. Please try again.');
+           return;
+         }
+         
+         router.push({
+           pathname: '/pages/customer/Payment',
+           params: {
+             amount: bid.offeredPrice?.toString() || '0',
+             bidId: bidId,
+             requestId: bid.requestId || '',
+             userId: user.id
+           }
+         });
+       } catch (error) {
+         console.error('Error getting payment parameters:', error);
+         Alert.alert('Error', 'Unable to proceed to payment. Please try again.');
+       }
+     };
+    
+    getPaymentParams();
   };
 
   const handleViewDetails = (bidId: string) => {

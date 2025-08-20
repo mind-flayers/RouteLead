@@ -71,5 +71,38 @@ public class ParcelRequestService {
     }
     
 
-    public void delete(UUID id) { repo.deleteById(id); }
+    @Transactional
+    public void delete(UUID id) { 
+        log.info("Deleting parcel request {} with cascade - removing all related entities", id);
+        
+        // Check if parcel request exists
+        if (!repo.existsById(id)) {
+            throw new RuntimeException("Parcel request not found with ID: " + id);
+        }
+        
+        // Delete all related entities in the correct order (child entities first)
+        log.info("Deleting related payments for parcel request {}", id);
+        repo.deleteRelatedPayments(id);
+        
+        log.info("Deleting related earnings for parcel request {}", id);
+        repo.deleteRelatedEarnings(id);
+        
+        log.info("Deleting related conversations for parcel request {}", id);
+        repo.deleteRelatedConversations(id);
+        
+        log.info("Deleting related delivery tracking for parcel request {}", id);
+        repo.deleteRelatedDeliveryTracking(id);
+        
+        log.info("Deleting related disputes for parcel request {}", id);
+        repo.deleteRelatedDisputes(id);
+        
+        log.info("Deleting related bids for parcel request {}", id);
+        repo.deleteRelatedBids(id);
+        
+        // Finally delete the parcel request itself
+        log.info("Deleting parcel request {} itself", id);
+        repo.deleteById(id);
+        
+        log.info("Successfully deleted parcel request {} with all related data (bids, payments, earnings, conversations, delivery tracking, disputes)", id);
+    }
 }

@@ -1,0 +1,31 @@
+
+<!DOCTYPE html>
+<html>
+<head><title>PayHere Sandbox Test</title></head>
+<body>
+<h2>PayHere Sandbox Test (Official Credentials)</h2>
+<form method="POST" action="https://sandbox.payhere.lk/pay/checkout">
+<input type="hidden" name="merchant_id" value="1211149">
+<input type="hidden" name="return_url" value="https://3f29eef41d7b.ngrok-free.app/api/payments/return">
+<input type="hidden" name="cancel_url" value="https://3f29eef41d7b.ngrok-free.app/api/payments/cancel">
+<input type="hidden" name="notify_url" value="https://3f29eef41d7b.ngrok-free.app/api/payments/webhook">
+<input type="hidden" name="first_name" value="Test">
+<input type="hidden" name="last_name" value="User">
+<input type="hidden" name="email" value="test@example.com">
+<input type="hidden" name="phone" value="0712345678">
+<input type="hidden" name="address" value="Test Address">
+<input type="hidden" name="city" value="Colombo">
+<input type="hidden" name="country" value="Sri Lanka">
+<input type="hidden" name="order_id" value="TEST_1755718565171">
+<input type="hidden" name="items" value="Test Item">
+<input type="hidden" name="currency" value="LKR">
+<input type="hidden" name="amount" value="1000">
+<input type="hidden" name="custom_1" value="test-bid-id">
+<input type="hidden" name="custom_2" value="test-request-id">
+<input type="hidden" name="custom_3" value="test-user-id">
+<input type="hidden" name="custom_4" value="CREDIT_CARD">
+<input type="hidden" name="hash" value="452A3050FF9326372FC9C6A8B11B4B8C">
+<input type="submit" value="Test Sandbox Payment">
+</form>
+</body>
+</html>

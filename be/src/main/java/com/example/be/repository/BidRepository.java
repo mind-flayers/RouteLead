@@ -87,4 +87,14 @@ public interface BidRepository extends JpaRepository<Bid, UUID> {
     @Query(value = "SELECT * FROM bids WHERE route_id = :routeId " +
             "AND (:status IS NULL OR status = CAST(:status AS bid_status)) ORDER BY created_at DESC", nativeQuery = true)
     List<Bid> findByRouteIdAndStatusNative(@Param("routeId") UUID routeId, @Param("status") String status);
+
+    // Delete bid with cascade - deletes all related entities in one query
+    @Modifying
+    @Query(value = "DELETE FROM payments WHERE bid_id = :bidId; " +
+            "DELETE FROM earnings WHERE bid_id = :bidId; " +
+            "DELETE FROM conversations WHERE bid_id = :bidId; " +
+            "DELETE FROM delivery_tracking WHERE bid_id = :bidId; " +
+            "DELETE FROM disputes WHERE related_bid_id = :bidId; " +
+            "DELETE FROM bids WHERE id = :bidId;", nativeQuery = true)
+    void deleteBidWithCascade(@Param("bidId") UUID bidId);
 }

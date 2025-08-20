@@ -15,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -105,8 +107,45 @@ public class ParcelRequestController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> delete(@PathVariable UUID id) {
-        service.delete(id);
-        return ResponseEntity.ok().build();
+        try {
+            log.info("DELETE /parcel-requests/{} - Deleting parcel request with cascade", id);
+            service.delete(id);
+            
+            Map<String, Object> successResponse = new HashMap<>();
+            successResponse.put("timestamp", java.time.LocalDateTime.now());
+            successResponse.put("status", 200);
+            successResponse.put("message", "Parcel request deleted successfully with all related data");
+            successResponse.put("requestId", id);
+            successResponse.put("path", "/parcel-requests/" + id);
+            
+            return ResponseEntity.ok(successResponse);
+            
+        } catch (RuntimeException e) {
+            log.error("Error deleting parcel request with ID {}: {}", id, e.getMessage());
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", java.time.LocalDateTime.now());
+            errorResponse.put("status", e.getMessage().contains("not found") ? 404 : 400);
+            errorResponse.put("error", e.getMessage().contains("not found") ? "Not Found" : "Bad Request");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("path", "/parcel-requests/" + id);
+            
+            org.springframework.http.HttpStatus status = e.getMessage().contains("not found") ? 
+                org.springframework.http.HttpStatus.NOT_FOUND : org.springframework.http.HttpStatus.BAD_REQUEST;
+            return ResponseEntity.status(status).body(errorResponse);
+            
+        } catch (Exception e) {
+            log.error("Unexpected error deleting parcel request with ID {}: {}", id, e.getMessage());
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", java.time.LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", "Failed to delete parcel request: " + e.getMessage());
+            errorResponse.put("path", "/parcel-requests/" + id);
+            
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 
     @PostMapping("/{id}/bids")

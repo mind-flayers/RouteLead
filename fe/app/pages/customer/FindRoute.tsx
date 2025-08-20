@@ -66,10 +66,10 @@ const getMapHtml = (
   </html>
 `;
 
-// Dummy data for available routes
+// Dummy data for available routes - using real UUID for testing
 const dummyRoutes = [
   {
-    id: '1',
+    id: '1cc88146-8e0b-41fa-a81a-17168a1407ec', // Real test route ID from backend
     origin: 'Colombo',
     destination: 'Badulla',
     departureDate: '2025-10-26T09:00:00',
@@ -80,7 +80,7 @@ const dummyRoutes = [
     driverPhoto: 'https://randomuser.me/api/portraits/men/1.jpg',
   },
   {
-    id: '2',
+    id: '72ca2953-8f62-40c0-b107-0c89be2e7209', // Another real route ID from Postman collection
     origin: 'Galle',
     destination: 'Matara',
     departureDate: '2025-11-02T08:00:00',
@@ -303,14 +303,31 @@ export default function FindRouteScreen() {
         onMessage={handleMapMessage}
       />
 
-      {/* Search Button */}
+      {/* Action Buttons */}
       {step === 'done' && !showRoutes && (
         <View style={{ padding: 12 }}>
           <TouchableOpacity
-            style={{ backgroundColor: '#ff6b35', borderRadius: 8, padding: 16, alignItems: 'center' }}
+            style={{ backgroundColor: '#ff6b35', borderRadius: 8, padding: 16, alignItems: 'center', marginBottom: 8 }}
             onPress={handleSearch}
           >
             <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Search Routes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ backgroundColor: '#1e3a8a', borderRadius: 8, padding: 16, alignItems: 'center' }}
+            onPress={() => router.push({
+              pathname: '/pages/customer/RequestParcel',
+              params: {
+                routeId: 'custom',
+                origin: pickupAddress || `${pickupCoord?.latitude}, ${pickupCoord?.longitude}`,
+                destination: dropoffAddress || `${dropoffCoord?.latitude}, ${dropoffCoord?.longitude}`,
+                pickupLat: pickupCoord?.latitude?.toString() || '',
+                pickupLng: pickupCoord?.longitude?.toString() || '',
+                dropoffLat: dropoffCoord?.latitude?.toString() || '',
+                dropoffLng: dropoffCoord?.longitude?.toString() || ''
+              }
+            })}
+          >
+            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Request Parcel</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -359,7 +376,18 @@ export default function FindRouteScreen() {
             <TouchableOpacity
               key={route.id}
               style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 8, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#eee', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 2, elevation: 1 }}
-              onPress={() => router.push('/pages/customer/RouteDetails')}
+              onPress={() => router.push({
+                pathname: '/pages/customer/RequestParcel',
+                params: {
+                  routeId: route.id,
+                  origin: pickupAddress || `${pickupCoord?.latitude}, ${pickupCoord?.longitude}`,
+                  destination: dropoffAddress || `${dropoffCoord?.latitude}, ${dropoffCoord?.longitude}`,
+                  pickupLat: pickupCoord?.latitude?.toString() || '',
+                  pickupLng: pickupCoord?.longitude?.toString() || '',
+                  dropoffLat: dropoffCoord?.latitude?.toString() || '',
+                  dropoffLng: dropoffCoord?.longitude?.toString() || ''
+                }
+              })}
             >
               <Image source={{ uri: route.driverPhoto }} style={{ width: 48, height: 48, borderRadius: 24, marginRight: 12 }} />
               <View style={{ flex: 1 }}>

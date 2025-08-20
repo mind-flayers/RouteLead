@@ -1,0 +1,129 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PayHere Local Test</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"] { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin: 5px; }
+        .debug-info { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 12px; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>PayHere Local Test</h2>
+        <p>Testing with localhost backend and correct credentials.</p>
+        
+        <form id="payhereForm" method="POST" action="https://sandbox.payhere.lk/pay/checkout">
+            
+            <div class="form-group">
+                <label>merchant_id:</label>
+                <input type="text" name="merchant_id" value="1231712" readonly>
+            </div>
+            <div class="form-group">
+                <label>return_url:</label>
+                <input type="text" name="return_url" value="http://localhost:8080/api/payments/return" readonly>
+            </div>
+            <div class="form-group">
+                <label>cancel_url:</label>
+                <input type="text" name="cancel_url" value="http://localhost:8080/api/payments/cancel" readonly>
+            </div>
+            <div class="form-group">
+                <label>notify_url:</label>
+                <input type="text" name="notify_url" value="http://localhost:8080/api/payments/webhook" readonly>
+            </div>
+            <div class="form-group">
+                <label>first_name:</label>
+                <input type="text" name="first_name" value="Test" readonly>
+            </div>
+            <div class="form-group">
+                <label>last_name:</label>
+                <input type="text" name="last_name" value="User" readonly>
+            </div>
+            <div class="form-group">
+                <label>email:</label>
+                <input type="text" name="email" value="test@example.com" readonly>
+            </div>
+            <div class="form-group">
+                <label>phone:</label>
+                <input type="text" name="phone" value="0712345678" readonly>
+            </div>
+            <div class="form-group">
+                <label>address:</label>
+                <input type="text" name="address" value="Test Address" readonly>
+            </div>
+            <div class="form-group">
+                <label>city:</label>
+                <input type="text" name="city" value="Colombo" readonly>
+            </div>
+            <div class="form-group">
+                <label>country:</label>
+                <input type="text" name="country" value="Sri Lanka" readonly>
+            </div>
+            <div class="form-group">
+                <label>order_id:</label>
+                <input type="text" name="order_id" value="TEST_1755720240643" readonly>
+            </div>
+            <div class="form-group">
+                <label>items:</label>
+                <input type="text" name="items" value="Test Item" readonly>
+            </div>
+            <div class="form-group">
+                <label>currency:</label>
+                <input type="text" name="currency" value="LKR" readonly>
+            </div>
+            <div class="form-group">
+                <label>amount:</label>
+                <input type="text" name="amount" value="1000.00" readonly>
+            </div>
+            <div class="form-group">
+                <label>custom_1:</label>
+                <input type="text" name="custom_1" value="test-bid-id" readonly>
+            </div>
+            <div class="form-group">
+                <label>custom_2:</label>
+                <input type="text" name="custom_2" value="test-request-id" readonly>
+            </div>
+            <div class="form-group">
+                <label>custom_3:</label>
+                <input type="text" name="custom_3" value="test-user-id" readonly>
+            </div>
+            <div class="form-group">
+                <label>custom_4:</label>
+                <input type="text" name="custom_4" value="CREDIT_CARD" readonly>
+            </div>
+            <div class="form-group">
+                <label>hash:</label>
+                <input type="text" name="hash" value="B0C057D0A5CB8C38034E7F3EB09CBF99" readonly>
+            </div>
+            
+            <button type="submit">Submit to PayHere Sandbox</button>
+        </form>
+        
+        <div class="debug-info">
+            <strong>Debug Information:</strong><br>
+            <span class="success">✅ Backend running on localhost:8080</span><br>
+            <span class="success">✅ Using correct sandbox credentials</span><br>
+            <span class="success">✅ Hash generated by backend</span><br>
+            <br>
+            <strong>Test Data:</strong><br>
+            Order ID: TEST_1755720240643<br>
+            Amount: 1000.00 LKR<br>
+            Hash: B0C057D0A5CB8C38034E7F3EB09CBF99<br>
+            <br>
+            <strong>Expected Behavior:</strong><br>
+            • Should redirect to PayHere sandbox payment page<br>
+            • No "Unauthorized payment request" error<br>
+            • Use test card: 4242424242424242<br>
+        </div>
+    </div>
+</body>
+</html>

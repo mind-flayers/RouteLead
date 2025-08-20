@@ -391,7 +391,13 @@ public class BidService {
         if (!bidRepository.existsById(bidId)) {
             throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Bid not found");
         }
-        bidRepository.deleteById(bidId);
+        
+        logger.info("Deleting bid {} with cascade - removing all related entities in one query", bidId);
+        
+        // Delete all related entities and the bid itself in one query
+        bidRepository.deleteBidWithCascade(bidId);
+        
+        logger.info("Successfully deleted bid {} with all related data (payments, earnings, conversations, delivery tracking, disputes)", bidId);
     }
 
     @Transactional
