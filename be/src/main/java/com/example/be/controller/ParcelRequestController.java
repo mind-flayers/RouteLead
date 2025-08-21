@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import jakarta.persistence.EntityManager;
 
 @RestController
 @RequestMapping("/api/parcel-requests")
@@ -29,6 +30,7 @@ public class ParcelRequestController {
     private final ParcelRequestService service;
     private final ProfileRepository profileRepository;
     private final BidService bidService;
+    private final EntityManager entityManager;
 
     @GetMapping
     public List<ParcelRequest> getAll() { return service.getAll(); }
@@ -166,6 +168,77 @@ public class ParcelRequestController {
         } catch (Exception e) {
             log.error("Error creating bid for request {}: ", requestId, e);
             return ResponseEntity.status(500).body(e.getMessage());
+        }
+    }
+
+    /**
+     * Get driver information for a delivered parcel request
+     * GET /api/parcel-requests/{requestId}/driver
+     */
+    @GetMapping("/{requestId}/driver")
+    public ResponseEntity<Map<String, Object>> getDriverForRequest(@PathVariable UUID requestId) {
+        try {
+            log.info("Fetching driver information for request: {}", requestId);
+            
+            // Query to get driver information for a delivered parcel request
+            String sql = """
+                SELECT DISTINCT 
+                    d.id as driver_id,
+                    d.first_name as driver_first_name,
+                    d.last_name as driver_last_name,
+                    d.profile_photo_url as driver_photo,
+                    vd.make as vehicle_make,
+                    vd.model as vehicle_model,
+                    vd.plate_number as vehicle_plate,
+                    b.offered_price,
+                    b.id as bid_id
+                FROM bids b
+                JOIN parcel_requests pr ON b.request_id = pr.id
+                JOIN return_routes rr ON b.route_id = rr.id
+                JOIN profiles d ON rr.driver_id = d.id
+                LEFT JOIN vehicle_details vd ON vd.driver_id = d.id
+                WHERE pr.id = ?
+                AND pr.status = 'DELIVERED'
+                AND b.status = 'ACCEPTED'
+                """;
+            
+            @SuppressWarnings("unchecked")
+            List<Object[]> results = entityManager.createNativeQuery(sql)
+                .setParameter(1, requestId)
+                .getResultList();
+            
+            if (results.isEmpty()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "No driver found for this delivered request");
+                return ResponseEntity.status(404).body(response);
+            }
+            
+            Object[] row = results.get(0);
+            Map<String, Object> driverData = new HashMap<>();
+            driverData.put("driverId", row[0] != null ? row[0].toString() : null);
+            driverData.put("driverName", (row[1] != null ? row[1] : "") + " " + (row[2] != null ? row[2] : ""));
+            driverData.put("driverPhoto", row[3]);
+            driverData.put("vehicleMake", row[4]);
+            driverData.put("vehicleModel", row[5]);
+            driverData.put("vehiclePlate", row[6]);
+            driverData.put("offeredPrice", row[7]);
+            driverData.put("bidId", row[8] != null ? row[8].toString() : null);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("driver", driverData);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Error fetching driver for request: {}", requestId, e);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to fetch driver information: " + e.getMessage());
+            
+            return ResponseEntity.status(500).body(response);
         }
     }
 }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 
 const ratingDistribution = [
   { stars: 5, percent: 70 },
@@ -17,6 +17,18 @@ export default function Rating() {
   const [submitted, setSubmitted] = useState(false);
   const [submittedReview, setSubmittedReview] = useState<{rating: number, feedback: string}>({rating: 0, feedback: ''});
   const router = useRouter();
+  const params = useLocalSearchParams();
+
+  // Get driver data from params
+  const requestId = params.requestId as string;
+  const driverId = params.driverId as string;
+  const driverName = params.driverName as string || 'Driver';
+  const driverPhoto = params.driverPhoto as string;
+  const vehicleMake = params.vehicleMake as string;
+  const vehicleModel = params.vehicleModel as string;
+  const vehiclePlate = params.vehiclePlate as string;
+  const offeredPrice = params.offeredPrice as string;
+  const bidId = params.bidId as string;
 
   return (
     <ScrollView className="flex-1 bg-[#F6F6FA] px-4 pt-10">
@@ -31,12 +43,29 @@ export default function Rating() {
 
       {/* Driver Card */}
       <View className="bg-white rounded-xl p-6 mb-4 items-center border border-gray-100">
-        <Image
-          source={{ uri: 'https://randomuser.me/api/portraits/men/44.jpg' }}
-          className="w-16 h-16 rounded-full mb-2"
-        />
-        <Text className="font-semibold text-lg">Nimal Perera</Text>
+        {driverPhoto ? (
+          <Image
+            source={{ uri: driverPhoto }}
+            className="w-16 h-16 rounded-full mb-2"
+          />
+        ) : (
+          <View className="w-16 h-16 rounded-full bg-gray-300 items-center justify-center mb-2">
+            <Text className="text-2xl font-bold text-gray-600">
+              {driverName.split(' ').map(n => n.charAt(0)).join('').toUpperCase()}
+            </Text>
+          </View>
+        )}
+        <Text className="font-semibold text-lg">{driverName}</Text>
         <Text className="text-gray-500 mb-2">Your Delivery Driver</Text>
+        {vehicleMake && vehicleModel && (
+          <Text className="text-sm text-gray-600 mb-1">{vehicleMake} {vehicleModel}</Text>
+        )}
+        {vehiclePlate && (
+          <Text className="text-sm text-gray-600 mb-2">Plate: {vehiclePlate}</Text>
+        )}
+        {offeredPrice && (
+          <Text className="text-lg font-semibold text-[#FFA726] mb-2">Delivered for LKR {Number(offeredPrice).toLocaleString()}</Text>
+        )}
         <Text className="text-3xl font-bold text-[#FFA726] mb-1">4.8 <Text className="text-lg text-gray-500">out of 5</Text></Text>
         <View className="flex-row mb-1">
           {[...Array(5)].map((_, i) => (

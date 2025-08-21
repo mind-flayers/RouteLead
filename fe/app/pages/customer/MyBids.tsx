@@ -250,13 +250,8 @@ export default function MyBids() {
         </View>
       ) : (
         <ScrollView className="px-4" showsVerticalScrollIndicator={false}>
-          {(() => {
-            const filteredRequests = requests.filter(r => filter === 'ALL' ? true : (r.status === filter));
-            console.log('Current filter:', filter);
-            console.log('All requests:', requests.map(r => ({ id: r.id, status: r.status })));
-            console.log('Filtered requests:', filteredRequests.map(r => ({ id: r.id, status: r.status })));
-            return filteredRequests;
-          })()
+          {requests
+            .filter(r => filter === 'ALL' ? true : (r.status === filter))
             .map((r, idx) => {
               const paymentStatus = getPaymentStatusForRequest(r.id);
               const isLoadingPayment = paymentLoading[r.id];
@@ -324,6 +319,53 @@ export default function MyBids() {
                        <View className="flex-row items-center">
                          <Ionicons name="chatbubble-ellipses" size={14} color="white" />
                          <Text className="text-white font-semibold text-sm ml-1">Chat</Text>
+                       </View>
+                     </TouchableOpacity>
+                   )}
+
+                   {/* Review Button - Show only if parcel is delivered */}
+                   {r.status === 'DELIVERED' && (
+                     <TouchableOpacity
+                       className="bg-orange-500 px-3 py-2 rounded-md mr-2"
+                       onPress={async () => {
+                         try {
+                           // Get driver information for this delivered request
+                           const response = await fetch(`${Config.API_BASE}/parcel-requests/${r.id}/driver`);
+                           
+                           if (!response.ok) {
+                             Alert.alert('Error', 'Failed to get driver information');
+                             return;
+                           }
+                           
+                           const data = await response.json();
+                           
+                           if (data.success && data.driver) {
+                             router.push({
+                               pathname: '/pages/customer/Rating',
+                               params: {
+                                 requestId: r.id,
+                                 driverId: data.driver.driverId,
+                                 driverName: data.driver.driverName,
+                                 driverPhoto: data.driver.driverPhoto || '',
+                                 vehicleMake: data.driver.vehicleMake || '',
+                                 vehicleModel: data.driver.vehicleModel || '',
+                                 vehiclePlate: data.driver.vehiclePlate || '',
+                                 offeredPrice: data.driver.offeredPrice || 0,
+                                 bidId: data.driver.bidId || ''
+                               }
+                             });
+                           } else {
+                             Alert.alert('Error', 'Driver information not found');
+                           }
+                         } catch (error) {
+                           console.error('Error fetching driver info:', error);
+                           Alert.alert('Error', 'Failed to get driver information');
+                         }
+                       }}
+                     >
+                       <View className="flex-row items-center">
+                         <Ionicons name="star" size={14} color="white" />
+                         <Text className="text-white font-semibold text-sm ml-1">Review</Text>
                        </View>
                      </TouchableOpacity>
                    )}
