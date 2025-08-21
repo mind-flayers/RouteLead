@@ -13,7 +13,7 @@ BEGIN
     CREATE TYPE route_status AS ENUM ('INITIATED','OPEN','BOOKED','COMPLETED','CANCELLED');
   END IF;
   IF NOT EXISTS(SELECT 1 FROM pg_type WHERE typname = 'parcel_status') THEN
-    CREATE TYPE parcel_status AS ENUM ('OPEN','MATCHED','EXPIRED','CANCELLED');
+    CREATE TYPE parcel_status AS ENUM ('OPEN','MATCHED','EXPIRED','CANCELLED','DELIVERED');
   END IF;
   IF NOT EXISTS(SELECT 1 FROM pg_type WHERE typname = 'bid_status') THEN
     CREATE TYPE bid_status AS ENUM ('PENDING','ACCEPTED','REJECTED');
@@ -209,6 +209,7 @@ CREATE TABLE IF NOT EXISTS public.messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID NOT NULL REFERENCES public.conversations(id),
   sender_id UUID NOT NULL REFERENCES public.profiles(id),
+  receiver_id UUID REFERENCES public.profiles(id),
   message_text TEXT NOT NULL, message_type message_type_enum NOT NULL,
   is_read BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP

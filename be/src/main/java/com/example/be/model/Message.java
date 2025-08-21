@@ -26,6 +26,10 @@ public class Message {
     @JoinColumn(name = "sender_id", nullable = false)
     private Profile sender;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "receiver_id")
+    private Profile receiver;
+
     @Column(name = "message_text", nullable = false)
     private String messageText;
 

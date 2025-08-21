@@ -10,6 +10,7 @@ const FILTERS = [
   { label: 'All', value: 'ALL' },
   { label: 'Open', value: 'OPEN' },
   { label: 'Matched', value: 'MATCHED' },
+  { label: 'Delivered', value: 'DELIVERED' },
   { label: 'Expired', value: 'EXPIRED' },
   { label: 'Cancelled', value: 'CANCELLED' },
 ];
@@ -249,8 +250,13 @@ export default function MyBids() {
         </View>
       ) : (
         <ScrollView className="px-4" showsVerticalScrollIndicator={false}>
-          {requests
-            .filter(r => filter === 'ALL' ? true : (r.status === filter))
+          {(() => {
+            const filteredRequests = requests.filter(r => filter === 'ALL' ? true : (r.status === filter));
+            console.log('Current filter:', filter);
+            console.log('All requests:', requests.map(r => ({ id: r.id, status: r.status })));
+            console.log('Filtered requests:', filteredRequests.map(r => ({ id: r.id, status: r.status })));
+            return filteredRequests;
+          })()
             .map((r, idx) => {
               const paymentStatus = getPaymentStatusForRequest(r.id);
               const isLoadingPayment = paymentLoading[r.id];
@@ -322,7 +328,7 @@ export default function MyBids() {
                      </TouchableOpacity>
                    )}
                    
-                   {(r.status === 'OPEN' || r.status === 'MATCHED') && (
+                   {(r.status === 'OPEN' || r.status === 'MATCHED' || r.status === 'DELIVERED') && (
                      <TouchableOpacity
                        className={`px-4 py-2 rounded-md flex-1 ${
                          paymentStatus.status === 'paid' ? 'bg-blue-600' : 'bg-[#0D47A1]'
@@ -350,9 +356,15 @@ export default function MyBids() {
                  </View>
               </View>
             )})}
-          {requests.length === 0 && (
-            <Text className="text-gray-600 mt-6">No parcel requests yet.</Text>
-          )}
+          {(() => {
+            const filteredRequests = requests.filter(r => filter === 'ALL' ? true : (r.status === filter));
+            if (requests.length === 0) {
+              return <Text className="text-gray-600 mt-6">No parcel requests yet.</Text>;
+            } else if (filteredRequests.length === 0) {
+              return <Text className="text-gray-600 mt-6">No {filter.toLowerCase()} requests found.</Text>;
+            }
+            return null;
+          })()}
         </ScrollView>
       )}
 

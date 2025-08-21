@@ -9,6 +9,7 @@ import com.example.be.repository.ProfileRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -125,7 +126,7 @@ public class ChatController {
             
             // Use native SQL to get messages
             String getMessagesSql = """
-                SELECT m.id, m.message_text, m.sender_id, m.is_read, m.created_at,
+                SELECT m.id, m.message_text, m.sender_id, m.receiver_id, m.is_read, m.created_at,
                        p.first_name, p.last_name
                 FROM messages m
                 JOIN profiles p ON m.sender_id = p.id
@@ -143,9 +144,10 @@ public class ChatController {
                 msgData.put("id", row[0].toString());
                 msgData.put("text", row[1]);
                 msgData.put("senderId", row[2].toString());
+                msgData.put("receiverId", row[3] != null ? row[3].toString() : null);
                 msgData.put("senderName", (row[5] != null ? row[5] : "") + " " + (row[6] != null ? row[6] : ""));
-                msgData.put("isRead", row[3]);
-                msgData.put("createdAt", row[4]);
+                msgData.put("isRead", row[4]);
+                msgData.put("createdAt", row[5]);
                 return msgData;
             }).toList();
             
@@ -172,6 +174,7 @@ public class ChatController {
      * POST /api/chat/conversation/{conversationId}/messages
      */
     @PostMapping("/conversation/{conversationId}/messages")
+    @Transactional
     public ResponseEntity<Map<String, Object>> sendMessage(
             @PathVariable String conversationId,
             @RequestBody Map<String, Object> request) {
@@ -180,20 +183,23 @@ public class ChatController {
             
             UUID conversationIdUuid = UUID.fromString(conversationId);
             String senderId = (String) request.get("senderId");
+            String receiverId = (String) request.get("receiverId");
             String messageText = (String) request.get("messageText");
             
-            if (senderId == null || messageText == null) {
+            if (senderId == null || receiverId == null || messageText == null) {
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", false);
-                response.put("message", "Missing required fields: senderId, messageText");
+                response.put("message", "Missing required fields: senderId, receiverId, messageText");
                 return ResponseEntity.badRequest().body(response);
             }
             
             UUID senderIdUuid = UUID.fromString(senderId);
+            UUID receiverIdUuid = UUID.fromString(receiverId);
             
-            // Check if conversation and sender exist using native SQL
+            // Check if conversation, sender, and receiver exist using native SQL
             String checkConversationSql = "SELECT id FROM conversations WHERE id = ?";
             String checkSenderSql = "SELECT id FROM profiles WHERE id = ?";
+            String checkReceiverSql = "SELECT id FROM profiles WHERE id = ?";
             
             @SuppressWarnings("unchecked")
             List<Object[]> conversationResult = entityManager.createNativeQuery(checkConversationSql)
@@ -213,10 +219,19 @@ public class ChatController {
                 throw new RuntimeException("Sender not found");
             }
             
+            @SuppressWarnings("unchecked")
+            List<Object[]> receiverResult = entityManager.createNativeQuery(checkReceiverSql)
+                .setParameter(1, receiverIdUuid)
+                .getResultList();
+            
+            if (receiverResult.isEmpty()) {
+                throw new RuntimeException("Receiver not found");
+            }
+            
             // Create and save message using native SQL with explicit enum casting
             String insertMessageSql = """
-                INSERT INTO messages (conversation_id, sender_id, message_text, message_type, is_read, created_at)
-                VALUES (?, ?, ?, CAST('TEXT' AS public.message_type_enum), ?, ?)
+                INSERT INTO messages (conversation_id, sender_id, receiver_id, message_text, message_type, is_read, created_at)
+                VALUES (?, ?, ?, ?, CAST('TEXT' AS public.message_type_enum), ?, ?)
                 RETURNING id, created_at
                 """;
             
@@ -224,9 +239,10 @@ public class ChatController {
             List<Object[]> result = entityManager.createNativeQuery(insertMessageSql)
                 .setParameter(1, conversationIdUuid)
                 .setParameter(2, senderIdUuid)
-                .setParameter(3, messageText)
-                .setParameter(4, false)
-                .setParameter(5, ZonedDateTime.now())
+                .setParameter(3, receiverIdUuid)
+                .setParameter(4, messageText)
+                .setParameter(5, false)
+                .setParameter(6, ZonedDateTime.now())
                 .getResultList();
             
             if (result.isEmpty()) {
@@ -252,7 +268,7 @@ public class ChatController {
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("messageId", messageId.toString());
-            response.put("createdAt", createdAt);
+            response.put("createdAt", createdAt != null ? createdAt.toString() : null);
             
             return ResponseEntity.ok(response);
             
@@ -272,6 +288,7 @@ public class ChatController {
      * PUT /api/chat/conversation/{conversationId}/read
      */
     @PutMapping("/conversation/{conversationId}/read")
+    @Transactional
     public ResponseEntity<Map<String, Object>> markMessagesAsRead(
             @PathVariable String conversationId,
             @RequestBody Map<String, Object> request) {
@@ -438,6 +455,7 @@ public class ChatController {
      * POST /api/chat/conversation/create
      */
     @PostMapping("/conversation/create")
+    @Transactional
     public ResponseEntity<Map<String, Object>> createConversation(@RequestBody Map<String, Object> request) {
         try {
             log.info("Creating new conversation: {}", request);

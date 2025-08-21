@@ -94,6 +94,7 @@ const ChatList = () => {
             conversationId: driver.conversationId,
             driverName: driver.driverName,
             driverPhoto: driver.driverPhoto || '',
+            driverId: driver.driverId,
             bidId: driver.bidId,
             requestId: driver.requestId
           } 
@@ -129,6 +130,7 @@ const ChatList = () => {
             conversationId: data.conversationId,
             driverName: driver.driverName,
             driverPhoto: driver.driverPhoto || '',
+            driverId: driver.driverId,
             bidId: driver.bidId,
             requestId: driver.requestId
           } 

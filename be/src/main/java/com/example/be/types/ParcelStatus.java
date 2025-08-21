@@ -4,6 +4,7 @@ public enum ParcelStatus {
     OPEN,
     MATCHED,
     EXPIRED,
-    CANCELLED
+    CANCELLED,
+    DELIVERED
 } 
  

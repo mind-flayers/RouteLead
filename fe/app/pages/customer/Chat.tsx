@@ -12,6 +12,7 @@ interface Message {
   id: string;
   text: string;
   senderId: string;
+  receiverId?: string;
   senderName: string;
   isRead: boolean;
   createdAt: string;
@@ -30,6 +31,7 @@ const Chat = () => {
   const conversationId = params.conversationId as string;
   const driverName = params.driverName as string;
   const driverPhoto = params.driverPhoto as string;
+  const driverId = params.driverId as string;
 
   useEffect(() => {
     loadMessages();
@@ -90,6 +92,7 @@ const Chat = () => {
         },
         body: JSON.stringify({
           senderId: customerId,
+          receiverId: driverId,
           messageText: message.trim(),
         }),
       });

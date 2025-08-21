@@ -22,5 +22,10 @@ public enum ParcelStatus {
     /**
      * Parcel request has been cancelled
      */
-    CANCELLED
+    CANCELLED,
+    
+    /**
+     * Parcel request has been delivered
+     */
+    DELIVERED
 } 
