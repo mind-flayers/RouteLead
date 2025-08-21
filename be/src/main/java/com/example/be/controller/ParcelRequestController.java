@@ -191,7 +191,8 @@ public class ParcelRequestController {
                     vd.model as vehicle_model,
                     vd.plate_number as vehicle_plate,
                     b.offered_price,
-                    b.id as bid_id
+                    b.id as bid_id,
+                    rr.id as trip_id
                 FROM bids b
                 JOIN parcel_requests pr ON b.request_id = pr.id
                 JOIN return_routes rr ON b.route_id = rr.id
@@ -224,6 +225,7 @@ public class ParcelRequestController {
             driverData.put("vehiclePlate", row[6]);
             driverData.put("offeredPrice", row[7]);
             driverData.put("bidId", row[8] != null ? row[8].toString() : null);
+            driverData.put("tripId", row[9] != null ? row[9].toString() : null);
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);

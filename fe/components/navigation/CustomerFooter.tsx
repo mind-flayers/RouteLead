@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
 export default function CustomerFooter({ activeTab }: { activeTab?: string }) {
@@ -9,10 +9,6 @@ export default function CustomerFooter({ activeTab }: { activeTab?: string }) {
       <TouchableOpacity className="items-center" onPress={() => router.push('/pages/customer/Dashboard')}>
         <Ionicons name="home" size={22} color={activeTab === 'home' ? "#FF6600" : "#888"} />
         <Text className={`text-xs mt-1 ${activeTab === 'home' ? 'font-semibold text-black' : 'text-gray-500'}`}>Home</Text>
-      </TouchableOpacity>
-      <TouchableOpacity className="items-center" onPress={() => router.push('/pages/customer/PastDeliveries')}>
-        <MaterialIcons name="local-shipping" size={22} color={activeTab === 'deliveries' ? "#FF6600" : "#888"} />
-        <Text className={`text-xs mt-1 ${activeTab === 'deliveries' ? 'font-semibold text-black' : 'text-gray-500'}`}>Deliveries</Text>
       </TouchableOpacity>
       <TouchableOpacity className="items-center" onPress={() => router.push('/pages/customer/ChatList')}>
         <Ionicons name="chatbubble-ellipses-outline" size={22} color={activeTab === 'messages' ? "#FF6600" : "#888"} />

@@ -351,7 +351,8 @@ export default function MyBids() {
                                  vehicleModel: data.driver.vehicleModel || '',
                                  vehiclePlate: data.driver.vehiclePlate || '',
                                  offeredPrice: data.driver.offeredPrice || 0,
-                                 bidId: data.driver.bidId || ''
+                                 bidId: data.driver.bidId || '',
+                                 tripId: data.driver.tripId || ''
                                }
                              });
                            } else {

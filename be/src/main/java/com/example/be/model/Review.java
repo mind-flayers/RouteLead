@@ -35,8 +35,6 @@ public class Review {
     private ReviewRole role;
 
     @Column(name = "rating", nullable = false)
-    @jakarta.validation.constraints.Min(1)
-    @jakarta.validation.constraints.Max(5)
     private Short rating;
 
     @Column(name = "comment")
