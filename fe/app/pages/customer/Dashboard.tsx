@@ -28,7 +28,8 @@ const actions = [
     label: 'View Past Deliveries',
     icon: <Ionicons name="time-outline" size={32} color="#fff" />,
     active: true, 
-    route: '/pages/customer/PastDeliveries', 
+    route: '/pages/customer/MyBids',
+    params: { filter: 'DELIVERED' }
   },
 ];
 
@@ -80,7 +81,14 @@ export default function CustomerDashboard() {
             }}
             onPress={() => {
               if (action.route) {
-                router.push(action.route as any);
+                if (action.params) {
+                  router.push({
+                    pathname: action.route as any,
+                    params: action.params
+                  });
+                } else {
+                  router.push(action.route as any);
+                }
               }
             }}
           >

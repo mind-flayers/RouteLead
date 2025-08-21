@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView , Modal, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import CustomerFooter from '../../../components/navigation/CustomerFooter';
 import { Config } from '@/constants/Config';
 import { supabase } from '@/lib/supabase';
@@ -27,6 +27,7 @@ interface PaymentStatus {
 }
 
 export default function MyBids() {
+  const params = useLocalSearchParams();
   const [filter, setFilter] = useState('ALL');
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [customerId, setCustomerId] = useState<string | null>(null);
@@ -40,6 +41,13 @@ export default function MyBids() {
   const [paymentLoading, setPaymentLoading] = useState<{ [requestId: string]: boolean }>({});
   
   const router = useRouter();
+
+  // Set initial filter from URL params if provided
+  useEffect(() => {
+    if (params.filter && typeof params.filter === 'string') {
+      setFilter(params.filter);
+    }
+  }, [params.filter]);
 
   // Function to fetch payment status for a request
   const fetchPaymentStatus = async (requestId: string) => {
