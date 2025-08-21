@@ -11,8 +11,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -62,8 +60,7 @@ public class Bid {
     @Column(name = "updated_at", nullable = false)
     private ZonedDateTime updatedAt;
 
-    @OneToMany(mappedBy = "relatedBid", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Dispute> disputes = new ArrayList<>();
+
 
     @PrePersist
     protected void onCreate() {

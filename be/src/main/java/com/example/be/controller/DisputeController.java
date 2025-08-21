@@ -1,8 +1,5 @@
 package com.example.be.controller;
 
-import com.example.be.dto.DisputeDto;
-import com.example.be.dto.DisputeCreateDto;
-import com.example.be.model.Dispute;
 import com.example.be.service.DisputeService;
 import com.example.be.types.DisputeStatusEnum;
 import lombok.RequiredArgsConstructor;
@@ -10,180 +7,155 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.ZonedDateTime;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
-@Slf4j
 @RestController
-@RequestMapping("/disputes")
+@RequestMapping("/api/disputes")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*")
+@Slf4j
 public class DisputeController {
 
     private final DisputeService disputeService;
 
     @PostMapping
-    public ResponseEntity<?> createDispute(@RequestBody DisputeCreateDto createDto) {
-        log.info("POST /disputes - Creating new dispute");
+    public ResponseEntity<Map<String, Object>> createDispute(@RequestBody Map<String, Object> request) {
         try {
-            Dispute dispute = disputeService.createDispute(
-                createDto.getUserId(),
-                createDto.getDescription(),
-                createDto.getRelatedBidId(),
-                createDto.getRelatedRouteId()
-            );
+            log.info("Creating dispute: {}", request);
             
-            DisputeDto dto = convertToDto(dispute);
-            return ResponseEntity.ok(dto);
-        } catch (Exception e) {
-            log.error("Error creating dispute: ", e);
-            return ResponseEntity.status(500).body(createErrorResponse(e, "/disputes"));
-        }
-    }
+            String userId = (String) request.get("userId");
+            String parcelRequestId = (String) request.get("parcelRequestId");
+            String description = (String) request.get("description");
 
-    @PatchMapping("/{disputeId}/status")
-    public ResponseEntity<?> updateDisputeStatus(@PathVariable UUID disputeId, @RequestBody DisputeStatusEnum status) {
-        log.info("PATCH /disputes/{}/status - Updating dispute status to {}", disputeId, status);
-        try {
-            Dispute dispute = disputeService.updateDisputeStatus(disputeId, status);
-            DisputeDto dto = convertToDto(dispute);
-            return ResponseEntity.ok(dto);
+            if (userId == null || parcelRequestId == null || description == null) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Missing required fields: userId, parcelRequestId, description");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            UUID userIdUuid = UUID.fromString(userId);
+            UUID parcelRequestIdUuid = UUID.fromString(parcelRequestId);
+
+            var dispute = disputeService.createDispute(userIdUuid, parcelRequestIdUuid, description);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Dispute created successfully");
+            response.put("disputeId", dispute.get("id").toString());
+
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid UUID format in dispute creation: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Invalid ID format: " + e.getMessage());
+            return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
-            log.error("Error updating dispute status: ", e);
-            return ResponseEntity.status(500).body(createErrorResponse(e, "/disputes/" + disputeId + "/status"));
+            log.error("Error creating dispute: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to create dispute: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
         }
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<?> getDisputesByUser(@PathVariable UUID userId) {
-        log.info("GET /disputes/user/{} - Fetching disputes by user", userId);
+    public ResponseEntity<Map<String, Object>> getUserDisputes(@PathVariable String userId) {
         try {
-            List<Dispute> disputes = disputeService.getDisputesByUser(userId);
-            List<DisputeDto> dtos = disputes.stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
-            return ResponseEntity.ok(dtos);
+            log.info("Getting disputes for user: {}", userId);
+            UUID userIdUuid = UUID.fromString(userId);
+            var disputes = disputeService.getUserDisputes(userIdUuid);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("disputes", disputes);
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid UUID format for userId: {}", userId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Invalid user ID format");
+            return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
-            log.error("Error fetching disputes by user: ", e);
-            return ResponseEntity.status(500).body(createErrorResponse(e, "/disputes/user/" + userId));
+            log.error("Error getting user disputes: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to get disputes: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
         }
     }
 
-    @GetMapping("/status/{status}")
-    public ResponseEntity<?> getDisputesByStatus(@PathVariable DisputeStatusEnum status) {
-        log.info("GET /disputes/status/{} - Fetching disputes by status", status);
+    @GetMapping("/parcel-request/{parcelRequestId}")
+    public ResponseEntity<Map<String, Object>> getParcelRequestDisputes(@PathVariable String parcelRequestId) {
         try {
-            List<Dispute> disputes = disputeService.getDisputesByStatus(status);
-            List<DisputeDto> dtos = disputes.stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
-            return ResponseEntity.ok(dtos);
+            log.info("Getting disputes for parcel request: {}", parcelRequestId);
+            UUID parcelRequestIdUuid = UUID.fromString(parcelRequestId);
+            var disputes = disputeService.getParcelRequestDisputes(parcelRequestIdUuid);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("disputes", disputes);
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid UUID format for parcelRequestId: {}", parcelRequestId);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Invalid parcel request ID format");
+            return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
-            log.error("Error fetching disputes by status: ", e);
-            return ResponseEntity.status(500).body(createErrorResponse(e, "/disputes/status/" + status));
+            log.error("Error getting parcel request disputes: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to get disputes: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
         }
     }
 
-    @GetMapping("/bid/{bidId}")
-    public ResponseEntity<?> getDisputesByBid(@PathVariable UUID bidId) {
-        log.info("GET /disputes/bid/{} - Fetching disputes by bid", bidId);
+    @PutMapping("/{disputeId}/status")
+    public ResponseEntity<Map<String, Object>> updateDisputeStatus(
+            @PathVariable String disputeId,
+            @RequestBody Map<String, Object> request) {
         try {
-            List<Dispute> disputes = disputeService.getDisputesByBid(bidId);
-            List<DisputeDto> dtos = disputes.stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
-            return ResponseEntity.ok(dtos);
+            log.info("Updating dispute status: disputeId={}, request={}", disputeId, request);
+            
+            String statusStr = (String) request.get("status");
+            if (statusStr == null) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Missing required field: status");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            UUID disputeIdUuid = UUID.fromString(disputeId);
+            DisputeStatusEnum status = DisputeStatusEnum.valueOf(statusStr);
+
+            var result = disputeService.updateDisputeStatus(disputeIdUuid, status);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Dispute status updated successfully");
+            response.put("dispute", result);
+
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid format in dispute status update: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Invalid format: " + e.getMessage());
+            return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
-            log.error("Error fetching disputes by bid: ", e);
-            return ResponseEntity.status(500).body(createErrorResponse(e, "/disputes/bid/" + bidId));
+            log.error("Error updating dispute status: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to update dispute status: " + e.getMessage());
+            return ResponseEntity.status(500).body(response);
         }
-    }
-
-    @GetMapping("/route/{routeId}")
-    public ResponseEntity<?> getDisputesByRoute(@PathVariable UUID routeId) {
-        log.info("GET /disputes/route/{} - Fetching disputes by route", routeId);
-        try {
-            List<Dispute> disputes = disputeService.getDisputesByRoute(routeId);
-            List<DisputeDto> dtos = disputes.stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
-            return ResponseEntity.ok(dtos);
-        } catch (Exception e) {
-            log.error("Error fetching disputes by route: ", e);
-            return ResponseEntity.status(500).body(createErrorResponse(e, "/disputes/route/" + routeId));
-        }
-    }
-
-    @GetMapping("/open")
-    public ResponseEntity<?> getOpenDisputes() {
-        log.info("GET /disputes/open - Fetching open disputes");
-        try {
-            List<Dispute> disputes = disputeService.getOpenDisputes();
-            List<DisputeDto> dtos = disputes.stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
-            return ResponseEntity.ok(dtos);
-        } catch (Exception e) {
-            log.error("Error fetching open disputes: ", e);
-            return ResponseEntity.status(500).body(createErrorResponse(e, "/disputes/open"));
-        }
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<?> getDisputeById(@PathVariable UUID id) {
-        log.info("GET /disputes/{} - Fetching dispute by ID", id);
-        try {
-            Dispute dispute = disputeService.getDisputeById(id);
-            DisputeDto dto = convertToDto(dispute);
-            return ResponseEntity.ok(dto);
-        } catch (Exception e) {
-            log.error("Error fetching dispute: ", e);
-            return ResponseEntity.status(500).body(createErrorResponse(e, "/disputes/" + id));
-        }
-    }
-
-    @GetMapping("/stats/status/{status}")
-    public ResponseEntity<?> getDisputeCountByStatus(@PathVariable DisputeStatusEnum status) {
-        log.info("GET /disputes/stats/status/{} - Fetching dispute count by status", status);
-        try {
-            long count = disputeService.getDisputeCountByStatus(status);
-            return ResponseEntity.ok(java.util.Map.of("count", count, "status", status));
-        } catch (Exception e) {
-            log.error("Error fetching dispute count by status: ", e);
-            return ResponseEntity.status(500).body(createErrorResponse(e, "/disputes/stats/status/" + status));
-        }
-    }
-
-    private DisputeDto convertToDto(Dispute dispute) {
-        DisputeDto dto = new DisputeDto();
-        dto.setId(dispute.getId());
-        dto.setUserId(dispute.getUser().getId());
-        dto.setDescription(dispute.getDescription());
-        dto.setStatus(dispute.getStatus());
-        dto.setCreatedAt(dispute.getCreatedAt());
-        dto.setResolvedAt(dispute.getResolvedAt());
-        
-        if (dispute.getRelatedBid() != null) {
-            dto.setRelatedBidId(dispute.getRelatedBid().getId());
-        }
-        
-        if (dispute.getRelatedRoute() != null) {
-            dto.setRelatedRouteId(dispute.getRelatedRoute().getId());
-        }
-        
-        return dto;
-    }
-
-    private java.util.Map<String, Object> createErrorResponse(Exception e, String path) {
-        java.util.Map<String, Object> errorResponse = new java.util.HashMap<>();
-        errorResponse.put("timestamp", ZonedDateTime.now());
-        errorResponse.put("status", 500);
-        errorResponse.put("error", "Internal Server Error");
-        errorResponse.put("message", e.getMessage());
-        errorResponse.put("details", e.getClass().getSimpleName());
-        errorResponse.put("path", path);
-        return errorResponse;
     }
 } 

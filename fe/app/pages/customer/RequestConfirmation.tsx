@@ -1032,12 +1032,27 @@ export default function RequestConfirmation() {
 
         
         
-        <TouchableOpacity
-          className="bg-[#0D47A1] py-4 rounded-lg mb-6"
-          onPress={() => router.push('/pages/customer/MyBids')}
-        >
-          <Text className="text-white text-center font-semibold text-lg">View Bids</Text>
-        </TouchableOpacity>
+        <View className="flex-row space-x-3 mb-6">
+          <TouchableOpacity
+            className="flex-1 bg-[#0D47A1] py-4 rounded-lg"
+            onPress={() => router.push('/pages/customer/MyBids')}
+          >
+            <Text className="text-white text-center font-semibold text-lg">View Bids</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            className="flex-1 bg-red-600 py-4 rounded-lg"
+            onPress={() => router.push({
+              pathname: '/pages/customer/DisputeForm',
+              params: { 
+                requestId: requestId || '',
+                routeId: selectedRouteId || ''
+              }
+            })}
+          >
+            <Text className="text-white text-center font-semibold text-lg">Open Dispute</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
       
       {/* Bottom Navigation Footer */}

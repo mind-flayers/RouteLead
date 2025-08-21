@@ -284,7 +284,7 @@ CREATE TABLE IF NOT EXISTS public.payments (
 CREATE TABLE IF NOT EXISTS public.disputes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.profiles(id),
-  related_bid_id UUID REFERENCES public.bids(id),
+  parcel_request_id UUID REFERENCES public.parcel_requests(id),
   related_route_id UUID REFERENCES public.return_routes(id),
   description TEXT NOT NULL,
   status dispute_status_enum NOT NULL DEFAULT 'OPEN',
