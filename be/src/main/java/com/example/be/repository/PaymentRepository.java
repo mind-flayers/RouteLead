@@ -21,6 +21,18 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     @Query("SELECT p FROM Payment p WHERE p.bid.id = :bidId")
     Optional<Payment> findByBidId(@Param("bidId") UUID bidId);
     
+    // Find latest payment by bid ID - handles multiple payments per bid
+    @Query("SELECT p FROM Payment p WHERE p.bid.id = :bidId ORDER BY p.createdAt DESC")
+    List<Payment> findByBidIdOrderByCreatedAtDesc(@Param("bidId") UUID bidId);
+    
+    // Find latest payment by bid ID - returns only the most recent one
+    @Query("SELECT p FROM Payment p WHERE p.bid.id = :bidId ORDER BY p.createdAt DESC LIMIT 1")
+    Optional<Payment> findLatestByBidId(@Param("bidId") UUID bidId);
+    
+    // Find payments by request ID (through bid relationship)
+    @Query("SELECT p FROM Payment p WHERE p.bid.request.id = :requestId ORDER BY p.createdAt DESC")
+    List<Payment> findByRequestId(@Param("requestId") UUID requestId);
+    
     // Find payments by user ID - using relationship navigation
     @Query("SELECT p FROM Payment p WHERE p.user.id = :userId ORDER BY p.createdAt DESC")
     List<Payment> findByUserIdOrderByCreatedAtDesc(@Param("userId") UUID userId);

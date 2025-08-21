@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useRouter } from 'expo-router';
 
@@ -9,6 +9,7 @@ interface PayHereCheckoutProps {
   onSuccess?: (data: any) => void;
   onCancel?: () => void;
   onError?: (error: string) => void;
+  onBypass?: (data: any) => void;
 }
 
 export default function PayHereCheckout({ 
@@ -16,10 +17,12 @@ export default function PayHereCheckout({
   payHereUrl, 
   onSuccess, 
   onCancel, 
-  onError 
+  onError,
+  onBypass
 }: PayHereCheckoutProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [bypassLoading, setBypassLoading] = useState(false);
   const router = useRouter();
 
   // Create the HTML form that will auto-submit to PayHere
@@ -113,6 +116,51 @@ export default function PayHereCheckout({
       </body>
       </html>
     `;
+  };
+
+  const handleBypassPayment = async () => {
+    try {
+      setBypassLoading(true);
+      
+      // Extract payment data from the paymentData object
+      const bypassRequest = {
+        bidId: paymentData.custom_1,
+        requestId: paymentData.custom_2,
+        userId: paymentData.custom_3,
+        amount: paymentData.amount,
+        paymentMethod: paymentData.custom_4
+      };
+      
+      console.log('🔄 Processing bypass payment:', bypassRequest);
+      
+      // Call the bypass endpoint
+      const response = await fetch('https://e7a10c241203.ngrok-free.app/api/payments/bypass', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bypassRequest),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Payment bypassed successfully:', result.data);
+        console.log('🔄 Calling onBypass callback with data:', result.data);
+        
+        // Call the onBypass callback directly without showing an alert
+        onBypass?.(result.data);
+      } else {
+        console.error('❌ Bypass payment failed:', result.message);
+        Alert.alert('Payment Error', result.message || 'Failed to process payment');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error during bypass payment:', error);
+      Alert.alert('Payment Error', 'Failed to process payment. Please try again.');
+    } finally {
+      setBypassLoading(false);
+    }
   };
 
   const handleWebViewMessage = (event: any) => {
@@ -250,6 +298,24 @@ export default function PayHereCheckout({
         mediaPlaybackRequiresUserAction={false}
         userAgent="RouteLead-Mobile-App"
       />
+      
+      {/* Continue Button for Bypass Payment */}
+      <View style={styles.continueButtonContainer}>
+        <TouchableOpacity
+          style={[styles.continueButton, bypassLoading && styles.continueButtonDisabled]}
+          onPress={handleBypassPayment}
+          disabled={bypassLoading}
+        >
+          {bypassLoading ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.continueButtonText}>Continue (Skip Payment)</Text>
+          )}
+        </TouchableOpacity>
+        <Text style={styles.continueButtonSubtext}>
+          Click here to skip payment and continue with the order
+        </Text>
+      </View>
     </View>
   );
 }
@@ -287,5 +353,45 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#c62828',
     fontSize: 14,
+  },
+  continueButtonContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  continueButton: {
+    backgroundColor: '#10B981',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  continueButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  continueButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  continueButtonSubtext: {
+    color: '#6B7280',
+    fontSize: 12,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

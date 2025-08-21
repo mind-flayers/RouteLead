@@ -63,6 +63,8 @@ public class PaymentService {
         }
     }
 
+
+
     /**
      * Get payment by ID
      */
@@ -77,7 +79,7 @@ public class PaymentService {
      */
     @Transactional(readOnly = true)
     public Optional<Payment> getPaymentByBidId(UUID bidId) {
-        return paymentRepository.findByBidId(bidId);
+        return paymentRepository.findLatestByBidId(bidId);
     }
 
     /**

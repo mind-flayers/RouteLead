@@ -330,13 +330,31 @@ export default function Payment() {
   // Handle PayHere checkout callbacks
   const handlePaymentSuccess = (data: any) => {
     console.log('✅ Payment successful:', data);
+    
+    // Extract payment details from the response data
+    const paymentAmount = data.amount || amount;
+    const transactionId = data.transactionId || '';
+    const orderId = data.orderId || '';
+    const paymentStatus = data.paymentStatus || 'COMPLETED';
+    
+    console.log('🚀 Navigating to PaymentSuccess with params:', {
+      amount: paymentAmount.toString(),
+      bidId: bidId,
+      requestId: requestId,
+      paymentStatus: paymentStatus,
+      transactionId: transactionId,
+      orderId: orderId
+    });
+    
     router.push({
-      pathname: '/pages/customer/BookingConfirmation',
+      pathname: '/pages/customer/PaymentSuccess',
       params: {
-        amount: amount.toString(),
+        amount: paymentAmount.toString(),
         bidId: bidId,
         requestId: requestId,
-        paymentStatus: 'COMPLETED'
+        paymentStatus: paymentStatus,
+        transactionId: transactionId,
+        orderId: orderId
       }
     });
   };
@@ -376,6 +394,7 @@ export default function Payment() {
         onSuccess={handlePaymentSuccess}
         onCancel={handlePaymentCancel}
         onError={handlePaymentError}
+        onBypass={handlePaymentSuccess}
       />
     );
   }

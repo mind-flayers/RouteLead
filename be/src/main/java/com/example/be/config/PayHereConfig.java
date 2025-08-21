@@ -2,6 +2,7 @@ package com.example.be.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+
 import lombok.Data;
 
 /**
@@ -33,7 +34,7 @@ public class PayHereConfig {
     private String appSecret = "8gld9OjGtMc4JHM62sunMw8n4FXDeZXLM8W6XTq5YdTE";
     
     // Base URL for your application
-    private String baseUrl = "https://3f29eef41d7b.ngrok-free.app/api";
+    private String baseUrl = "https://e7a10c241203.ngrok-free.app/api";
     
     // Environment setting (sandbox or live)
     private String environment = "sandbox";

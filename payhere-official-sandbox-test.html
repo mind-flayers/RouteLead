@@ -30,15 +30,15 @@
             </div>
             <div class="form-group">
                 <label>return_url:</label>
-                <input type="text" name="return_url" value="http://localhost:8080/api/payments/return" readonly>
+                <input type="text" name="return_url" value="https://765fb61e0f58.ngrok-free.app/api/payments/return" readonly>
             </div>
             <div class="form-group">
                 <label>cancel_url:</label>
-                <input type="text" name="cancel_url" value="http://localhost:8080/api/payments/cancel" readonly>
+                <input type="text" name="cancel_url" value="https://765fb61e0f58.ngrok-free.app/api/payments/cancel" readonly>
             </div>
             <div class="form-group">
                 <label>notify_url:</label>
-                <input type="text" name="notify_url" value="http://localhost:8080/api/payments/webhook" readonly>
+                <input type="text" name="notify_url" value="https://765fb61e0f58.ngrok-free.app/api/payments/webhook" readonly>
             </div>
             <div class="form-group">
                 <label>first_name:</label>
@@ -70,7 +70,7 @@
             </div>
             <div class="form-group">
                 <label>order_id:</label>
-                <input type="text" name="order_id" value="TEST_1755720459104" readonly>
+                <input type="text" name="order_id" value="TEST_1755759695108" readonly>
             </div>
             <div class="form-group">
                 <label>items:</label>
@@ -102,7 +102,7 @@
             </div>
             <div class="form-group">
                 <label>hash:</label>
-                <input type="text" name="hash" value="41145744CD9643D212A0B0D284006537" readonly>
+                <input type="text" name="hash" value="CF484371CC894B35C7152375D4FF9EAF" readonly>
             </div>
             
             <button type="submit">Test Official Sandbox</button>
@@ -112,16 +112,19 @@
             <strong>Debug Information:</strong><br>
             <span class="success">✅ Using official PayHere sandbox credentials</span><br>
             <span class="success">✅ Merchant ID: 1211149</span><br>
+            <span class="success">✅ Using ngrok URL for return/cancel URLs</span><br>
             <span class="success">✅ This should work if PayHere is functioning</span><br>
             <br>
             <strong>Test Data:</strong><br>
-            Order ID: TEST_1755720459104<br>
+            Order ID: TEST_1755759695108<br>
             Amount: 1000.00 LKR<br>
-            Hash: 41145744CD9643D212A0B0D284006537<br>
+            Hash: CF484371CC894B35C7152375D4FF9EAF<br>
+            Return URL: https://765fb61e0f58.ngrok-free.app/api/payments/return<br>
             <br>
             <strong>Expected Behavior:</strong><br>
             • Should redirect to PayHere sandbox payment page<br>
             • No "Unauthorized payment request" error<br>
+            • Return/cancel URLs will work via ngrok<br>
         </div>
     </div>
 </body>

@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -616,6 +617,149 @@ public class PaymentController {
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
             response.put("message", "Debug hash generation failed: " + e.getMessage());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
+     * Bypass payment for development/testing purposes
+     * POST /api/payments/bypass
+     * This endpoint simulates a successful payment without going through PayHere
+     */
+    @PostMapping("/bypass")
+    public ResponseEntity<Map<String, Object>> bypassPayment(@RequestBody Map<String, Object> request) {
+        try {
+            log.info("Processing bypass payment request: {}", request);
+            
+            // Extract payment data from request
+            String bidId = (String) request.get("bidId");
+            String requestId = (String) request.get("requestId");
+            String userId = (String) request.get("userId");
+            BigDecimal amount = new BigDecimal(request.get("amount").toString());
+            String paymentMethod = (String) request.get("paymentMethod");
+            
+            // Validate parameters
+            if (bidId == null || requestId == null || userId == null || amount == null || paymentMethod == null) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Missing required parameters");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            // Convert to UUIDs
+            UUID bidIdUuid = UUID.fromString(bidId);
+            UUID requestIdUuid = UUID.fromString(requestId);
+            UUID userIdUuid = UUID.fromString(userId);
+            
+            // For bypass payments, we'll simulate a successful payment without database interaction
+            // Generate a simple order ID and transaction ID
+            String orderId = "BYPASS_" + System.currentTimeMillis() + "_" + bidIdUuid.toString().substring(0, 8);
+            String transactionId = "BYPASS_" + System.currentTimeMillis();
+            
+            // Create a mock payment response
+            Map<String, Object> bypassResponse = new HashMap<>();
+            bypassResponse.put("bypass", true);
+            bypassResponse.put("timestamp", System.currentTimeMillis());
+            bypassResponse.put("method", "BYPASS_PAYMENT");
+            bypassResponse.put("orderId", orderId);
+            bypassResponse.put("transactionId", transactionId);
+            bypassResponse.put("bidId", bidId);
+            bypassResponse.put("requestId", requestId);
+            bypassResponse.put("userId", userId);
+            
+            // Create a simplified response that mimics a successful payment
+            Map<String, Object> paymentData = new HashMap<>();
+            paymentData.put("id", UUID.randomUUID().toString());
+            paymentData.put("bidId", bidId);
+            paymentData.put("requestId", requestId);
+            paymentData.put("userId", userId);
+            paymentData.put("amount", amount);
+            paymentData.put("currency", payHereConfig.getCurrency());
+            paymentData.put("paymentMethod", paymentMethod);
+            paymentData.put("paymentStatus", "COMPLETED");
+            paymentData.put("transactionId", transactionId);
+            paymentData.put("orderId", orderId);
+            paymentData.put("gateway", "BYPASS");
+            paymentData.put("timestamp", System.currentTimeMillis());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Payment bypassed successfully");
+            response.put("data", paymentData);
+            
+            log.info("Payment bypassed successfully for bid: {}, transaction ID: {}", bidId, transactionId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Error processing bypass payment", e);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to process bypass payment: " + e.getMessage());
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
+
+    /**
+     * Check payment status for bids by request ID
+     * GET /api/payments/request/{requestId}/status
+     */
+    @GetMapping("/request/{requestId}/status")
+    public ResponseEntity<Map<String, Object>> getPaymentStatusByRequestId(@PathVariable String requestId) {
+        try {
+            log.info("Checking payment status for request: {}", requestId);
+            
+            // Convert requestId to UUID
+            UUID requestIdUuid = UUID.fromString(requestId);
+            
+            // Get all bids for this request
+            List<Payment> payments = paymentRepository.findByRequestId(requestIdUuid);
+            
+            // Create response with payment status for each bid
+            List<Map<String, Object>> paymentStatuses = new ArrayList<>();
+            
+            for (Payment payment : payments) {
+                Map<String, Object> status = new HashMap<>();
+                status.put("bidId", payment.getBid() != null ? payment.getBid().getId().toString() : null);
+                status.put("paymentStatus", payment.getPaymentStatus().name());
+                status.put("amount", payment.getAmount());
+                status.put("transactionId", payment.getTransactionId());
+                status.put("orderId", payment.getGatewayResponse() != null ? 
+                    payment.getGatewayResponse().get("orderId") : null);
+                status.put("paid", payment.getPaymentStatus() == PaymentStatusEnum.completed);
+                status.put("paymentDate", payment.getUpdatedAt());
+                
+                paymentStatuses.add(status);
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("requestId", requestId);
+            response.put("paymentStatuses", paymentStatuses);
+            response.put("totalPayments", paymentStatuses.size());
+            response.put("paidCount", paymentStatuses.stream()
+                .mapToInt(s -> (Boolean) s.get("paid") ? 1 : 0)
+                .sum());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid UUID format for requestId: {}", requestId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Invalid request ID format");
+            
+            return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            log.error("Error checking payment status for request: {}", requestId, e);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to check payment status: " + e.getMessage());
             
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
