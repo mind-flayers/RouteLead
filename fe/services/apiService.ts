@@ -215,13 +215,21 @@ export interface MyRoute {
   destinationLat: number;
   destinationLng: number;
   departureTime: string;
+  biddingStart?: string; // When bidding starts
   status: 'INITIATED' | 'OPEN' | 'BOOKED' | 'COMPLETED' | 'CANCELLED';
   originLocationName?: string;
   destinationLocationName?: string;
   createdAt: string;
-  biddingEndTime: string;
+  biddingEndTime: string; // Calculated: 2 hours before departure
   bidCount: number;
   highestBidAmount?: number;
+  // Additional fields from database
+  detourToleranceKm?: number;
+  suggestedPriceMin?: number;
+  suggestedPriceMax?: number;
+  routePolyline?: string;
+  totalDistanceKm?: number;
+  estimatedDurationMinutes?: number;
 }
 
 export interface DetailedBid {
@@ -491,7 +499,11 @@ export class ApiService {
       
       // Transform the response to match our MyRoute interface with async location formatting
       const routesWithLocations = await Promise.all(routes.map(async (route: any) => {
-        // Format location names if they're coordinates
+        // Calculate bidding end time (2 hours before departure)
+        const departureDate = new Date(route.departureTime);
+        const biddingEndTime = new Date(departureDate.getTime() - (2 * 60 * 60 * 1000)); // 2 hours before
+        
+        // Format location names if they're coordinates or use existing names
         const originLocationName = route.originLocationName || 
           await formatLocation(`${route.originLat}, ${route.originLng}`);
         const destinationLocationName = route.destinationLocationName || 
@@ -504,13 +516,21 @@ export class ApiService {
           destinationLat: route.destinationLat,
           destinationLng: route.destinationLng,
           departureTime: route.departureTime,
+          biddingStart: route.biddingStart,
           status: route.status,
           originLocationName,
           destinationLocationName,
           createdAt: route.createdAt,
-          biddingEndTime: route.departureTime, // Use departure time for now
-          bidCount: route.totalBidsCount || 0,
+          biddingEndTime: biddingEndTime.toISOString(),
+          bidCount: route.totalBidsCount || route.bidCount || 0,
           highestBidAmount: route.highestBidAmount,
+          // Additional fields from database
+          detourToleranceKm: route.detourToleranceKm,
+          suggestedPriceMin: route.suggestedPriceMin,
+          suggestedPriceMax: route.suggestedPriceMax,
+          routePolyline: route.routePolyline,
+          totalDistanceKm: route.totalDistanceKm,
+          estimatedDurationMinutes: route.estimatedDurationMinutes,
         };
       }));
 
