@@ -98,6 +98,43 @@ export interface PendingBid {
   createdAt: string;
 }
 
+// ==== DRIVER CHAT INTERFACES ====
+
+export interface DriverConversation {
+  conversationId: string;
+  customerId: string;
+  customerName: string;
+  customerProfileImage?: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+  bidId: string;
+  routeDescription: string;
+  deliveryStatus: string;
+}
+
+export interface AvailableCustomer {
+  customerId: string;
+  customerName: string;
+  customerProfileImage?: string;
+  bidId: string;
+  routeDescription: string;
+  amount: number;
+  createdAt: string;
+  pickupLocation: string;
+  deliveryLocation: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  text: string;
+  senderId: string;
+  receiverId?: string;
+  senderName: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 // Bid-related types
 export interface BidDto {
   id: string;
@@ -588,6 +625,160 @@ export class ApiService {
       return await response.json();
     } catch (error) {
       console.error('Error updating bid status:', error);
+      throw error;
+    }
+  }
+
+  // ==== DRIVER CHAT API METHODS ====
+
+  // Get Driver Conversations API
+  static async getDriverConversations(driverId: string): Promise<DriverConversation[]> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/driver/${driverId}/conversations`,
+        {
+          method: 'GET',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to get driver conversations: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching driver conversations:', error);
+      throw error;
+    }
+  }
+
+  // Get Available Customers API
+  static async getAvailableCustomers(driverId: string): Promise<AvailableCustomer[]> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/driver/${driverId}/available-customers`,
+        {
+          method: 'GET',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to get available customers: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching available customers:', error);
+      throw error;
+    }
+  }
+
+  // End Chat Session API
+  static async endChatSession(conversationId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/conversation/${conversationId}/end`,
+        {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to end chat session: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error ending chat session:', error);
+      throw error;
+    }
+  }
+
+  // Get Messages for Conversation API
+  static async getConversationMessages(conversationId: string): Promise<ChatMessage[]> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/conversation/${conversationId}/messages`,
+        {
+          method: 'GET',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to get conversation messages: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.messages;
+    } catch (error) {
+      console.error('Error fetching conversation messages:', error);
+      throw error;
+    }
+  }
+
+  // Send Message API
+  static async sendMessage(
+    conversationId: string, 
+    senderId: string, 
+    receiverId: string, 
+    messageText: string
+  ): Promise<{ success: boolean; message: any }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/conversation/${conversationId}/messages`,
+        {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({
+            senderId,
+            receiverId,
+            messageText
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to send message: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
+  }
+
+  // Create Conversation API
+  static async createConversation(
+    bidId: string, 
+    customerId: string, 
+    driverId: string
+  ): Promise<{ success: boolean; conversationId: string; message: string }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/conversation/create`,
+        {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({
+            bidId,
+            customerId,
+            driverId
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to create conversation: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating conversation:', error);
       throw error;
     }
   }
