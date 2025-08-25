@@ -6,6 +6,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import TopBar from '../../../components/ui/TopBar';
 import ProgressBar from '../../../components/ui/ProgressBar';
+import { VerificationApiService } from '../../../services/verificationApiService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface DocumentUpload {
   frontSide?: string;
@@ -19,6 +21,7 @@ const UploadPersonalDocs = () => {
   const [driverLicense, setDriverLicense] = useState<DocumentUpload>({});
   const [nationalId, setNationalId] = useState<DocumentUpload>({});
   const [billingProof, setBillingProof] = useState<DocumentUpload>({});
+  const [isUploading, setIsUploading] = useState(false);
 
   const pickDocument = async (
     docType: 'driverLicense' | 'nationalId' | 'billingProof',
@@ -50,7 +53,21 @@ const UploadPersonalDocs = () => {
     }
   };
 
-  const validateAndContinue = () => {
+  const uploadDocument = async (driverId: string, imageUri: string, documentType: string) => {
+    const fileName = `${documentType}_${driverId}_${Date.now()}.jpg`;
+    
+    const formData = new FormData();
+    formData.append('file', {
+      uri: imageUri,
+      type: 'image/jpeg',
+      name: fileName,
+    } as any);
+
+    return await VerificationApiService.uploadDocument(driverId, formData.get('file'), documentType);
+  };
+
+  const validateAndContinue = async () => {
+    // Validation checks
     if (!driverLicense.frontSide || !driverLicense.backSide) {
       Alert.alert('Missing Documents', 'Please upload both sides of your driving license.');
       return;
@@ -67,8 +84,59 @@ const UploadPersonalDocs = () => {
       Alert.alert('Missing Information', 'Please enter your license expiry date.');
       return;
     }
-    
-    router.push('/pages/driver/SelectVehicleType');
+
+    try {
+      setIsUploading(true);
+      
+      // Get current user ID
+      const userData = await AsyncStorage.getItem('user_data');
+      if (!userData) {
+        Alert.alert('Error', 'User not found. Please log in again.');
+        return;
+      }
+      
+      const user = JSON.parse(userData);
+      const driverId = user.id;
+
+      // Upload all documents
+      const uploadPromises = [];
+
+      // Upload driver license documents
+      if (driverLicense.frontSide) {
+        uploadPromises.push(uploadDocument(driverId, driverLicense.frontSide, 'DRIVER_LICENSE'));
+      }
+      
+      // Upload national ID documents
+      if (nationalId.frontSide) {
+        uploadPromises.push(uploadDocument(driverId, nationalId.frontSide, 'NATIONAL_ID'));
+      }
+
+      // Upload billing proof if available
+      if (billingProof.document) {
+        uploadPromises.push(uploadDocument(driverId, billingProof.document, 'BILLING_PROOF'));
+      }
+
+      // Wait for all uploads to complete
+      await Promise.all(uploadPromises);
+
+      // Also update profile with license details
+      await VerificationApiService.updateProfile(driverId, {
+        driverLicenseNumber: licenseNumber.trim(),
+        licenseExpiryDate: licenseExpiry.trim(),
+      });
+
+      Alert.alert(
+        'Success!', 
+        'All documents uploaded successfully!',
+        [{ text: 'OK', onPress: () => router.push('/pages/driver/SelectVehicleType') }]
+      );
+      
+    } catch (error) {
+      console.error('Error uploading documents:', error);
+      Alert.alert('Upload Failed', 'Failed to upload documents. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleBackPress = () => {
@@ -263,11 +331,15 @@ const UploadPersonalDocs = () => {
           <Text className="text-gray-700 text-lg font-bold">Back</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => router.push('/pages/driver/SelectVehicleType')}
-          // onPress={handleBackPress}
-          className="flex-1 ml-2 bg-orange-500 py-3 rounded-lg items-center"
+          onPress={validateAndContinue}
+          className={`flex-1 ml-2 py-3 rounded-lg items-center ${
+            isUploading ? 'bg-gray-400' : 'bg-orange-500'
+          }`}
+          disabled={isUploading}
         >
-          <Text className="text-white text-lg font-bold">Next</Text>
+          <Text className="text-white text-lg font-bold">
+            {isUploading ? 'Uploading...' : 'Next'}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

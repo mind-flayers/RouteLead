@@ -6,6 +6,8 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import TopBar from '../../../components/ui/TopBar';
 import ProgressBar from '../../../components/ui/ProgressBar';
+import { VerificationApiService } from '../../../services/verificationApiService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const UploadFacePhoto = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -73,13 +75,52 @@ const UploadFacePhoto = () => {
     }
   };
 
-  const handleContinue = () => {
-//    if (!selectedImage) {
-//      Alert.alert('Photo Required', 'Please upload your face photo to continue.');
-//      return;
-//    }
-    // Here you would typically upload the image to your server
-    router.push('/pages/driver/UploadPersonalDocs');
+  const handleContinue = async () => {
+    if (!selectedImage) {
+      Alert.alert('Photo Required', 'Please upload your face photo to continue.');
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      
+      // Get current user ID
+      const userData = await AsyncStorage.getItem('user_data');
+      if (!userData) {
+        Alert.alert('Error', 'User not found. Please log in again.');
+        return;
+      }
+      
+      const user = JSON.parse(userData);
+      const driverId = user.id;
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      
+      // Convert image URI to file object for upload
+      const fileName = `face_photo_${driverId}_${Date.now()}.jpg`;
+      
+      formData.append('file', {
+        uri: selectedImage,
+        type: 'image/jpeg',
+        name: fileName,
+      } as any);
+
+      // Upload face photo using our API service
+      await VerificationApiService.uploadDocument(driverId, formData.get('file'), 'FACE_PHOTO');
+      
+      Alert.alert(
+        'Success!', 
+        'Face photo uploaded successfully!',
+        [{ text: 'OK', onPress: () => router.push('/pages/driver/UploadPersonalDocs') }]
+      );
+      
+    } catch (error) {
+      console.error('Error uploading face photo:', error);
+      Alert.alert('Upload Failed', 'Failed to upload face photo. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -138,13 +179,13 @@ const UploadFacePhoto = () => {
 
           <TouchableOpacity
             className={`py-3 rounded-lg items-center ${
-              selectedImage ? 'bg-orange-500' : 'bg-gray-400'
+              selectedImage && !isUploading ? 'bg-orange-500' : 'bg-gray-400'
             }`}
             onPress={handleContinue}
-            disabled={false}
+            disabled={!selectedImage || isUploading}
           >
             <Text className="text-white text-lg font-bold">
-              {selectedImage ? 'Continue' : 'Choose Photo First'}
+              {isUploading ? 'Uploading...' : selectedImage ? 'Continue' : 'Choose Photo First'}
             </Text>
           </TouchableOpacity>
         </View>

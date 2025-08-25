@@ -6,6 +6,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import TopBar from '../../../components/ui/TopBar';
 import ProgressBar from '../../../components/ui/ProgressBar';
+import { VerificationApiService } from '../../../services/verificationApiService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface VehicleDocuments {
   frontView?: string;
@@ -21,6 +23,7 @@ interface VehicleDocuments {
 const UploadVehicleDocs = () => {
   const [isOwner, setIsOwner] = useState<boolean | null>(true);
   const [documents, setDocuments] = useState<VehicleDocuments>({});
+  const [isUploading, setIsUploading] = useState(false);
 
   const pickDocument = async (docType: keyof VehicleDocuments) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -41,42 +44,55 @@ const UploadVehicleDocs = () => {
     }
   };
 
+  const uploadDocument = async (driverId: string, imageUri: string, documentType: string) => {
+    const fileName = `${documentType}_${driverId}_${Date.now()}.jpg`;
+    
+    const formData = new FormData();
+    formData.append('file', {
+      uri: imageUri,
+      type: 'image/jpeg',
+      name: fileName,
+    } as any);
+
+    return await VerificationApiService.uploadDocument(driverId, formData.get('file'), documentType);
+  };
+
   const validateAndSubmit = () => {
     // Check required vehicle photos
-    // if (!documents.frontView) {
-    //   Alert.alert('Missing Document', 'Please upload front view of the vehicle.');
-    //   return;
-    // }
-    // if (!documents.backView) {
-    //   Alert.alert('Missing Document', 'Please upload back view of the vehicle.');
-    //   return;
-    // }
-    // if (!documents.insideView) {
-    //   Alert.alert('Missing Document', 'Please upload inside view of the vehicle.');
-    //   return;
-    // }
+    if (!documents.frontView) {
+      Alert.alert('Missing Document', 'Please upload front view of the vehicle.');
+      return;
+    }
+    if (!documents.backView) {
+      Alert.alert('Missing Document', 'Please upload back view of the vehicle.');
+      return;
+    }
+    if (!documents.insideView) {
+      Alert.alert('Missing Document', 'Please upload inside view of the vehicle.');
+      return;
+    }
 
     // Check required vehicle documents
-    // if (!documents.vehicleLicense) {
-    //   Alert.alert('Missing Document', 'Please upload vehicle license.');
-    //   return;
-    // }
-    // if (!documents.vehicleInsurance) {
-    //   Alert.alert('Missing Document', 'Please upload vehicle insurance.');
-    //   return;
-    // }
-    // if (!documents.vehicleRegistration) {
-    //   Alert.alert('Missing Document', 'Please upload vehicle registration.');
-    //   return;
-    // }
+    if (!documents.vehicleLicense) {
+      Alert.alert('Missing Document', 'Please upload vehicle license.');
+      return;
+    }
+    if (!documents.vehicleInsurance) {
+      Alert.alert('Missing Document', 'Please upload vehicle insurance.');
+      return;
+    }
+    if (!documents.vehicleRegistration) {
+      Alert.alert('Missing Document', 'Please upload vehicle registration.');
+      return;
+    }
 
     // Check owner documents if not the owner
-    // if (!isOwner) {
-    //   if (!documents.ownerNicFront || !documents.ownerNicBack) {
-    //     Alert.alert('Missing Document', 'Please upload both sides of the owner\'s NIC.');
-    //     return;
-    //   }
-    // }
+    if (!isOwner) {
+      if (!documents.ownerNicFront || !documents.ownerNicBack) {
+        Alert.alert('Missing Document', 'Please upload both sides of the owner\'s NIC.');
+        return;
+      }
+    }
 
     // All documents are uploaded, proceed with submission
     Alert.alert(
@@ -89,15 +105,75 @@ const UploadVehicleDocs = () => {
     );
   };
 
-  const handleFinalSubmission = () => {
-    // Here you would typically upload all documents to your server
-    Alert.alert(
-      'Submission Successful',
-      'Your documents have been submitted for review. You will be notified once the review is complete.',
-      [
-        { text: 'OK', onPress: () => router.replace('/pages/driver/Profile') }
-      ]
-    );
+  const handleFinalSubmission = async () => {
+    try {
+      setIsUploading(true);
+      
+      // Get current user ID
+      const userData = await AsyncStorage.getItem('user_data');
+      if (!userData) {
+        Alert.alert('Error', 'User not found. Please log in again.');
+        return;
+      }
+      
+      const user = JSON.parse(userData);
+      const driverId = user.id;
+
+      // Upload all vehicle documents
+      const uploadPromises = [];
+
+      // Upload vehicle photos
+      if (documents.frontView) {
+        uploadPromises.push(uploadDocument(driverId, documents.frontView, 'VEHICLE_FRONT_VIEW'));
+      }
+      if (documents.backView) {
+        uploadPromises.push(uploadDocument(driverId, documents.backView, 'VEHICLE_BACK_VIEW'));
+      }
+      if (documents.insideView) {
+        uploadPromises.push(uploadDocument(driverId, documents.insideView, 'VEHICLE_INSIDE_VIEW'));
+      }
+
+      // Upload vehicle documents
+      if (documents.vehicleLicense) {
+        uploadPromises.push(uploadDocument(driverId, documents.vehicleLicense, 'VEHICLE_LICENSE'));
+      }
+      if (documents.vehicleInsurance) {
+        uploadPromises.push(uploadDocument(driverId, documents.vehicleInsurance, 'VEHICLE_INSURANCE'));
+      }
+      if (documents.vehicleRegistration) {
+        uploadPromises.push(uploadDocument(driverId, documents.vehicleRegistration, 'VEHICLE_REGISTRATION'));
+      }
+
+      // Upload owner NIC if not the owner
+      if (!isOwner) {
+        if (documents.ownerNicFront) {
+          uploadPromises.push(uploadDocument(driverId, documents.ownerNicFront, 'OWNER_NIC_FRONT'));
+        }
+        if (documents.ownerNicBack) {
+          uploadPromises.push(uploadDocument(driverId, documents.ownerNicBack, 'OWNER_NIC_BACK'));
+        }
+      }
+
+      // Wait for all uploads to complete
+      await Promise.all(uploadPromises);
+
+      // Submit for verification
+      await VerificationApiService.submitForVerification(driverId);
+
+      Alert.alert(
+        'Submission Successful',
+        'Your documents have been submitted for review. You will be notified once the review is complete.',
+        [
+          { text: 'OK', onPress: () => router.replace('/pages/driver/Profile') }
+        ]
+      );
+      
+    } catch (error) {
+      console.error('Error submitting documents:', error);
+      Alert.alert('Submission Failed', 'Failed to submit documents. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleBackPress = () => {
@@ -450,9 +526,14 @@ const UploadVehicleDocs = () => {
         </TouchableOpacity>
         <TouchableOpacity
           onPress={validateAndSubmit}
-          className="flex-1 ml-2 bg-orange-500 py-3 rounded-lg items-center"
+          className={`flex-1 ml-2 py-3 rounded-lg items-center ${
+            isUploading ? 'bg-gray-400' : 'bg-orange-500'
+          }`}
+          disabled={isUploading}
         >
-          <Text className="text-white text-lg font-bold">Submit for Review</Text>
+          <Text className="text-white text-lg font-bold">
+            {isUploading ? 'Submitting...' : 'Submit for Review'}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

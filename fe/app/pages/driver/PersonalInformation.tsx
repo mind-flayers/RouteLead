@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import PrimaryCard from '../../../components/ui/PrimaryCard';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
 import { useNavigation } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { VerificationApiService, ProfileData, ProfileUpdateData } from '../../../services/verificationApiService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const sriLankanCities = [
   'Colombo', 'Kandy', 'Galle', 'Jaffna', 'Negombo', 'Batticaloa', 'Trincomalee', 'Anuradhapura',
@@ -17,21 +19,63 @@ const sriLankanCities = [
 const PersonalInformation = () => {
   const navigation = useNavigation();
 
-  const [firstName, setFirstName] = useState('Mishaf');
-  const [lastName, setLastName] = useState('Hasan');
-  const [dateOfBirth, setDateOfBirth] = useState(new Date('2000-05-15'));
+  // State for form fields - start with empty values, load from API
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [gender, setGender] = useState('Male');
-  const [nicNumber, setNicNumber] = useState('123456789');
-  const [phoneNumber, setPhoneNumber] = useState('0781234567');
-  const [emailAddress, setEmailAddress] = useState('example@example.com');
-  const [addressLine1, setAddressLine1] = useState('123 Main Street');
-  const [addressLine2, setAddressLine2] = useState('Nogegoda');
+  const [nicNumber, setNicNumber] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [emailAddress, setEmailAddress] = useState('');
+  const [addressLine1, setAddressLine1] = useState('');
+  const [addressLine2, setAddressLine2] = useState('');
   const [city, setCity] = useState('Colombo');
   const [showCityPicker, setShowCityPicker] = useState(false);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
 
+  // Loading and user state
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [driverId, setDriverId] = useState<string | null>(null);
+
   const genderOptions = ['Male', 'Female'];
+
+  // Load profile data on component mount
+  useEffect(() => {
+    loadProfileData();
+  }, []);
+
+  const loadProfileData = async () => {
+    try {
+      setLoading(true);
+      // Get current user ID from AsyncStorage
+      const userData = await AsyncStorage.getItem('user_data');
+      if (userData) {
+        const user = JSON.parse(userData);
+        const userId = user.id;
+        setDriverId(userId);
+
+        // Load profile data from API
+        const profile = await VerificationApiService.getProfile(userId);
+        
+        // Populate form fields with profile data
+        setFirstName(profile.firstName || '');
+        setLastName(profile.lastName || '');
+        setNicNumber(profile.nicNumber || '');
+        setPhoneNumber(profile.phoneNumber || '');
+        setEmailAddress(profile.email || '');
+        
+        // Note: Additional fields like address, dateOfBirth, gender are not in basic profile
+        // They will be populated from the form when available
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      Alert.alert('Error', 'Failed to load profile data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleBackPress = () => {
     navigation.goBack();
@@ -47,12 +91,57 @@ const PersonalInformation = () => {
     setShowDatePicker(true);
   };
 
-  const handleSaveProfile = () => {
-    console.log('Profile Saved:', {
-      firstName, lastName, dateOfBirth, gender, nicNumber,
-      phoneNumber, emailAddress, addressLine1, addressLine2, city,
-    });
-    // Add actual save logic have to build
+  const handleSaveProfile = async () => {
+    if (!driverId) {
+      Alert.alert('Error', 'User not found. Please log in again.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      // Prepare profile update data
+      const profileUpdateData: ProfileUpdateData = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phoneNumber: phoneNumber.trim(),
+        nicNumber: nicNumber.trim(),
+        email: emailAddress.trim(),
+        dateOfBirth: dateOfBirth.toISOString().split('T')[0], // YYYY-MM-DD format
+        gender,
+        addressLine1: addressLine1.trim(),
+        addressLine2: addressLine2.trim(),
+        city,
+      };
+
+      // Remove empty fields
+      Object.keys(profileUpdateData).forEach(key => {
+        if (profileUpdateData[key as keyof ProfileUpdateData] === '') {
+          delete profileUpdateData[key as keyof ProfileUpdateData];
+        }
+      });
+
+      // Save profile data
+      const updatedProfile = await VerificationApiService.updateProfile(driverId, profileUpdateData);
+      
+      Alert.alert(
+        'Success', 
+        'Profile updated successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => navigation.goBack()
+          }
+        ]
+      );
+
+      console.log('Profile Updated:', updatedProfile);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      Alert.alert('Error', 'Failed to save profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -210,7 +299,12 @@ const PersonalInformation = () => {
         </PrimaryCard>
 
         {/* Save Profile Button */}
-        <PrimaryButton title="Save Profile" onPress={handleSaveProfile} className="mb-4" />
+        <PrimaryButton 
+          title={saving ? "Saving..." : "Save Profile"} 
+          onPress={handleSaveProfile} 
+          className="mb-4"
+          disabled={saving || loading}
+        />
       </ScrollView>
     </SafeAreaView>
   );
