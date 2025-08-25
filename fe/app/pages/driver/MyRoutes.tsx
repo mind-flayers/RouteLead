@@ -11,6 +11,7 @@ import PrimaryCard from '@/components/ui/PrimaryCard';
 import IndigoButton from '@/components/ui/IndigoButton';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
 import { useMyRoutes } from '@/hooks/useMyRoutes';
+import { useDriverInfo } from '@/hooks/useEarningsData';
 import { formatCurrency, formatDate } from '@/services/apiService';
 import { calculateCountdown, formatRouteStatus, isBiddingActive } from '@/utils/routeUtils';
 
@@ -18,8 +19,8 @@ const MyRoutes = () => {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<'active' | 'past'>('active');
   
-  // Mock driver ID - in real app, get from auth context
-  const driverId = '797c6f16-a06a-46b4-ae9f-9ded8aa4ab27';
+  // Get authenticated driver ID
+  const { driverId } = useDriverInfo();
   
   // Fetch all routes and filter on frontend
   const { routes: allRoutes, loading, error, refreshing, refresh } = useMyRoutes(driverId);

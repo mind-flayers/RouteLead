@@ -4,21 +4,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ApiService, ChatMessage } from '@/services/apiService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDriverInfo } from '@/hooks/useEarningsData';
 
 const ChatScreen = () => {
   const router = useRouter();
   const { conversationId, customerName, customerId, bidId, profileImage, isNewConversation } = useLocalSearchParams();
+  const { driverId } = useDriverInfo();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentDriverId, setCurrentDriverId] = useState<string | null>(null);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
-    initializeChat();
-  }, []);
+    if (driverId) {
+      initializeChat();
+    }
+  }, [driverId]);
 
   useEffect(() => {
     // Auto scroll to bottom when new messages arrive
@@ -33,14 +35,11 @@ const ChatScreen = () => {
     try {
       setLoading(true);
       
-      // Get driver ID from storage
-      const driverId = await AsyncStorage.getItem('driverId');
       if (!driverId) {
         Alert.alert('Error', 'Driver ID not found. Please log in again.');
         router.back();
         return;
       }
-      setCurrentDriverId(driverId);
 
       let chatId = conversationId as string;
 
@@ -91,7 +90,7 @@ const ChatScreen = () => {
   };
 
   const handleSendMessage = async () => {
-    if (!message.trim() || !currentConversationId || !currentDriverId || !customerId) {
+    if (!message.trim() || !currentConversationId || !driverId || !customerId) {
       console.log('Missing required data for sending message');
       return;
     }
@@ -102,7 +101,7 @@ const ChatScreen = () => {
     try {
       const response = await ApiService.sendMessage(
         currentConversationId,
-        currentDriverId,
+        driverId,
         customerId as string,
         messageText
       );
@@ -156,7 +155,7 @@ const ChatScreen = () => {
   };
 
   const renderMessage = (msg: ChatMessage) => {
-    const isMyMessage = msg.senderId === currentDriverId;
+    const isMyMessage = msg.senderId === driverId;
     
     return (
       <View key={msg.id} className={`flex-row items-end mb-3 ${isMyMessage ? 'justify-end' : 'justify-start'}`}>

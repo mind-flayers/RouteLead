@@ -13,7 +13,7 @@ const DeliveryManagement = () => {
   const navigation = useNavigation();
   const router = useRouter();
   const route = useRoute();
-  const { bidId } = route.params as { bidId?: string };
+  const { bidId } = route.params as { bidId: string };
 
   // State management
   const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetails | null>(null);
@@ -23,30 +23,15 @@ const DeliveryManagement = () => {
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   // Location tracking
-  const [locationInterval, setLocationInterval] = useState<ReturnType<typeof setInterval> | null>(null);
-
   useEffect(() => {
     requestLocationPermission();
     startLocationTracking();
-    
-    // Cleanup function to clear interval when component unmounts
-    return () => {
-      if (locationInterval) {
-        clearInterval(locationInterval);
-      }
-    };
-  }, [locationInterval]);
+  }, []);
 
   // Load delivery details on component mount
   useEffect(() => {
-    console.log('Component mounted, route params:', route.params);
-    console.log('BidId from params:', bidId);
     if (bidId) {
       loadDeliveryDetails();
-    } else {
-      console.error('No bidId found in route params');
-      setError('No delivery ID provided. Please select a delivery from your active routes.');
-      setLoading(false);
     }
   }, [bidId]);
 
@@ -89,7 +74,7 @@ const DeliveryManagement = () => {
           });
 
           // Update location on server if delivery is active
-          if (deliveryDetails && deliveryDetails.status !== 'DELIVERED' && bidId) {
+          if (deliveryDetails && deliveryDetails.status !== 'DELIVERED') {
             updateLocationOnServer(newLocation.coords.latitude, newLocation.coords.longitude);
           }
         } catch (error) {
@@ -97,14 +82,14 @@ const DeliveryManagement = () => {
         }
       }, 15 * 60 * 1000); // 15 minutes
 
-      setLocationInterval(interval);
+      return () => clearInterval(interval);
     } catch (error) {
       console.error('Error starting location tracking:', error);
     }
   };
 
   const updateLocationOnServer = async (lat: number, lng: number) => {
-    if (!deliveryDetails || !bidId) return;
+    if (!deliveryDetails) return;
     
     try {
       const update: DeliveryStatusUpdate = {
@@ -120,22 +105,13 @@ const DeliveryManagement = () => {
   };
 
   const loadDeliveryDetails = async () => {
-    if (!bidId) {
-      setError('No delivery ID provided');
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
-      console.log('Loading delivery details for bidId:', bidId);
       const details = await deliveryService.getDeliveryDetails(bidId);
-      console.log('Delivery details loaded:', details);
       setDeliveryDetails(details);
     } catch (error) {
       console.error('Error loading delivery details:', error);
-      console.error('BidId was:', bidId);
       setError('Failed to load delivery details. Please try again.');
     } finally {
       setLoading(false);
@@ -157,19 +133,7 @@ const DeliveryManagement = () => {
 
   const handleChatCustomer = () => {
     // Navigate to chat screen with customer details
-    if (deliveryDetails?.customerName) {
-      // Use Alert instead of navigation for now, since chat might not be implemented
-      Alert.alert(
-        'Chat Customer',
-        `Contact ${deliveryDetails.customerName}`,
-        [
-          { text: 'Call Instead', onPress: handleCallCustomer },
-          { text: 'Cancel', style: 'cancel' }
-        ]
-      );
-    } else {
-      Alert.alert('Error', 'Customer information not available');
-    }
+    router.push(`/pages/chat/Chat?recipientId=${deliveryDetails?.customerName}&recipientName=${deliveryDetails?.customerName}`);
   };
 
   const handleStartNavigation = () => {
@@ -188,10 +152,7 @@ const DeliveryManagement = () => {
   };
 
   const updateDeliveryStatus = async (newStatus: 'ACCEPTED' | 'PICKED_UP' | 'IN_TRANSIT' | 'DELIVERED') => {
-    if (!deliveryDetails || !bidId) {
-      Alert.alert('Error', 'Delivery information not available');
-      return;
-    }
+    if (!deliveryDetails) return;
 
     try {
       setUpdating(true);
@@ -256,40 +217,11 @@ const DeliveryManagement = () => {
     );
   }
 
-  if (error || !deliveryDetails || !bidId) {
+  if (error || !deliveryDetails) {
     return (
       <SafeAreaView className="flex-1 bg-gray-100 justify-center items-center p-4">
-        <View className="items-center">
-          <MaterialCommunityIcons name="truck-delivery" size={64} color="#9CA3AF" />
-          <Text className="text-lg text-red-500 text-center mb-4 mt-4">
-            {!bidId 
-              ? 'No delivery selected' 
-              : error || 'No delivery details found'
-            }
-          </Text>
-          <Text className="text-gray-600 text-center mb-6">
-            {!bidId 
-              ? 'Please navigate to this page with a valid delivery ID from your routes or accepted bids.'
-              : 'Please try again or contact support if the problem persists.'
-            }
-          </Text>
-          <View className="space-y-3 w-full">
-            <PrimaryButton 
-              title="Go to Dashboard" 
-              onPress={() => router.push('/pages/driver/Dashboard')}
-            />
-            <SecondaryButton 
-              title="View My Routes" 
-              onPress={() => router.push('/pages/driver/MyRoutes')}
-            />
-            {bidId && (
-              <SecondaryButton 
-                title="Retry" 
-                onPress={loadDeliveryDetails}
-              />
-            )}
-          </View>
-        </View>
+        <Text className="text-lg text-red-500 text-center mb-4">{error || 'No delivery details found'}</Text>
+        <PrimaryButton title="Retry" onPress={loadDeliveryDetails} />
       </SafeAreaView>
     );
   }

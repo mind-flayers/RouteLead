@@ -5,10 +5,11 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo
 import { Link, useRouter } from 'expo-router';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
 import { ApiService, DriverConversation, AvailableCustomer } from '@/services/apiService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDriverInfo } from '@/hooks/useEarningsData';
 
 const ChatList = () => {
   const router = useRouter();
+  const { driverId } = useDriverInfo();
   const [conversations, setConversations] = useState<DriverConversation[]>([]);
   const [availableCustomers, setAvailableCustomers] = useState<AvailableCustomer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,13 +17,14 @@ const ChatList = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    loadDriverData();
-  }, []);
+    if (driverId) {
+      loadDriverData();
+    }
+  }, [driverId]);
 
   const loadDriverData = async () => {
     try {
       setLoading(true);
-      const driverId = await AsyncStorage.getItem('driverId');
       if (!driverId) {
         Alert.alert('Error', 'Driver ID not found. Please log in again.');
         return;
@@ -34,8 +36,8 @@ const ChatList = () => {
         ApiService.getAvailableCustomers(driverId)
       ]);
 
-      setConversations(conversationsData);
-      setAvailableCustomers(availableData);
+      setConversations(Array.isArray(conversationsData) ? conversationsData : []);
+      setAvailableCustomers(Array.isArray(availableData) ? availableData : []);
     } catch (error) {
       console.error('Error loading driver chat data:', error);
       Alert.alert('Error', 'Failed to load chat data. Please try again.');
@@ -56,12 +58,12 @@ const ChatList = () => {
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
   };
 
-  const filteredConversations = conversations.filter(conv =>
+  const filteredConversations = (conversations || []).filter(conv =>
     conv.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     conv.routeDescription.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredAvailableCustomers = availableCustomers.filter(customer =>
+  const filteredAvailableCustomers = (availableCustomers || []).filter(customer =>
     customer.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     customer.routeDescription.toLowerCase().includes(searchQuery.toLowerCase())
   );
