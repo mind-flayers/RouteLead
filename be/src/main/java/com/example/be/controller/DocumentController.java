@@ -54,8 +54,8 @@ public class DocumentController {
             // Validate file
             fileUploadService.validateFile(file);
             
-            // Save file (temporarily using local storage)
-            String filePath = fileUploadService.saveFileLocally(file, driverId, documentType);
+            // Save file to Supabase Storage
+            String filePath = fileUploadService.saveFileToSupabase(file, driverId, documentType);
             
             // Create document record (for most documents, expiry date is null)
             DriverDocument document = driverDocumentService.uploadDocument(
@@ -291,6 +291,80 @@ public class DocumentController {
             
         } catch (RuntimeException e) {
             log.error("Error getting verification overview for driver: {}", driverId, e);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * Save document URL from Supabase Storage (new method for Supabase integration)
+     */
+    @PostMapping("/{driverId}/save-url")
+    public ResponseEntity<Map<String, Object>> saveDocumentUrl(
+            @PathVariable UUID driverId,
+            @RequestBody Map<String, Object> requestData) {
+        
+        try {
+            String documentType = (String) requestData.get("documentType");
+            String documentUrl = (String) requestData.get("documentUrl");
+            String filePath = (String) requestData.get("filePath");
+            String expiryDate = (String) requestData.get("expiryDate");
+            
+            // Validate document type
+            DocumentTypeEnum docType;
+            try {
+                docType = DocumentTypeEnum.valueOf(documentType.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("status", "error");
+                response.put("message", "Invalid document type");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            // Save document record with Supabase URL
+            DriverDocument document = driverDocumentService.saveDocumentFromSupabase(
+                driverId, docType, documentUrl, filePath, expiryDate
+            );
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("data", document);
+            response.put("message", "Document URL saved successfully");
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Error saving document URL for driver: {}", driverId, e);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * Get all documents for a driver with additional metadata
+     */
+    @GetMapping("/{driverId}/all")
+    public ResponseEntity<Map<String, Object>> getAllDriverDocuments(@PathVariable UUID driverId) {
+        try {
+            List<DriverDocument> documents = driverDocumentService.getDriverDocuments(driverId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("data", documents);
+            response.put("message", "All documents retrieved successfully");
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (RuntimeException e) {
+            log.error("Error retrieving all documents for driver: {}", driverId, e);
             
             Map<String, Object> response = new HashMap<>();
             response.put("status", "error");

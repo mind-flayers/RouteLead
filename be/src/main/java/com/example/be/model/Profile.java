@@ -31,7 +31,7 @@ public class Profile {
     private String email;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false, columnDefinition = "user_role")
+    @Column(name = "role", nullable = false)
     private UserRole role = UserRole.CUSTOMER;
 
     @Column(name = "first_name")
@@ -56,7 +56,7 @@ public class Profile {
     private LocalDate dateOfBirth;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "gender", columnDefinition = "gender_enum")
+    @Column(name = "gender")
     private GenderEnum gender;
 
     @Column(name = "address_line_1")
@@ -79,7 +79,7 @@ public class Profile {
     private LocalDate licenseExpiryDate;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "verification_status", columnDefinition = "verification_status_enum")
+    @Column(name = "verification_status")
     private VerificationStatusEnum verificationStatus;
 
     @Column(name = "face_photo_url")

@@ -27,18 +27,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
+    console.log('🚀 AuthProvider initializing...');
+    
     // Check active sessions and sets the user
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('📋 Session check result:', { 
+        hasSession: !!session, 
+        userId: session?.user?.id,
+        userEmail: session?.user?.email 
+      });
+      
       if (session?.user) {
+        console.log('👤 Session found, fetching user profile for:', session.user.id);
         fetchUserProfile(session.user.id);
+      } else {
+        console.log('❌ No active session found');
       }
       setState(prev => ({ ...prev, session, loading: false }));
     });
 
     // Listen for changes on auth state
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('🔄 Auth state changed:', { event: _event, hasSession: !!session });
       setState(prev => ({ ...prev, session, loading: false }));
       if (session?.user) {
+        console.log('👤 Auth change: fetching profile for:', session.user.id);
         fetchUserProfile(session.user.id);
       }
     });
@@ -47,6 +60,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
+    console.log('📥 Fetching user profile for:', userId);
+    
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
@@ -54,9 +69,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .single();
 
     if (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('❌ Error fetching user profile:', error);
       return;
     }
+
+    console.log('✅ User profile fetched:', { 
+      userId, 
+      email: data.email, 
+      role: data.role, 
+      firstName: data.first_name 
+    });
 
     setState(prev => ({
       ...prev,

@@ -119,6 +119,7 @@ public class ProfileController {
             Map<String, Object> statusData = new HashMap<>();
             statusData.put("isVerified", profile.getIsVerified());
             statusData.put("personalInfoComplete", profileService.checkPersonalInformationCompleteness(driverId));
+            statusData.put("verificationStatus", profile.getVerificationStatus());
             
             Map<String, Object> response = new HashMap<>();
             response.put("status", "success");

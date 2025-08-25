@@ -270,4 +270,51 @@ public class DriverDocumentService {
                 .filter(type -> !documentMap.containsKey(type))
                 .collect(Collectors.toList());
     }
+
+    /**
+     * Save document from Supabase Storage
+     */
+    @Transactional
+    public DriverDocument saveDocumentFromSupabase(UUID driverId, DocumentTypeEnum documentType, 
+                                                  String documentUrl, String filePath, String expiryDate) {
+        log.info("Saving document from Supabase for driver: {}, type: {}", driverId, documentType);
+
+        Profile driver = profileRepository.findById(driverId)
+                .orElseThrow(() -> new RuntimeException("Driver not found with ID: " + driverId));
+
+        // Check if document already exists for this type and update it
+        DriverDocument existingDoc = driverDocumentRepository
+                .findByDriverIdAndDocumentType(driverId, documentType);
+
+        DriverDocument document;
+        if (existingDoc != null) {
+            // Update existing document
+            document = existingDoc;
+            document.setDocumentUrl(documentUrl);
+            document.setVerificationStatus(VerificationStatusEnum.PENDING); // Reset to pending when re-uploaded
+            document.setVerifiedBy(null);
+            document.setVerifiedAt(null);
+        } else {
+            // Create new document
+            document = new DriverDocument();
+            document.setDriver(driver); // Set the Profile object, not the UUID
+            document.setDocumentType(documentType);
+            document.setDocumentUrl(documentUrl);
+            document.setVerificationStatus(VerificationStatusEnum.PENDING);
+        }
+
+        // Set expiry date if provided
+        if (expiryDate != null && !expiryDate.trim().isEmpty()) {
+            try {
+                document.setExpiryDate(LocalDate.parse(expiryDate));
+            } catch (Exception e) {
+                log.warn("Invalid expiry date format: {}", expiryDate);
+            }
+        }
+
+        DriverDocument savedDocument = driverDocumentRepository.save(document);
+        log.info("Document saved successfully with ID: {}", savedDocument.getId());
+        
+        return savedDocument;
+    }
 }

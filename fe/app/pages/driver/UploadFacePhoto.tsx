@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -6,12 +6,40 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import TopBar from '../../../components/ui/TopBar';
 import ProgressBar from '../../../components/ui/ProgressBar';
-import { VerificationApiService } from '../../../services/verificationApiService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { VerificationFlowService } from '../../../services/verificationFlowService';
+import { supabase } from '@/lib/supabase';
 
 const UploadFacePhoto = () => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [verificationFlow] = useState(() => VerificationFlowService.getInstance());
+
+  useEffect(() => {
+    const initializeComponent = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserId(user.id);
+          
+          // Initialize verification flow
+          await verificationFlow.initializeFlow(user.id);
+          
+          // Check if face photo already exists
+          const flowState = verificationFlow.getFlowState();
+          const existingFacePhoto = flowState.documents.find(doc => doc.documentType === 'FACE_PHOTO');
+          if (existingFacePhoto && existingFacePhoto.localUri) {
+            setSelectedImage(existingFacePhoto.localUri);
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing component:', error);
+        Alert.alert('Error', 'Failed to initialize verification. Please try again.');
+      }
+    };
+
+    initializeComponent();
+  }, []);
 
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -81,43 +109,34 @@ const UploadFacePhoto = () => {
       return;
     }
 
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated. Please log in again.');
+      return;
+    }
+
     try {
       setIsUploading(true);
       
-      // Get current user ID
-      const userData = await AsyncStorage.getItem('user_data');
-      if (!userData) {
-        Alert.alert('Error', 'User not found. Please log in again.');
-        return;
-      }
-      
-      const user = JSON.parse(userData);
-      const driverId = user.id;
-
-      // Create FormData for file upload
-      const formData = new FormData();
-      
-      // Convert image URI to file object for upload
-      const fileName = `face_photo_${driverId}_${Date.now()}.jpg`;
-      
-      formData.append('file', {
+      // Create file object for upload
+      const fileName = `face_photo_${userId}_${Date.now()}.jpg`;
+      const fileData = {
         uri: selectedImage,
         type: 'image/jpeg',
         name: fileName,
-      } as any);
+      };
 
-      // Upload face photo using our API service
-      await VerificationApiService.uploadDocument(driverId, formData.get('file'), 'FACE_PHOTO');
+      // Upload using VerificationFlowService
+      await verificationFlow.uploadDocument(userId, fileData, 'FACE_PHOTO');
       
       Alert.alert(
         'Success!', 
         'Face photo uploaded successfully!',
-        [{ text: 'OK', onPress: () => router.push('/pages/driver/UploadPersonalDocs') }]
+        [{ text: 'Continue', onPress: () => router.push('/pages/driver/VerificationDocuments') }]
       );
       
     } catch (error) {
       console.error('Error uploading face photo:', error);
-      Alert.alert('Upload Failed', 'Failed to upload face photo. Please try again.');
+      Alert.alert('Upload Failed', error instanceof Error ? error.message : 'Failed to upload face photo. Please try again.');
     } finally {
       setIsUploading(false);
     }

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Config } from '../constants/Config';
+import { supabase } from '@/lib/supabase';
 
 const API_BASE_URL = Config.API_BASE;
 
@@ -14,6 +15,11 @@ export interface ProfileData {
   nicNumber?: string;
   profilePhotoUrl?: string;
   isVerified: boolean;
+  dateOfBirth?: string;
+  gender?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,6 +42,7 @@ export interface ProfileUpdateData {
 export interface VerificationStatus {
   isVerified: boolean;
   personalInfoComplete: boolean;
+  verificationStatus: string | null;
 }
 
 export interface VerificationRequirements {
@@ -63,7 +70,9 @@ export interface DocumentCompleteness {
 // Verification API Service Class
 export class VerificationApiService {
   private static async makeRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const token = await AsyncStorage.getItem('auth_token');
+    // Get Supabase session token
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
     
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: {
@@ -131,7 +140,9 @@ export class VerificationApiService {
     document: DocumentData;
     upload: any;
   }> {
-    const token = await AsyncStorage.getItem('auth_token');
+    // Get Supabase session token
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token;
     
     const formData = new FormData();
     formData.append('file', file);
@@ -170,6 +181,53 @@ export class VerificationApiService {
     rejectedCount: number;
   }> {
     return this.makeRequest(`/documents/${driverId}/verification/overview`);
+  }
+
+  // New methods for Supabase Storage integration
+  static async saveDocumentUrl(driverId: string, documentData: {
+    documentType: string;
+    documentUrl: string;
+    filePath: string;
+    expiryDate?: string;
+  }): Promise<DocumentData> {
+    return this.makeRequest<DocumentData>(`/documents/${driverId}/save-url`, {
+      method: 'POST',
+      body: JSON.stringify(documentData),
+    });
+  }
+
+  static async submitForReview(driverId: string): Promise<{
+    success: boolean;
+    message: string;
+    verificationStatus: string;
+  }> {
+    return this.makeRequest(`/verification/${driverId}/submit`, {
+      method: 'POST',
+    });
+  }
+
+  static async getVerificationStatusWithDocs(driverId: string): Promise<{
+    verificationStatus: string | null;
+    isVerified: boolean;
+    personalInfoComplete: boolean;
+    documents: DocumentData[];
+    canEdit: boolean;
+  }> {
+    return this.makeRequest(`/verification/${driverId}/status-with-docs`);
+  }
+
+  static async updateVerificationStatus(driverId: string, status: 'PENDING' | 'APPROVED' | 'REJECTED', adminNotes?: string): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    return this.makeRequest(`/verification/${driverId}/update-status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, adminNotes }),
+    });
+  }
+
+  static async getDocumentsByDriver(driverId: string): Promise<DocumentData[]> {
+    return this.makeRequest<DocumentData[]>(`/documents/${driverId}/all`);
   }
 }
 

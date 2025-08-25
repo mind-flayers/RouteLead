@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Alert, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import TopBar from '../../../components/ui/TopBar';
 import ProgressBar from '../../../components/ui/ProgressBar';
-import { VerificationApiService } from '../../../services/verificationApiService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { VerificationFlowService, DOCUMENT_TYPE_NAMES } from '../../../services/verificationFlowService';
+import { supabase } from '@/lib/supabase';
 
 interface DocumentUpload {
   frontSide?: string;

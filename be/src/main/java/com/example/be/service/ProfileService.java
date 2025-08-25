@@ -9,19 +9,24 @@ import com.example.be.dto.ProfileUpdateDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 
 @Service
 public class ProfileService {
     private final ProfileRepository profileRepository;
+    private final JdbcTemplate jdbcTemplate;
 
     @Autowired
-    public ProfileService(ProfileRepository profileRepository) {
+    public ProfileService(ProfileRepository profileRepository, JdbcTemplate jdbcTemplate) {
         this.profileRepository = profileRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional
@@ -197,47 +202,75 @@ public class ProfileService {
     }
 
     /**
-     * Update personal information for verification
+     * Update personal information for verification using native SQL
      */
     @Transactional
     public Profile updatePersonalInformation(UUID userId, ProfileUpdateDto updateDto) {
-        Profile profile = getProfile(userId);
+        // Build dynamic SQL query based on provided fields
+        List<String> setClause = new ArrayList<>();
+        List<Object> params = new ArrayList<>();
         
         if (updateDto.getFirstName() != null) {
-            profile.setFirstName(updateDto.getFirstName());
+            setClause.add("first_name = ?");
+            params.add(updateDto.getFirstName());
         }
         if (updateDto.getLastName() != null) {
-            profile.setLastName(updateDto.getLastName());
+            setClause.add("last_name = ?");
+            params.add(updateDto.getLastName());
         }
         if (updateDto.getPhoneNumber() != null) {
-            profile.setPhoneNumber(updateDto.getPhoneNumber());
+            setClause.add("phone_number = ?");
+            params.add(updateDto.getPhoneNumber());
         }
         if (updateDto.getNicNumber() != null) {
-            profile.setNicNumber(updateDto.getNicNumber());
+            setClause.add("nic_number = ?");
+            params.add(updateDto.getNicNumber());
         }
         if (updateDto.getDateOfBirth() != null) {
-            profile.setDateOfBirth(updateDto.getDateOfBirth());
+            setClause.add("date_of_birth = ?");
+            params.add(updateDto.getDateOfBirth());
         }
         if (updateDto.getGender() != null) {
-            profile.setGender(updateDto.getGender());
+            setClause.add("gender = ?::gender_enum");
+            params.add(updateDto.getGender().name());
         }
         if (updateDto.getAddressLine1() != null) {
-            profile.setAddressLine1(updateDto.getAddressLine1());
+            setClause.add("address_line_1 = ?");
+            params.add(updateDto.getAddressLine1());
         }
         if (updateDto.getAddressLine2() != null) {
-            profile.setAddressLine2(updateDto.getAddressLine2());
+            setClause.add("address_line_2 = ?");
+            params.add(updateDto.getAddressLine2());
         }
         if (updateDto.getCity() != null) {
-            profile.setCity(updateDto.getCity());
+            setClause.add("city = ?");
+            params.add(updateDto.getCity());
         }
         if (updateDto.getDriverLicenseNumber() != null) {
-            profile.setDriverLicenseNumber(updateDto.getDriverLicenseNumber());
+            setClause.add("driver_license_number = ?");
+            params.add(updateDto.getDriverLicenseNumber());
         }
         if (updateDto.getLicenseExpiryDate() != null) {
-            profile.setLicenseExpiryDate(updateDto.getLicenseExpiryDate());
+            setClause.add("license_expiry_date = ?");
+            params.add(updateDto.getLicenseExpiryDate());
+        }
+        if (updateDto.getEmail() != null) {
+            setClause.add("email = ?");
+            params.add(updateDto.getEmail());
         }
         
-        return profileRepository.save(profile);
+        // Always update the updated_at timestamp
+        setClause.add("updated_at = CURRENT_TIMESTAMP");
+        
+        if (!setClause.isEmpty()) {
+            String sql = "UPDATE profiles SET " + String.join(", ", setClause) + " WHERE id = ?";
+            params.add(userId);
+            
+            jdbcTemplate.update(sql, params.toArray());
+        }
+        
+        // Return the updated profile
+        return getProfile(userId);
     }
 
     /**
@@ -291,6 +324,33 @@ public class ProfileService {
         return missingFields;
     }
 
+    /**
+     * Get verification status data for API response
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getVerificationStatus(UUID userId) {
+        Profile profile = getProfile(userId);
+        boolean personalInfoComplete = checkPersonalInformationCompleteness(userId);
+        
+        Map<String, Object> statusData = new HashMap<>();
+        statusData.put("isVerified", profile.getIsVerified());
+        statusData.put("personalInfoComplete", personalInfoComplete);
+        statusData.put("verificationStatus", profile.getVerificationStatus() != null ? 
+            profile.getVerificationStatus().name() : null);
+        
+        return statusData;
+    }
+
+    /**
+     * Set profile verified status
+     */
+    @Transactional
+    public Profile setProfileVerified(UUID userId, boolean isVerified) {
+        Profile profile = getProfile(userId);
+        profile.setIsVerified(isVerified);
+        return profileRepository.save(profile);
+    }
+
     // Helper method to convert Profile to ProfileDto
     public ProfileDto convertToDto(Profile profile) {
         ProfileDto dto = new ProfileDto();
@@ -303,6 +363,12 @@ public class ProfileService {
         dto.setNicNumber(profile.getNicNumber());
         dto.setProfilePhotoUrl(profile.getProfilePhotoUrl());
         dto.setIsVerified(profile.getIsVerified());
+        dto.setDateOfBirth(profile.getDateOfBirth());
+        dto.setGender(profile.getGender());
+        dto.setAddressLine1(profile.getAddressLine1());
+        dto.setAddressLine2(profile.getAddressLine2());
+        dto.setCity(profile.getCity());
+        dto.setVerificationStatus(profile.getVerificationStatus());
         dto.setCreatedAt(profile.getCreatedAt());
         dto.setUpdatedAt(profile.getUpdatedAt());
         return dto;

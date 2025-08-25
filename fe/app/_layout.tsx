@@ -14,9 +14,10 @@ export {
   ErrorBoundary,
 } from 'expo-router';
 
-export const unstable_settings = {
-  initialRouteName: 'pages/login',
-};
+// Remove fixed initial route to allow dynamic routing based on auth state
+// export const unstable_settings = {
+//   initialRouteName: 'pages/login',
+// };
 
 SplashScreen.preventAutoHideAsync();
 
