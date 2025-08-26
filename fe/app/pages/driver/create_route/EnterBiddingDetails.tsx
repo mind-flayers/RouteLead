@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouteCreation } from '../../../../contexts/RouteCreationContext';
 import { ApiService, formatLocation } from '../../../../services/apiService';
+import { useDriverInfo } from '../../../../hooks/useEarningsData';
 import PrimaryButton from '../../../../components/ui/PrimaryButton';
 import SecondaryButton from '../../../../components/ui/SecondaryButton';
 import PrimaryCard from '../../../../components/ui/PrimaryCard';
@@ -12,6 +13,7 @@ import PrimaryCard from '../../../../components/ui/PrimaryCard';
 const EnterBiddingDetails = () => {
   const router = useRouter();
   const { routeData, updateRouteData, isLocationDataComplete, getCreateRoutePayload, clearRouteData } = useRouteCreation();
+  const { driverId } = useDriverInfo();
 
   // Form state
   const [biddingStartDate, setBiddingStartDate] = useState(new Date());
@@ -178,9 +180,6 @@ const EnterBiddingDetails = () => {
       const combinedDepartureTime = new Date(departureDate);
       combinedDepartureTime.setHours(departureTime.getHours());
       combinedDepartureTime.setMinutes(departureTime.getMinutes());
-
-      // Mock driver ID - in a real app, this would come from authentication context
-      const driverId = '797c6f16-a06a-46b4-ae9f-9ded8aa4ab27';
 
       // Build the route payload directly with current form data
       const routePayload = {

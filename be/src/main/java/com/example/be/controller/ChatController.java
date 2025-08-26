@@ -521,4 +521,323 @@ public class ChatController {
             return ResponseEntity.status(500).body(response);
         }
     }
+
+    /**
+     * Get active conversations for a driver (matched and paid requests only)
+     * GET /api/chat/driver/{driverId}/conversations
+     */
+    @GetMapping("/driver/{driverId}/conversations")
+    public ResponseEntity<Map<String, Object>> getDriverConversations(@PathVariable String driverId) {
+        try {
+            log.info("Fetching conversations for driver: {}", driverId);
+            
+            UUID driverIdUuid = UUID.fromString(driverId);
+            
+            // Find active conversations for this driver (matched and paid requests)
+            String sql = """
+                SELECT DISTINCT 
+                    c.id as conversation_id,
+                    c.bid_id,
+                    c.last_message_at,
+                    c.created_at,
+                    pr.id as request_id,
+                    pr.description as request_description,
+                    pr.weight_kg,
+                    pr.volume_m3,
+                    cu.id as customer_id,
+                    cu.first_name as customer_first_name,
+                    cu.last_name as customer_last_name,
+                    cu.profile_photo_url as customer_photo,
+                    cu.phone_number as customer_phone,
+                    b.offered_price
+                FROM conversations c
+                JOIN bids b ON c.bid_id = b.id
+                JOIN parcel_requests pr ON b.request_id = pr.id
+                JOIN return_routes rr ON b.route_id = rr.id
+                JOIN profiles cu ON c.customer_id = cu.id
+                WHERE rr.driver_id = :driverId
+                AND pr.status = 'MATCHED'
+                AND b.status = 'ACCEPTED'
+                AND EXISTS (
+                    SELECT 1 FROM payments p 
+                    WHERE p.bid_id = b.id 
+                    AND p.payment_status = 'completed'
+                )
+                ORDER BY c.last_message_at DESC NULLS LAST, c.created_at DESC
+                """;
+            
+            @SuppressWarnings("unchecked")
+            List<Object[]> results = entityManager.createNativeQuery(sql)
+                .setParameter("driverId", driverIdUuid)
+                .getResultList();
+            
+            List<Map<String, Object>> conversationList = results.stream().map(row -> {
+                Map<String, Object> convData = new HashMap<>();
+                convData.put("id", row[0] != null ? row[0].toString() : null);
+                convData.put("bidId", row[1] != null ? row[1].toString() : null);
+                convData.put("lastMessageAt", row[2]);
+                convData.put("createdAt", row[3]);
+                convData.put("requestId", row[4] != null ? row[4].toString() : null);
+                convData.put("requestDescription", row[5]);
+                convData.put("weightKg", row[6]);
+                convData.put("volumeM3", row[7]);
+                convData.put("customerId", row[8] != null ? row[8].toString() : null);
+                convData.put("customerName", (row[9] != null ? row[9] : "") + " " + (row[10] != null ? row[10] : ""));
+                convData.put("customerPhoto", row[11]);
+                convData.put("customerPhone", row[12]);
+                convData.put("offeredPrice", row[13]);
+                
+                // Get last message
+                if (row[0] != null) {
+                    UUID conversationId = UUID.fromString(row[0].toString());
+                    Message lastMessage = messageRepository.findLastMessageByConversationId(conversationId);
+                    if (lastMessage != null) {
+                        convData.put("lastMessage", lastMessage.getMessageText());
+                        convData.put("lastMessageTime", lastMessage.getCreatedAt());
+                    }
+                    
+                    // Count unread messages
+                    long unreadCount = messageRepository.countByConversationIdAndSenderIdNotAndIsReadFalse(
+                        conversationId, driverIdUuid);
+                    convData.put("unreadCount", unreadCount);
+                }
+                
+                return convData;
+            }).toList();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("conversations", conversationList);
+            response.put("totalConversations", conversationList.size());
+            
+            log.info("Found {} conversations for driver {}", conversationList.size(), driverId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid UUID format for driverId: {}", driverId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Invalid driver ID format");
+            
+            return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            log.error("Error fetching conversations for driver: {}", driverId, e);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to fetch conversations: " + e.getMessage());
+            
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
+     * Get available customers for a driver (from accepted & paid bids)
+     * GET /api/chat/driver/{driverId}/available-customers
+     */
+    @GetMapping("/driver/{driverId}/available-customers")
+    public ResponseEntity<Map<String, Object>> getAvailableCustomers(@PathVariable String driverId) {
+        try {
+            log.info("Fetching available customers for driver: {}", driverId);
+            
+            UUID driverIdUuid = UUID.fromString(driverId);
+            
+            // Find paid and matched requests with customer information
+            String sql = """
+                SELECT DISTINCT 
+                    b.id as bid_id,
+                    pr.id as request_id,
+                    pr.description as request_description,
+                    pr.weight_kg,
+                    pr.volume_m3,
+                    cu.id as customer_id,
+                    cu.first_name as customer_first_name,
+                    cu.last_name as customer_last_name,
+                    cu.profile_photo_url as customer_photo,
+                    cu.phone_number as customer_phone,
+                    b.offered_price,
+                    b.created_at as bid_created_at,
+                    c.id as conversation_id
+                FROM bids b
+                JOIN parcel_requests pr ON b.request_id = pr.id
+                JOIN return_routes rr ON b.route_id = rr.id
+                JOIN profiles cu ON pr.customer_id = cu.id
+                LEFT JOIN conversations c ON c.bid_id = b.id
+                WHERE rr.driver_id = :driverId
+                AND pr.status = 'MATCHED'
+                AND b.status = 'ACCEPTED'
+                AND EXISTS (
+                    SELECT 1 FROM payments p 
+                    WHERE p.bid_id = b.id 
+                    AND p.payment_status = 'completed'
+                )
+                ORDER BY b.created_at DESC
+                """;
+            
+            @SuppressWarnings("unchecked")
+            List<Object[]> results = entityManager.createNativeQuery(sql)
+                .setParameter("driverId", driverIdUuid)
+                .getResultList();
+            
+            List<Map<String, Object>> customerList = new ArrayList<>();
+            
+            for (Object[] row : results) {
+                Map<String, Object> customerData = new HashMap<>();
+                customerData.put("bidId", row[0] != null ? row[0].toString() : null);
+                customerData.put("requestId", row[1] != null ? row[1].toString() : null);
+                customerData.put("requestDescription", row[2]);
+                customerData.put("weightKg", row[3]);
+                customerData.put("volumeM3", row[4]);
+                customerData.put("customerId", row[5] != null ? row[5].toString() : null);
+                customerData.put("customerName", (row[6] != null ? row[6] : "") + " " + (row[7] != null ? row[7] : ""));
+                customerData.put("customerPhoto", row[8]);
+                customerData.put("customerPhone", row[9]);
+                customerData.put("offeredPrice", row[10]);
+                customerData.put("bidCreatedAt", row[11]);
+                customerData.put("conversationId", row[12] != null ? row[12].toString() : null);
+                
+                // Check if conversation exists
+                boolean hasConversation = row[12] != null;
+                customerData.put("hasConversation", hasConversation);
+                
+                // If conversation exists, get last message and unread count
+                if (hasConversation) {
+                    UUID conversationId = UUID.fromString(row[12].toString());
+                    
+                    // Get last message
+                    Message lastMessage = messageRepository.findLastMessageByConversationId(conversationId);
+                    if (lastMessage != null) {
+                        customerData.put("lastMessage", lastMessage.getMessageText());
+                        customerData.put("lastMessageTime", lastMessage.getCreatedAt());
+                    }
+                    
+                    // Count unread messages
+                    long unreadCount = messageRepository.countByConversationIdAndSenderIdNotAndIsReadFalse(
+                        conversationId, driverIdUuid);
+                    customerData.put("unreadCount", unreadCount);
+                }
+                
+                customerList.add(customerData);
+            }
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("customers", customerList);
+            response.put("totalCustomers", customerList.size());
+            
+            log.info("Found {} available customers for driver {}", customerList.size(), driverId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid UUID format for driverId: {}", driverId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Invalid driver ID format");
+            
+            return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            log.error("Error fetching available customers for driver: {}", driverId, e);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to fetch available customers: " + e.getMessage());
+            
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
+     * Mark chat session as ended
+     * PUT /api/chat/conversation/{conversationId}/end
+     */
+    @PutMapping("/conversation/{conversationId}/end")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> endChatSession(
+            @PathVariable String conversationId,
+            @RequestBody Map<String, Object> request) {
+        try {
+            log.info("Ending chat session for conversation: {}", conversationId);
+            
+            UUID conversationIdUuid = UUID.fromString(conversationId);
+            String userId = (String) request.get("userId");
+            
+            if (userId == null) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Missing required field: userId");
+                return ResponseEntity.badRequest().body(response);
+            }
+            
+            UUID userIdUuid = UUID.fromString(userId);
+            
+            // Check if conversation exists
+            String checkConversationSql = "SELECT id FROM conversations WHERE id = ?";
+            @SuppressWarnings("unchecked")
+            List<Object[]> conversationResult = entityManager.createNativeQuery(checkConversationSql)
+                .setParameter(1, conversationIdUuid)
+                .getResultList();
+            
+            if (conversationResult.isEmpty()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Conversation not found");
+                return ResponseEntity.notFound().build();
+            }
+            
+            // Add a system message indicating the session has ended
+            String insertSystemMessageSql = """
+                INSERT INTO messages (conversation_id, sender_id, message_text, message_type, is_read, created_at)
+                VALUES (?, ?, ?, CAST('TEXT' AS public.message_type_enum), ?, ?)
+                """;
+            
+            entityManager.createNativeQuery(insertSystemMessageSql)
+                .setParameter(1, conversationIdUuid)
+                .setParameter(2, userIdUuid)
+                .setParameter(3, "Chat session ended by user")
+                .setParameter(4, true)
+                .setParameter(5, ZonedDateTime.now())
+                .executeUpdate();
+            
+            // Update conversation's last message time
+            String updateConversationSql = """
+                UPDATE conversations 
+                SET last_message_at = ? 
+                WHERE id = ?
+                """;
+            
+            entityManager.createNativeQuery(updateConversationSql)
+                .setParameter(1, ZonedDateTime.now())
+                .setParameter(2, conversationIdUuid)
+                .executeUpdate();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Chat session ended successfully");
+            
+            log.info("Chat session ended for conversation: {}", conversationId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid UUID format: {}", e.getMessage());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Invalid ID format");
+            
+            return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            log.error("Error ending chat session for conversation: {}", conversationId, e);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to end chat session: " + e.getMessage());
+            
+            return ResponseEntity.status(500).body(response);
+        }
+    }
 }

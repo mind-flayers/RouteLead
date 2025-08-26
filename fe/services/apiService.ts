@@ -98,6 +98,43 @@ export interface PendingBid {
   createdAt: string;
 }
 
+// ==== DRIVER CHAT INTERFACES ====
+
+export interface DriverConversation {
+  conversationId: string;
+  customerId: string;
+  customerName: string;
+  customerProfileImage?: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+  bidId: string;
+  routeDescription: string;
+  deliveryStatus: string;
+}
+
+export interface AvailableCustomer {
+  customerId: string;
+  customerName: string;
+  customerProfileImage?: string;
+  bidId: string;
+  routeDescription: string;
+  amount: number;
+  createdAt: string;
+  pickupLocation: string;
+  deliveryLocation: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  text: string;
+  senderId: string;
+  receiverId?: string;
+  senderName: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
 // Bid-related types
 export interface BidDto {
   id: string;
@@ -215,13 +252,21 @@ export interface MyRoute {
   destinationLat: number;
   destinationLng: number;
   departureTime: string;
+  biddingStart?: string; // When bidding starts
   status: 'INITIATED' | 'OPEN' | 'BOOKED' | 'COMPLETED' | 'CANCELLED';
   originLocationName?: string;
   destinationLocationName?: string;
   createdAt: string;
-  biddingEndTime: string;
+  biddingEndTime: string; // Calculated: 2 hours before departure
   bidCount: number;
   highestBidAmount?: number;
+  // Additional fields from database
+  detourToleranceKm?: number;
+  suggestedPriceMin?: number;
+  suggestedPriceMax?: number;
+  routePolyline?: string;
+  totalDistanceKm?: number;
+  estimatedDurationMinutes?: number;
 }
 
 export interface DetailedBid {
@@ -491,7 +536,11 @@ export class ApiService {
       
       // Transform the response to match our MyRoute interface with async location formatting
       const routesWithLocations = await Promise.all(routes.map(async (route: any) => {
-        // Format location names if they're coordinates
+        // Calculate bidding end time (2 hours before departure)
+        const departureDate = new Date(route.departureTime);
+        const biddingEndTime = new Date(departureDate.getTime() - (2 * 60 * 60 * 1000)); // 2 hours before
+        
+        // Format location names if they're coordinates or use existing names
         const originLocationName = route.originLocationName || 
           await formatLocation(`${route.originLat}, ${route.originLng}`);
         const destinationLocationName = route.destinationLocationName || 
@@ -504,13 +553,21 @@ export class ApiService {
           destinationLat: route.destinationLat,
           destinationLng: route.destinationLng,
           departureTime: route.departureTime,
+          biddingStart: route.biddingStart,
           status: route.status,
           originLocationName,
           destinationLocationName,
           createdAt: route.createdAt,
-          biddingEndTime: route.departureTime, // Use departure time for now
-          bidCount: route.totalBidsCount || 0,
+          biddingEndTime: biddingEndTime.toISOString(),
+          bidCount: route.totalBidsCount || route.bidCount || 0,
           highestBidAmount: route.highestBidAmount,
+          // Additional fields from database
+          detourToleranceKm: route.detourToleranceKm,
+          suggestedPriceMin: route.suggestedPriceMin,
+          suggestedPriceMax: route.suggestedPriceMax,
+          routePolyline: route.routePolyline,
+          totalDistanceKm: route.totalDistanceKm,
+          estimatedDurationMinutes: route.estimatedDurationMinutes,
         };
       }));
 
@@ -568,6 +625,160 @@ export class ApiService {
       return await response.json();
     } catch (error) {
       console.error('Error updating bid status:', error);
+      throw error;
+    }
+  }
+
+  // ==== DRIVER CHAT API METHODS ====
+
+  // Get Driver Conversations API
+  static async getDriverConversations(driverId: string): Promise<DriverConversation[]> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/driver/${driverId}/conversations`,
+        {
+          method: 'GET',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to get driver conversations: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching driver conversations:', error);
+      throw error;
+    }
+  }
+
+  // Get Available Customers API
+  static async getAvailableCustomers(driverId: string): Promise<AvailableCustomer[]> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/driver/${driverId}/available-customers`,
+        {
+          method: 'GET',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to get available customers: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching available customers:', error);
+      throw error;
+    }
+  }
+
+  // End Chat Session API
+  static async endChatSession(conversationId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/conversation/${conversationId}/end`,
+        {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to end chat session: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error ending chat session:', error);
+      throw error;
+    }
+  }
+
+  // Get Messages for Conversation API
+  static async getConversationMessages(conversationId: string): Promise<ChatMessage[]> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/conversation/${conversationId}/messages`,
+        {
+          method: 'GET',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to get conversation messages: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.messages;
+    } catch (error) {
+      console.error('Error fetching conversation messages:', error);
+      throw error;
+    }
+  }
+
+  // Send Message API
+  static async sendMessage(
+    conversationId: string, 
+    senderId: string, 
+    receiverId: string, 
+    messageText: string
+  ): Promise<{ success: boolean; message: any }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/conversation/${conversationId}/messages`,
+        {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({
+            senderId,
+            receiverId,
+            messageText
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to send message: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error sending message:', error);
+      throw error;
+    }
+  }
+
+  // Create Conversation API
+  static async createConversation(
+    bidId: string, 
+    customerId: string, 
+    driverId: string
+  ): Promise<{ success: boolean; conversationId: string; message: string }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/conversation/create`,
+        {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({
+            bidId,
+            customerId,
+            driverId
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to create conversation: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating conversation:', error);
       throw error;
     }
   }

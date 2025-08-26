@@ -11,6 +11,7 @@ import PrimaryCard from '@/components/ui/PrimaryCard';
 import IndigoButton from '@/components/ui/IndigoButton';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
 import { useMyRoutes } from '@/hooks/useMyRoutes';
+import { useDriverInfo } from '@/hooks/useEarningsData';
 import { formatCurrency, formatDate } from '@/services/apiService';
 import { calculateCountdown, formatRouteStatus, isBiddingActive } from '@/utils/routeUtils';
 
@@ -18,13 +19,20 @@ const MyRoutes = () => {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<'active' | 'past'>('active');
   
-  // Mock driver ID - in real app, get from auth context
-  const driverId = '797c6f16-a06a-46b4-ae9f-9ded8aa4ab27';
+  // Get authenticated driver ID
+  const { driverId } = useDriverInfo();
   
-  // Determine status filter based on active filter
-  const statusFilter = activeFilter === 'active' ? 'OPEN' : undefined;
+  // Fetch all routes and filter on frontend
+  const { routes: allRoutes, loading, error, refreshing, refresh } = useMyRoutes(driverId);
   
-  const { routes, loading, error, refreshing, refresh } = useMyRoutes(driverId, statusFilter);
+  // Filter routes based on active filter
+  const routes = allRoutes.filter(route => {
+    if (activeFilter === 'active') {
+      return ['INITIATED', 'OPEN'].includes(route.status);
+    } else {
+      return ['BOOKED', 'COMPLETED', 'CANCELLED'].includes(route.status);
+    }
+  });
 
   const handleFilterChange = (filter: 'active' | 'past') => {
     setActiveFilter(filter);
@@ -52,72 +60,158 @@ const MyRoutes = () => {
     const statusFormat = formatRouteStatus(route.status);
     const countdown = calculateCountdown(route.biddingEndTime);
     const isActive = isBiddingActive(route.biddingEndTime);
+    
+    // Use location names from API response (already geocoded by the API)
+    const originDisplay = route.originLocationName || `${route.originLat}, ${route.originLng}`;
+    const destinationDisplay = route.destinationLocationName || `${route.destinationLat}, ${route.destinationLng}`;
+
+    // Format departure time
+    const departureDate = new Date(route.departureTime);
+    const formattedDepartureTime = departureDate.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: '2-digit', 
+      year: 'numeric'
+    });
+    const formattedDepartureHour = departureDate.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
 
     return (
       <PrimaryCard key={route.id} style={{ marginBottom: 16 }}>
+        {/* Header with origin and status */}
         <View className="flex-row items-center mb-2">
           <Ionicons name="location-outline" size={18} color="gray" />
-          <Text className="text-lg font-semibold ml-2" numberOfLines={1}>
-            {route.originLocationName || `${route.originLat}, ${route.originLng}`}
+          <Text className="text-lg font-semibold ml-2 flex-1" numberOfLines={1}>
+            {originDisplay}
           </Text>
-          <View className={`ml-auto px-3 py-1 rounded-full ${statusFormat.bgColor}`}>
+          <View className={`ml-2 px-3 py-1 rounded-full ${statusFormat.bgColor}`}>
             <Text className={`text-xs font-bold ${statusFormat.color}`}>
               {statusFormat.label}
             </Text>
           </View>
         </View>
         
+        {/* Destination */}
         <View className="flex-row items-center mb-2">
           <MaterialCommunityIcons name="arrow-down" size={18} color="gray" style={{ marginLeft: 2 }} />
-          <Text className="text-lg font-semibold ml-2" numberOfLines={1}>
-            {route.destinationLocationName || `${route.destinationLat}, ${route.destinationLng}`}
+          <Text className="text-lg font-semibold ml-2 flex-1" numberOfLines={1}>
+            {destinationDisplay}
+          </Text>
+        </View>
+
+        {/* Route Details */}
+        <View className="flex-row items-center mb-2 flex-wrap">
+          {route.totalDistanceKm && (
+            <View className="flex-row items-center mr-4 mb-1">
+              <Ionicons name="location" size={14} color="#555" />
+              <Text className="text-gray-600 ml-1 text-sm">{route.totalDistanceKm.toFixed(1)} km</Text>
+            </View>
+          )}
+          {route.estimatedDurationMinutes && (
+            <View className="flex-row items-center mr-4 mb-1">
+              <Ionicons name="time" size={14} color="#555" />
+              <Text className="text-gray-600 ml-1 text-sm">{Math.round(route.estimatedDurationMinutes)} min</Text>
+            </View>
+          )}
+          {route.detourToleranceKm && (
+            <View className="flex-row items-center mb-1">
+              <Ionicons name="swap-horizontal" size={14} color="#555" />
+              <Text className="text-gray-600 ml-1 text-sm">±{route.detourToleranceKm} km</Text>
+            </View>
+          )}
+        </View>
+        
+        {/* Departure Time */}
+        <View className="flex-row items-center mb-2">
+          <Ionicons name="calendar-outline" size={18} color="gray" />
+          <Text className="text-gray-600 ml-2">
+            {formattedDepartureTime} at {formattedDepartureHour}
           </Text>
         </View>
         
-        <View className="flex-row items-center mb-2">
-          <Ionicons name="calendar-outline" size={18} color="gray" />
-          <Text className="text-gray-600 ml-2">{formatDate(route.createdAt)}</Text>
-        </View>
-        
+        {/* Bidding Information */}
         {isActive && countdown !== 'Ended' && (
           <View className="flex-row items-center mb-2">
-            <Ionicons name="time-outline" size={18} color="gray" />
-            <Text className="text-gray-600 ml-2">{countdown}</Text>
+            <Ionicons name="time-outline" size={18} color="#ff6b35" />
+            <Text className="text-orange-600 ml-2 font-medium">
+              Bidding ends: {countdown}
+            </Text>
           </View>
         )}
         
+        {/* Price Range */}
+        {route.suggestedPriceMin && route.suggestedPriceMax && (
+          <View className="flex-row items-center mb-2">
+            <Ionicons name="cash-outline" size={18} color="gray" />
+            <Text className="text-gray-600 ml-2">
+              Suggested: {formatCurrency(route.suggestedPriceMin)} - {formatCurrency(route.suggestedPriceMax)}
+            </Text>
+          </View>
+        )}
+        
+        {/* Bids Summary */}
         <View className="flex-row items-center mb-4">
           <Ionicons name="people-outline" size={18} color="gray" />
-          <Text className="text-gray-600 ml-2">{route.bidCount} Bids | Highest: </Text>
-          <Text className="text-orange-500 font-bold">
-            {route.highestBidAmount ? formatCurrency(route.highestBidAmount) : 'N/A'}
+          <Text className="text-gray-600 ml-2">
+            {route.bidCount} Bids
+            {route.highestBidAmount && (
+              <Text className="text-gray-600"> | Highest: </Text>
+            )}
+            {route.highestBidAmount && (
+              <Text className="text-orange-500 font-bold">
+                {formatCurrency(route.highestBidAmount)}
+              </Text>
+            )}
           </Text>
         </View>
         
+        {/* Action Buttons */}
         <View className="flex-row justify-between">
-          {statusFormat.label === 'Active' ? (
+          {route.status === 'INITIATED' || route.status === 'OPEN' ? (
             <>
               <PrimaryButton
                 title="View Bids"
                 onPress={() => router.push(`/pages/driver/ViewBids?routeId=${route.id}`)}
+                style={{ flex: 1, marginRight: 4 }}
                 textStyle={{ fontSize: 12 }}
               />
               <EditButton
                 title="Edit"
                 onPress={() => router.push('/pages/driver/create_route/CreateRoute')}
+                style={{ flex: 1, marginHorizontal: 4 }}
                 textStyle={{ fontSize: 12 }}
               />
               <DeleteButton
                 title="Delete"
                 onPress={() => handleDeleteRoute(route.id)}
+                style={{ flex: 1, marginLeft: 4 }}
+                textStyle={{ fontSize: 12 }}
+              />
+            </>
+          ) : route.status === 'BOOKED' ? (
+            <>
+              <PrimaryButton
+                title="View Details"
+                onPress={() => router.push(`/pages/driver/ViewBids?routeId=${route.id}`)}
+                style={{ flex: 1, marginRight: 8 }}
+                textStyle={{ fontSize: 12 }}
+              />
+              <SecondaryButton
+                title="Track Delivery"
+                onPress={() => {
+                  // TODO: Navigate to delivery tracking
+                  Alert.alert('Track Delivery', 'Delivery tracking feature coming soon!');
+                }}
+                style={{ flex: 1, marginLeft: 8 }}
                 textStyle={{ fontSize: 12 }}
               />
             </>
           ) : (
             <PrimaryButton
-              title="View Bids"
+              title="View Details"
               onPress={() => router.push(`/pages/driver/ViewBids?routeId=${route.id}`)}
-              style={{ flex: 1, paddingVertical: 6, paddingHorizontal: 10 }}
+              style={{ flex: 1 }}
               textStyle={{ fontSize: 12 }}
             />
           )}

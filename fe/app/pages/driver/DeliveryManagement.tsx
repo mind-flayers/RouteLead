@@ -1,34 +1,144 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, SafeAreaView, TouchableOpacity, ScrollView, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, SafeAreaView, TouchableOpacity, ScrollView, Alert, Linking } from 'react-native';
 import { Ionicons, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { WebView } from 'react-native-webview';
+import * as Location from 'expo-location';
 import PrimaryCard from '../../../components/ui/PrimaryCard';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
 import SecondaryButton from '../../../components/ui/SecondaryButton';
+import { deliveryService, DeliveryDetails, DeliveryStatusUpdate } from '../../../services/deliveryService';
 
 const DeliveryManagement = () => {
   const navigation = useNavigation();
   const router = useRouter();
-  const [deliveryStatus, setDeliveryStatus] = useState('Picked Up');
-  const webViewRef = useRef<WebView>(null);
+  const route = useRoute();
+  const { bidId } = route.params as { bidId?: string };
 
-  // Mock delivery data - in real app, this would come from props or state management
-  const deliveryData = {
-    pickupLocation: {
-      latitude: -7.6489,
-      longitude: 111.9033,
-      address: "123 Elm Street, Apartment 4B, Badulla"
-    },
-    dropoffLocation: {
-      latitude: -7.6580,
-      longitude: 111.9150,
-      address: "21/A, Colombo"
-    },
-    currentLocation: {
-      latitude: -7.6530,
-      longitude: 111.9090
+  // State management
+  const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [updating, setUpdating] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Location tracking
+  const [locationInterval, setLocationInterval] = useState<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    requestLocationPermission();
+    startLocationTracking();
+    
+    // Cleanup function to clear interval when component unmounts
+    return () => {
+      if (locationInterval) {
+        clearInterval(locationInterval);
+      }
+    };
+  }, [locationInterval]);
+
+  // Load delivery details on component mount
+  useEffect(() => {
+    console.log('Component mounted, route params:', route.params);
+    console.log('BidId from params:', bidId);
+    if (bidId) {
+      loadDeliveryDetails();
+    } else {
+      console.error('No bidId found in route params');
+      setError('No delivery ID provided. Please select a delivery from your active routes.');
+      setLoading(false);
+    }
+  }, [bidId]);
+
+  const requestLocationPermission = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Location Permission Required',
+          'Please enable location permissions to track delivery progress.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error requesting location permission:', error);
+    }
+  };
+
+  const startLocationTracking = async () => {
+    try {
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      
+      setCurrentLocation({
+        lat: location.coords.latitude,
+        lng: location.coords.longitude,
+      });
+
+      // Set up background location tracking every 15 minutes
+      const interval = setInterval(async () => {
+        try {
+          const newLocation = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+          });
+          
+          setCurrentLocation({
+            lat: newLocation.coords.latitude,
+            lng: newLocation.coords.longitude,
+          });
+
+          // Update location on server if delivery is active
+          if (deliveryDetails && deliveryDetails.status !== 'DELIVERED' && bidId) {
+            updateLocationOnServer(newLocation.coords.latitude, newLocation.coords.longitude);
+          }
+        } catch (error) {
+          console.error('Error updating location:', error);
+        }
+      }, 15 * 60 * 1000); // 15 minutes
+
+      setLocationInterval(interval);
+    } catch (error) {
+      console.error('Error starting location tracking:', error);
+    }
+  };
+
+  const updateLocationOnServer = async (lat: number, lng: number) => {
+    if (!deliveryDetails || !bidId) return;
+    
+    try {
+      const update: DeliveryStatusUpdate = {
+        status: deliveryDetails.status as any,
+        currentLat: lat,
+        currentLng: lng,
+      };
+      
+      await deliveryService.updateDeliveryStatus(bidId, update);
+    } catch (error) {
+      console.error('Error updating location on server:', error);
+    }
+  };
+
+  const loadDeliveryDetails = async () => {
+    if (!bidId) {
+      setError('No delivery ID provided');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('Loading delivery details for bidId:', bidId);
+      const details = await deliveryService.getDeliveryDetails(bidId);
+      console.log('Delivery details loaded:', details);
+      setDeliveryDetails(details);
+    } catch (error) {
+      console.error('Error loading delivery details:', error);
+      console.error('BidId was:', bidId);
+      setError('Failed to load delivery details. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -37,235 +147,152 @@ const DeliveryManagement = () => {
   };
 
   const handleCallCustomer = () => {
-    // Placeholder values for phone number and customer name
-    const phoneNumber = '123-456-7890'; 
-    const customerName = 'Chris';
-    router.push(`/pages/driver/CallScreen?phoneNumber=${phoneNumber}&customerName=${customerName}`);
+    if (deliveryDetails?.deliveryContactPhone) {
+      const phoneNumber = deliveryDetails.deliveryContactPhone.replace(/[^0-9+]/g, '');
+      Linking.openURL(`tel:${phoneNumber}`);
+    } else {
+      Alert.alert('Error', 'Customer phone number not available');
+    }
   };
 
-  const getStatusButtonClass = (status: string) => {
-    return deliveryStatus === status ? 'bg-orange-500' : 'bg-white';
-  };
-
-  const getStatusTextClass = (status: string) => {
-    return deliveryStatus === status ? 'text-white' : 'text-gray-700';
+  const handleChatCustomer = () => {
+    // Navigate to chat screen with customer details
+    if (deliveryDetails?.customerName) {
+      // Use Alert instead of navigation for now, since chat might not be implemented
+      Alert.alert(
+        'Chat Customer',
+        `Contact ${deliveryDetails.customerName}`,
+        [
+          { text: 'Call Instead', onPress: handleCallCustomer },
+          { text: 'Cancel', style: 'cancel' }
+        ]
+      );
+    } else {
+      Alert.alert('Error', 'Customer information not available');
+    }
   };
 
   const handleStartNavigation = () => {
-    // Open navigation to the dropoff location
-    const { latitude, longitude } = deliveryData.dropoffLocation;
-    const navigationUrl = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}&travelmode=driving`;
+    if (!deliveryDetails) return;
+
+    const { dropoffLat, dropoffLng } = deliveryDetails;
     
-    // In real app, you might use Linking.openURL(navigationUrl) or integrated navigation
-    console.log('Starting navigation to:', navigationUrl);
+    // Open Google Maps with navigation to dropoff location
+    const destination = `${dropoffLat},${dropoffLng}`;
+    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
+    
+    Linking.openURL(googleMapsUrl).catch((error) => {
+      console.error('Error opening Google Maps:', error);
+      Alert.alert('Error', 'Could not open navigation. Please install Google Maps.');
+    });
   };
 
-  const updateDeliveryStatus = (status: string) => {
-    setDeliveryStatus(status);
-    
-    // Update map markers based on status
-    if (webViewRef.current) {
-      webViewRef.current.postMessage(
-        JSON.stringify({
-          type: 'updateStatus',
-          status: status,
-          currentLocation: deliveryData.currentLocation
-        })
-      );
+  const updateDeliveryStatus = async (newStatus: 'ACCEPTED' | 'PICKED_UP' | 'IN_TRANSIT' | 'DELIVERED') => {
+    if (!deliveryDetails || !bidId) {
+      Alert.alert('Error', 'Delivery information not available');
+      return;
     }
-    
-    // Navigate to delivery summary if delivered
-    if (status === 'Delivered') {
-      setTimeout(() => {
-        (navigation as any).navigate('pages/driver/DeliverySummary');
-      }, 1000);
+
+    try {
+      setUpdating(true);
+      
+      const update: DeliveryStatusUpdate = {
+        status: newStatus,
+        currentLat: currentLocation?.lat,
+        currentLng: currentLocation?.lng,
+        notes: `Status updated to ${newStatus}`,
+      };
+
+      if (newStatus === 'DELIVERED') {
+        // Complete delivery
+        const summary = await deliveryService.completeDelivery(bidId, update);
+        
+        // Show success message and navigate to summary
+        Alert.alert(
+          'Delivery Completed!',
+          'Great job! The delivery has been marked as completed.',
+          [
+            {
+              text: 'View Summary',
+              onPress: () => router.push(`/pages/driver/DeliverySummary?summaryData=${JSON.stringify(summary)}`),
+            },
+          ]
+        );
+      } else {
+        // Regular status update
+        const updatedDetails = await deliveryService.updateDeliveryStatus(bidId, update);
+        setDeliveryDetails(updatedDetails);
+        
+        Alert.alert('Status Updated', `Delivery status updated to ${newStatus}`);
+      }
+    } catch (error) {
+      console.error('Error updating delivery status:', error);
+      Alert.alert('Error', 'Failed to update delivery status. Please try again.');
+    } finally {
+      setUpdating(false);
     }
   };
 
-  const getDeliveryMapHTML = () => {
-    const { pickupLocation, dropoffLocation, currentLocation } = deliveryData;
-    
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Delivery Map</title>
-        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-        <style>
-          body { margin: 0; padding: 0; }
-          #map { height: 100vh; width: 100vw; }
-          .legend {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background: white;
-            padding: 8px;
-            border-radius: 6px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            font-size: 12px;
-            z-index: 1000;
-          }
-          .legend-item {
-            display: flex;
-            align-items: center;
-            margin: 2px 0;
-          }
-          .legend-marker {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 6px;
-          }
-        </style>
-      </head>
-      <body>
-        <div id="map"></div>
-        <div class="legend">
-          <div class="legend-item">
-            <div class="legend-marker" style="background-color: #10B981;"></div>
-            <span>Pickup (P)</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-marker" style="background-color: #EF4444;"></div>
-            <span>Dropoff (D)</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-marker" style="background-color: #3B82F6;"></div>
-            <span>Your Location</span>
-          </div>
-        </div>
-        <script>
-          let map;
-          
-          // Initialize map
-          function initMap() {
-            // Calculate center point between pickup and dropoff
-            const centerLat = (${pickupLocation.latitude} + ${dropoffLocation.latitude}) / 2;
-            const centerLng = (${pickupLocation.longitude} + ${dropoffLocation.longitude}) / 2;
-            
-            map = L.map('map').setView([centerLat, centerLng], 13);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-              attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
-            
-            // Pickup marker (green)
-            const pickupMarker = L.marker([${pickupLocation.latitude}, ${pickupLocation.longitude}], {
-              icon: L.divIcon({
-                className: 'pickup-marker',
-                html: '<div style="background-color: #10B981; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><div style="color: white; font-size: 12px; font-weight: bold;">P</div></div>',
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
-              })
-            }).addTo(map);
-            pickupMarker.bindPopup('<b>Pickup Location</b><br>${pickupLocation.address}');
-            
-            // Dropoff marker (red)
-            const dropoffMarker = L.marker([${dropoffLocation.latitude}, ${dropoffLocation.longitude}], {
-              icon: L.divIcon({
-                className: 'dropoff-marker',
-                html: '<div style="background-color: #EF4444; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"><div style="color: white; font-size: 12px; font-weight: bold;">D</div></div>',
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
-              })
-            }).addTo(map);
-            dropoffMarker.bindPopup('<b>Dropoff Location</b><br>${dropoffLocation.address}');
-            
-            // Current location marker (blue, pulsing)
-            const currentMarker = L.marker([${currentLocation.latitude}, ${currentLocation.longitude}], {
-              icon: L.divIcon({
-                className: 'current-marker',
-                html: '<div style="background-color: #3B82F6; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); animation: pulse 2s infinite;"></div><style>@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); } 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }</style>',
-                iconSize: [20, 20],
-                iconAnchor: [10, 10]
-              })
-            }).addTo(map);
-            currentMarker.bindPopup('<b>Your Current Location</b>');
-            
-            // Draw route line
-            const routePoints = [
-              [${pickupLocation.latitude}, ${pickupLocation.longitude}],
-              [${currentLocation.latitude}, ${currentLocation.longitude}],
-              [${dropoffLocation.latitude}, ${dropoffLocation.longitude}]
-            ];
-            
-            const routeLine = L.polyline(routePoints, {
-              color: '#FF8C00',
-              weight: 4,
-              opacity: 0.8,
-              dashArray: '10, 5'
-            }).addTo(map);
-            
-            // Fit map to show all markers
-            const group = new L.featureGroup([pickupMarker, dropoffMarker, currentMarker]);
-            map.fitBounds(group.getBounds().pad(0.1));
-            
-            // Add click handler for navigation
-            map.on('click', function(e) {
-              if (window.ReactNativeWebView) {
-                window.ReactNativeWebView.postMessage(JSON.stringify({
-                  type: 'mapClicked',
-                  latitude: e.latlng.lat,
-                  longitude: e.latlng.lng
-                }));
-              }
-            });
-          }
-          
-          // Handle messages from React Native
-          window.addEventListener('message', function(event) {
-            try {
-              const data = JSON.parse(event.data);
-              
-              if (data.type === 'updateStatus') {
-                // Update current location marker based on status
-                if (currentMarker) {
-                  map.removeLayer(currentMarker);
-                }
-                
-                let markerColor = '#3B82F6'; // default blue
-                let statusText = 'Your Current Location';
-                
-                switch(data.status) {
-                  case 'Picked Up':
-                    markerColor = '#10B981'; // green
-                    statusText = 'Package Picked Up';
-                    break;
-                  case 'In Transit':
-                    markerColor = '#F59E0B'; // yellow/orange
-                    statusText = 'In Transit to Destination';
-                    break;
-                  case 'Delivered':
-                    markerColor = '#EF4444'; // red
-                    statusText = 'Package Delivered';
-                    break;
-                }
-                
-                currentMarker = L.marker([data.currentLocation.latitude, data.currentLocation.longitude], {
-                  icon: L.divIcon({
-                    className: 'current-marker',
-                    html: '<div style="background-color: ' + markerColor + '; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); animation: pulse 2s infinite;"></div><style>@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); } 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); } }</style>',
-                    iconSize: [20, 20],
-                    iconAnchor: [10, 10]
-                  })
-                }).addTo(map);
-                currentMarker.bindPopup('<b>' + statusText + '</b>');
-              }
-            } catch (error) {
-              console.error('Error handling message:', error);
+  const getStatusButtonClass = (status: string) => {
+    return deliveryDetails?.status === status ? 'bg-orange-500' : 'bg-white border border-gray-300';
+  };
+
+  const getStatusTextClass = (status: string) => {
+    return deliveryDetails?.status === status ? 'text-white' : 'text-gray-700';
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-LK', {
+      style: 'currency',
+      currency: 'LKR',
+    }).format(amount);
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-100 justify-center items-center">
+        <Text className="text-lg">Loading delivery details...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !deliveryDetails || !bidId) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-100 justify-center items-center p-4">
+        <View className="items-center">
+          <MaterialCommunityIcons name="truck-delivery" size={64} color="#9CA3AF" />
+          <Text className="text-lg text-red-500 text-center mb-4 mt-4">
+            {!bidId 
+              ? 'No delivery selected' 
+              : error || 'No delivery details found'
             }
-          });
-          
-          // Initialize when page loads
-          initMap();
-        </script>
-      </body>
-      </html>
-    `;
-  };
+          </Text>
+          <Text className="text-gray-600 text-center mb-6">
+            {!bidId 
+              ? 'Please navigate to this page with a valid delivery ID from your routes or accepted bids.'
+              : 'Please try again or contact support if the problem persists.'
+            }
+          </Text>
+          <View className="space-y-3 w-full">
+            <PrimaryButton 
+              title="Go to Dashboard" 
+              onPress={() => router.push('/pages/driver/Dashboard')}
+            />
+            <SecondaryButton 
+              title="View My Routes" 
+              onPress={() => router.push('/pages/driver/MyRoutes')}
+            />
+            {bidId && (
+              <SecondaryButton 
+                title="Retry" 
+                onPress={loadDeliveryDetails}
+              />
+            )}
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100">
@@ -275,105 +302,89 @@ const DeliveryManagement = () => {
           <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
         <Text className="flex-1 text-center text-xl font-bold">Delivery Management</Text>
-        <View className="w-10" />{/* Placeholder for alignment */}
+        <View className="w-10" />
       </View>
 
       <ScrollView className="flex-1 p-4" contentContainerStyle={{ flexGrow: 1 }}>
-        {/* Map Card */}
-        <PrimaryCard className="mb-4 p-0 overflow-hidden">
-          <View className="w-full h-48 relative">
-            <WebView
-              ref={webViewRef}
-              style={{ flex: 1 }}
-              source={{ html: getDeliveryMapHTML() }}
-              onMessage={(event) => {
-                try {
-                  const data = JSON.parse(event.nativeEvent.data);
-                  if (data.type === 'mapClicked') {
-                    console.log('Map clicked at:', data.latitude, data.longitude);
-                  }
-                } catch (error) {
-                  console.error('Error parsing WebView message:', error);
-                }
-              }}
-              javaScriptEnabled={true}
-              domStorageEnabled={true}
-              startInLoadingState={true}
-              mixedContentMode="compatibility"
-              allowsInlineMediaPlayback={true}
-              mediaPlaybackRequiresUserAction={false}
-            />
-            <PrimaryButton
-              title="Start Navigation"
-              onPress={handleStartNavigation}
-              className="absolute bottom-4 self-center w-10/12"
-              icon={<MaterialCommunityIcons name="navigation" size={20} color="white" />}
-            />
+        {/* Navigation Card */}
+        <PrimaryCard className="mb-4 p-4">
+          <View className="flex-row items-center mb-3">
+            <MaterialCommunityIcons name="navigation" size={20} color="#FF8C00" />
+            <Text className="ml-2 text-lg font-bold">Navigation</Text>
           </View>
+          
+          <View className="mb-3">
+            <Text className="text-sm text-gray-600 mb-1">From (Pickup):</Text>
+            <Text className="text-gray-800">{deliveryDetails.pickupAddress}</Text>
+          </View>
+          
+          <View className="mb-4">
+            <Text className="text-sm text-gray-600 mb-1">To (Dropoff):</Text>
+            <Text className="text-gray-800">{deliveryDetails.dropoffAddress}</Text>
+          </View>
+          
+          <PrimaryButton
+            title="Start Navigation"
+            onPress={handleStartNavigation}
+            icon={<MaterialCommunityIcons name="navigation" size={20} color="white" />}
+          />
         </PrimaryCard>
 
-        {/* Cancel Trip Button */}
-        <TouchableOpacity
-          onPress={() => console.log('Cancel Trip')}
-          className="w-full bg-white border-2 border-orange-500 py-3 px-6 rounded-lg items-center justify-center flex-row mb-4"
-        >
-          <Ionicons name="close-circle-outline" size={20} color="#FF8C00" />
-          <Text className="text-red-500 text-base font-bold ml-2">Cancel Trip</Text>
-        </TouchableOpacity>
-
-        {/* Bidder and Bid Details Card */}
+        {/* Customer and Bid Details Card */}
         <PrimaryCard className="mb-4 p-4">
           <View className="flex-row items-center mb-3">
             <FontAwesome name="user-circle-o" size={20} color="#6B7280" />
-            <Text className="ml-2 text-lg font-bold">Chris C</Text>
-            <View className="ml-auto bg-yellow-100 px-3 py-1 rounded-full">
-              <Text className="text-yellow-700 text-xs font-semibold">Pending Payment</Text>
+            <Text className="ml-2 text-lg font-bold">{deliveryDetails.customerName}</Text>
+            <View className="ml-auto bg-green-100 px-3 py-1 rounded-full">
+              <Text className="text-green-700 text-xs font-semibold">
+                {deliveryDetails.paymentCompleted ? 'Payment Completed' : 'Payment Pending'}
+              </Text>
             </View>
           </View>
+          
           <View className="flex-row items-center mb-2">
-            {/* <MaterialCommunityIcons name="currency-usd" size={20} color="#FF8C00" /> */}
-            <Text className="ml-2 text-orange-500 text-2xl font-bold">LKR 450.00</Text>
+            <Text className="ml-2 text-orange-500 text-2xl font-bold">
+              {formatCurrency(deliveryDetails.bidAmount)}
+            </Text>
           </View>
-          <Text>From: </Text>
+          
           <View className="flex-row items-center mb-2">
-            <Ionicons name="location-sharp" size={18} color="#6B7280" />
-            <Text className="ml-2 text-gray-700">123 Elm Street, Apartment 4B, Badulla</Text>
+            <Ionicons name="call" size={18} color="#6B7280" />
+            <Text className="ml-2 text-gray-700">{deliveryDetails.deliveryContactPhone}</Text>
           </View>
-          <Text>To: </Text>
-          <View className="flex-row items-center mb-2">
-            <Ionicons name="location-sharp" size={18} color="#6B7280" />
-            <Text className="ml-2 text-gray-700">21/A, Colombo</Text>
-          </View>
-          <Text>Receiver PhoneNo: </Text>
-          <View className="flex-row items-center mb-2">
-            <Ionicons name="call-sharp" size={18} color="#6B7280" />
-            <Text className="ml-2 text-gray-700">+94 123 456 7890</Text>
-          </View>
-          <View className="flex-row items-center">
-            <FontAwesome name="check-circle-o" size={18} color="#6B7280" />
-            <Text className="ml-2 to-blue-500">"Leave parcel at front door, no signature required."</Text>
-          </View>
+          
+          {deliveryDetails.specialInstructions && (
+            <View className="flex-row items-start">
+              <FontAwesome name="info-circle" size={18} color="#6B7280" />
+              <Text className="ml-2 text-gray-700 flex-1 italic">
+                "{deliveryDetails.specialInstructions}"
+              </Text>
+            </View>
+          )}
         </PrimaryCard>
 
         {/* Delivery Status Buttons */}
         <View className="flex-row justify-around mb-4 bg-white rounded-lg p-2 shadow-sm border border-gray-200">
           <TouchableOpacity
-            className={`flex-1 items-center py-2 rounded-md mx-1 ${getStatusButtonClass('Picked Up')}`}
-            onPress={() => updateDeliveryStatus('Picked Up')}
+            className={`flex-1 items-center py-2 rounded-md mx-1 ${getStatusButtonClass('PICKED_UP')}`}
+            onPress={() => updateDeliveryStatus('PICKED_UP')}
+            disabled={updating}
           >
-            <Text className={`font-semibold ${getStatusTextClass('Picked Up')}`}>Picked Up</Text>
+            <Text className={`font-semibold ${getStatusTextClass('PICKED_UP')}`}>Picked Up</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={`flex-1 items-center py-2 rounded-md mx-1 ${getStatusButtonClass('In Transit')}`}
-            onPress={() => updateDeliveryStatus('In Transit')}
+            className={`flex-1 items-center py-2 rounded-md mx-1 ${getStatusButtonClass('IN_TRANSIT')}`}
+            onPress={() => updateDeliveryStatus('IN_TRANSIT')}
+            disabled={updating}
           >
-            <Text className={`font-semibold ${getStatusTextClass('In Transit')}`}>In Transit</Text>
+            <Text className={`font-semibold ${getStatusTextClass('IN_TRANSIT')}`}>In Transit</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={`flex-1 items-center py-2 rounded-md mx-1 ${getStatusButtonClass('Delivered')}`}
-            onPress={() => updateDeliveryStatus('Delivered')}
+            className={`flex-1 items-center py-2 rounded-md mx-1 ${getStatusButtonClass('DELIVERED')}`}
+            onPress={() => updateDeliveryStatus('DELIVERED')}
+            disabled={updating}
           >
-            <Text className={`font-semibold ${getStatusTextClass('Delivered')}`}>Delivered</Text>
+            <Text className={`font-semibold ${getStatusTextClass('DELIVERED')}`}>Delivered</Text>
           </TouchableOpacity>
         </View>
 
@@ -383,20 +394,31 @@ const DeliveryManagement = () => {
             <MaterialCommunityIcons name="package-variant" size={20} color="#6B7280" />
             <Text className="ml-2 text-lg font-bold">Parcel Details</Text>
           </View>
+          
           <View className="flex-row justify-between mb-1">
-            <Text className="text-gray-700">2x Small Packages</Text>
-            <Text className="text-gray-500">Est. 5 kg</Text>
+            <Text className="text-gray-700">Description:</Text>
+            <Text className="text-gray-500 flex-1 text-right">{deliveryDetails.description}</Text>
           </View>
-          <View className="flex-row justify-between mb-3">
-            <Text className="text-gray-700">1x Medium Box</Text>
-            <Text className="text-gray-500">Est. 12 kg</Text>
+          
+          <View className="flex-row justify-between mb-1">
+            <Text className="text-gray-700">Weight:</Text>
+            <Text className="text-gray-500">{deliveryDetails.weightKg} kg</Text>
           </View>
+          
           <View className="flex-row justify-between mb-3">
-            <Text className="text-gray-700">Dimensions: </Text>
-            <Text className="text-gray-500">25×20×10 cm</Text>
+            <Text className="text-gray-700">Volume:</Text>
+            <Text className="text-gray-500">{deliveryDetails.volumeM3} m³</Text>
           </View>
 
-          <Text className="text-gray-500 italic">Special handling: Fragile items.</Text>
+          <View className="border-t border-gray-200 pt-3">
+            <Text className="text-sm text-gray-600 mb-1">Pickup Contact:</Text>
+            <Text className="text-gray-800">{deliveryDetails.pickupContactName}</Text>
+            <Text className="text-gray-600">{deliveryDetails.pickupContactPhone}</Text>
+            
+            <Text className="text-sm text-gray-600 mb-1 mt-2">Delivery Contact:</Text>
+            <Text className="text-gray-800">{deliveryDetails.deliveryContactName}</Text>
+            <Text className="text-gray-600">{deliveryDetails.deliveryContactPhone}</Text>
+          </View>
         </PrimaryCard>
 
         {/* Action Buttons */}
@@ -410,19 +432,28 @@ const DeliveryManagement = () => {
               <Text className="text-orange-500 text-base font-bold ml-2">Call Customer</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => console.log('Chat Customer')}
+              onPress={handleChatCustomer}
               className="flex-1 ml-2 bg-orange-500 py-3 px-6 rounded-lg items-center justify-center flex-row"
             >
               <Ionicons name="chatbox" size={20} color="white" />
               <Text className="text-white text-base font-bold ml-2">Chat Customer</Text>
             </TouchableOpacity>
           </View>
+          
+          {/* Cancel Trip Button */}
           <TouchableOpacity
-            onPress={() => console.log('Report User')}
-            className="w-full bg-white border-2 border-red-500 py-3 px-6 rounded-lg items-center justify-center flex-row"
+            onPress={() => Alert.alert(
+              'Cancel Trip',
+              'Are you sure you want to cancel this delivery? This action cannot be undone.',
+              [
+                { text: 'No', style: 'cancel' },
+                { text: 'Yes, Cancel', style: 'destructive', onPress: () => navigation.goBack() },
+              ]
+            )}
+            className="w-full bg-white border-2 border-red-500 py-3 px-6 rounded-lg items-center justify-center flex-row mb-4"
           >
-            <MaterialCommunityIcons name="flag" size={20} color="red" />
-            <Text className="text-red-500 text-base font-bold ml-2">Report User</Text>
+            <Ionicons name="close-circle-outline" size={20} color="red" />
+            <Text className="text-red-500 text-base font-bold ml-2">Cancel Trip</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
