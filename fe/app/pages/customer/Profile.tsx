@@ -313,17 +313,25 @@ const Profile = () => {
         {/* Account Information Section */}
         <Text className="text-lg font-bold text-gray-800 mb-3 mt-2">Account Information</Text>
         <PrimaryCard className="mb-4 p-0">
-          <View className="flex-row items-center justify-between p-4 border-b border-gray-200">
-            <View className="flex-row items-center">
-              <Ionicons name="shield-checkmark" size={20} color="#f97316" />
-              <Text className="ml-3 text-base text-gray-700">Verification Status</Text>
+          <View className="p-4 border-b border-gray-200">
+            <View className="flex-row items-center justify-between mb-2">
+              <View className="flex-row items-center">
+                <Ionicons name="shield-checkmark" size={20} color="#f97316" />
+                <Text className="ml-3 text-base text-gray-700">Verification Status</Text>
+              </View>
+              <View className="flex-row items-center">
+                <View className="w-2 h-2 rounded-full mr-2 bg-red-500" />
+                <Text className="text-sm font-medium text-red-600">
+                  Not Verified
+                </Text>
+              </View>
             </View>
-            <View className="flex-row items-center">
-              <View className={`w-2 h-2 rounded-full mr-2 ${profileData.is_verified ? 'bg-green-500' : 'bg-yellow-500'}`} />
-              <Text className={`text-sm font-medium ${profileData.is_verified ? 'text-green-600' : 'text-yellow-600'}`}>
-                {profileData.is_verified ? 'Verified' : 'Pending'}
-              </Text>
-            </View>
+            <TouchableOpacity 
+              onPress={() => router.push('/pages/customer/CustomerVerification')} 
+              className="bg-orange-500 py-2 rounded-lg mt-2 w-full"
+            >
+              <Text className="text-white text-sm font-medium text-center">Get Verified</Text>
+            </TouchableOpacity>
           </View>
           <View className="flex-row items-center justify-between p-4">
             <View className="flex-row items-center">
