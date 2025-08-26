@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class ProfileService {
@@ -372,5 +373,56 @@ public class ProfileService {
         dto.setCreatedAt(profile.getCreatedAt());
         dto.setUpdatedAt(profile.getUpdatedAt());
         return dto;
+    }
+
+    /**
+     * Get bank details for a driver
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getBankDetails(UUID driverId) {
+        String sql = "SELECT bank_account_details FROM profiles WHERE id = ?";
+        
+        try {
+            String bankDetailsJson = jdbcTemplate.queryForObject(sql, String.class, driverId);
+            
+            if (bankDetailsJson == null || bankDetailsJson.trim().isEmpty()) {
+                return new HashMap<>();
+            }
+            
+            // Parse JSON to Map
+            ObjectMapper objectMapper = new ObjectMapper();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> result = objectMapper.readValue(bankDetailsJson, Map.class);
+            return result;
+            
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve bank details", e);
+        }
+    }
+
+    /**
+     * Update bank details for a driver
+     */
+    @Transactional
+    public Map<String, Object> updateBankDetails(UUID driverId, com.example.be.dto.BankDetailsDto bankDetails) {
+        try {
+            // Convert DTO to JSON
+            ObjectMapper objectMapper = new ObjectMapper();
+            String bankDetailsJson = objectMapper.writeValueAsString(bankDetails);
+            
+            String sql = "UPDATE profiles SET bank_account_details = ?::jsonb, updated_at = CURRENT_TIMESTAMP WHERE id = ?";
+            
+            int rowsUpdated = jdbcTemplate.update(sql, bankDetailsJson, driverId);
+            
+            if (rowsUpdated == 0) {
+                throw new RuntimeException("Profile not found: " + driverId);
+            }
+            
+            // Return the updated bank details
+            return getBankDetails(driverId);
+            
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to update bank details", e);
+        }
     }
 }

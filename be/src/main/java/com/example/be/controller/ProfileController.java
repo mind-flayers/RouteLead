@@ -266,4 +266,62 @@ public class ProfileController {
         
         return missingFields;
     }
+
+    /**
+     * Get bank details for a driver
+     */
+    @GetMapping("/{driverId}/bank-details")
+    public ResponseEntity<Map<String, Object>> getBankDetails(@PathVariable UUID driverId) {
+        try {
+            log.info("Getting bank details for driver: {}", driverId);
+            
+            Map<String, Object> bankDetails = profileService.getBankDetails(driverId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("data", bankDetails);
+            response.put("message", "Bank details retrieved successfully");
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (RuntimeException e) {
+            log.error("Error retrieving bank details for driver: {}", driverId, e);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    /**
+     * Update bank details for a driver
+     */
+    @PutMapping("/{driverId}/bank-details")
+    public ResponseEntity<Map<String, Object>> updateBankDetails(
+            @PathVariable UUID driverId,
+            @Valid @RequestBody com.example.be.dto.BankDetailsDto bankDetails) {
+        try {
+            log.info("Updating bank details for driver: {}", driverId);
+            
+            Map<String, Object> updatedBankDetails = profileService.updateBankDetails(driverId, bankDetails);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("data", updatedBankDetails);
+            response.put("message", "Bank details updated successfully");
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (RuntimeException e) {
+            log.error("Error updating bank details for driver: {}", driverId, e);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "error");
+            response.put("message", e.getMessage());
+            
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 }

@@ -1,110 +1,205 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import SecondaryButton from '@/components/ui/SecondaryButton';
 import PrimaryCard from '@/components/ui/PrimaryCard';
+import PaymentPreferencesModal from '@/components/ui/PaymentPreferencesModal';
 import { formatCurrency } from '@/services/apiService';
-import { useEarningsData, useDriverInfo } from '@/hooks/useEarningsData';
+import { useDriverInfo } from '@/hooks/useEarningsData';
+import { 
+  WithdrawalAPI, 
+  BankDetailsAPI, 
+  BankDetails, 
+  WithdrawalRequest, 
+  AvailableBalanceResponse 
+} from '@/services/withdrawalService';
 
 const WithdrawalForm = () => {
   const router = useRouter();
   const { driverId } = useDriverInfo();
-  const { summary, loading, error } = useEarningsData(driverId);
 
   const [amount, setAmount] = useState('');
-  const [selectedMethod, setSelectedMethod] = useState<'bank' | 'mobile'>('bank');
-  const [accountNumber, setAccountNumber] = useState('');
-  const [bankName, setBankName] = useState('');
-  const [accountName, setAccountName] = useState('');
-  const [mobileNumber, setMobileNumber] = useState('');
+  const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
+  const [availableBalance, setAvailableBalance] = useState<number>(0);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  
+  // Loading states
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [bankDetailsLoading, setBankDetailsLoading] = useState(false);
+  
+  // Success animation
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [slideAnim] = useState(new Animated.Value(-100));
 
-  const availableBalance = useMemo(() => summary?.availableBalance ?? 0, [summary]);
   const minWithdrawal = 1000;
   const maxWithdrawal = availableBalance;
 
-  const handleWithdrawal = () => {
+  useEffect(() => {
+    if (driverId) {
+      loadInitialData();
+    }
+  }, [driverId]);
+
+  const loadInitialData = async () => {
+    setLoading(true);
+    try {
+      // Load available balance and bank details in parallel
+      const [balanceResult, bankDetailsResult] = await Promise.all([
+        WithdrawalAPI.getAvailableBalance(driverId),
+        BankDetailsAPI.getBankDetails(driverId)
+      ]);
+
+      setAvailableBalance(balanceResult.availableBalance);
+      setBankDetails(bankDetailsResult);
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+      Alert.alert('Error', 'Failed to load account information');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadBankDetails = async () => {
+    setBankDetailsLoading(true);
+    try {
+      const details = await BankDetailsAPI.getBankDetails(driverId);
+      setBankDetails(details);
+    } catch (error) {
+      console.error('Error loading bank details:', error);
+      Alert.alert('Error', 'Failed to load bank details');
+    } finally {
+      setBankDetailsLoading(false);
+    }
+  };
+
+  const validateWithdrawal = (): boolean => {
     const withdrawalAmount = parseFloat(amount);
     
     if (!amount || withdrawalAmount <= 0) {
       Alert.alert('Error', 'Please enter a valid amount');
-      return;
+      return false;
     }
     
     if (withdrawalAmount < minWithdrawal) {
       Alert.alert('Error', `Minimum withdrawal amount is ${formatCurrency(minWithdrawal)}`);
-      return;
+      return false;
     }
     
     if (withdrawalAmount > maxWithdrawal) {
       Alert.alert('Error', `Maximum withdrawal amount is ${formatCurrency(maxWithdrawal)}`);
-      return;
+      return false;
     }
     
-    if (selectedMethod === 'bank' && (!accountNumber || !bankName || !accountName)) {
-      Alert.alert('Error', 'Please fill in all bank details');
-      return;
+    if (!bankDetails) {
+      Alert.alert('Bank Details Required', 'Please add your bank details first');
+      return false;
     }
-    
-    if (selectedMethod === 'mobile' && !mobileNumber) {
-      Alert.alert('Error', 'Please enter your mobile number');
-      return;
-    }
-    
-    // Navigate to success page
-    router.push({
-      pathname: '/pages/driver/WithdrawalSuccess',
-      params: {
-        amount: withdrawalAmount,
-        method: selectedMethod === 'bank' ? 'Bank Transfer' : 'Mobile Money',
-        accountNumber: selectedMethod === 'bank' ? `****${accountNumber.slice(-4)}` : mobileNumber,
-        bankName: bankName,
-        accountName: accountName,
-        transactionId: 'TXN' + Date.now().toString().slice(-8),
-        processingFee: selectedMethod === 'bank' ? 0 : withdrawalAmount * 0.01,
-        driverId: driverId
-      }
-    });
+
+    return true;
   };
 
+  const handleWithdrawal = async () => {
+    if (!validateWithdrawal()) {
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const withdrawalRequest: WithdrawalRequest = {
+        driverId,
+        amount: parseFloat(amount),
+        bankDetails: bankDetails!,
+      };
+
+      const result = await WithdrawalAPI.createWithdrawal(withdrawalRequest);
+      
+      // Show success animation
+      triggerSuccessAnimation();
+      
+      // Navigate to success page after animation
+      setTimeout(() => {
+        router.push({
+          pathname: '/pages/driver/WithdrawalSuccess',
+          params: {
+            amount: amount,
+            transactionId: result.id,
+            bankName: bankDetails!.bankName,
+            accountNumber: bankDetails!.accountNumber,
+          },
+        });
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error creating withdrawal:', error);
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to process withdrawal');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const triggerSuccessAnimation = () => {
+    setShowSuccess(true);
+    Animated.sequence([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.delay(1500),
+      Animated.timing(slideAnim, {
+        toValue: -100,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setShowSuccess(false));
+  };
+
+  const handleBankDetailsUpdated = (updatedDetails: BankDetails) => {
+    setBankDetails(updatedDetails);
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-50">
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#f97316" />
+          <Text className="text-gray-600 mt-4">Loading account information...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      {/* Top Bar */}
-      <View className="flex-row items-center px-4 py-3 border-b border-gray-200">
-        <TouchableOpacity onPress={() => router.back()} className="mr-4">
-          <Ionicons name="arrow-back" size={24} color="black" />
-        </TouchableOpacity>
-        <Text className="text-xl font-bold">Withdraw Funds</Text>
+    <SafeAreaView className="flex-1 bg-gray-50">
+      {/* Header */}
+      <View className="bg-white px-6 py-4 border-b border-gray-200">
+        <View className="flex-row items-center">
+          <TouchableOpacity onPress={() => router.back()} className="mr-4">
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <Text className="text-xl font-bold text-gray-800">Withdraw Funds</Text>
+        </View>
       </View>
 
-      {loading ? (
-        <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#f97316" />
-          <Text className="mt-4 text-gray-600">Loading balance...</Text>
-        </View>
-      ) : error ? (
-        <View className="flex-1 justify-center items-center p-4">
-          <Text className="text-red-500 text-center">{error}</Text>
-        </View>
-      ) : (
-        <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
-          {/* Balance Card */}
-          <PrimaryCard style={{ marginBottom: 24 }}>
-            <Text className="text-gray-600 text-base mb-2">Available Balance</Text>
-            <View className="flex-row items-center mb-4">
-              <FontAwesome5 name="wallet" size={24} color="#f97316" />
-              <Text className="text-3xl font-bold ml-2 text-orange-600">
-                {formatCurrency(availableBalance)}
-              </Text>
-            </View>
+      <ScrollView className="flex-1 px-6 py-6">
+        {/* Available Balance Card */}
+        <PrimaryCard className="mb-6">
+          <View className="items-center">
+            <Text className="text-sm text-gray-500 mb-1">Available Balance</Text>
+            <Text className="text-3xl font-bold text-gray-800 mb-2">
+              {formatCurrency(availableBalance)}
+            </Text>
             <Text className="text-gray-500 text-sm">
               Min: {formatCurrency(minWithdrawal)} • Max: {formatCurrency(maxWithdrawal)}
             </Text>
-          </PrimaryCard>
+          </View>
+        </PrimaryCard>
 
-          {/* Amount Input */}
+        {/* Amount Input */}
         <View className="mb-6">
           <Text className="text-lg font-semibold mb-3">Withdrawal Amount</Text>
           <View className="bg-gray-50 p-4 rounded-lg border border-gray-200">
@@ -145,163 +240,154 @@ const WithdrawalForm = () => {
           </View>
         </View>
 
-        {/* Payment Method Selection */}
+        {/* Bank Details Section */}
         <View className="mb-6">
-          <Text className="text-lg font-semibold mb-3">Payment Method</Text>
-          <View className="space-y-3">
-            <TouchableOpacity
-              onPress={() => setSelectedMethod('bank')}
-              className={`p-4 rounded-lg border ${
-                selectedMethod === 'bank' 
-                  ? 'border-orange-500 bg-orange-50' 
-                  : 'border-gray-200 bg-white'
-              }`}
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-lg font-semibold">Bank Details</Text>
+            <TouchableOpacity 
+              onPress={() => setShowPaymentModal(true)}
+              className="flex-row items-center"
             >
-              <View className="flex-row items-center">
-                <MaterialCommunityIcons 
-                  name="bank" 
-                  size={24} 
-                  color={selectedMethod === 'bank' ? '#f97316' : '#6B7280'} 
-                />
-                <Text className={`ml-3 font-medium ${
-                  selectedMethod === 'bank' ? 'text-orange-600' : 'text-gray-700'
-                }`}>
-                  Bank Transfer
-                </Text>
-                <View className="ml-auto">
-                  {selectedMethod === 'bank' && (
-                    <Ionicons name="checkmark-circle" size={20} color="#f97316" />
-                  )}
-                </View>
-              </View>
-              <Text className="text-gray-500 text-sm mt-1 ml-9">
-                1-3 business days • Free
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setSelectedMethod('mobile')}
-              className={`p-4 rounded-lg border ${
-                selectedMethod === 'mobile' 
-                  ? 'border-orange-500 bg-orange-50' 
-                  : 'border-gray-200 bg-white'
-              }`}
-            >
-              <View className="flex-row items-center">
-                <MaterialCommunityIcons 
-                  name="cellphone" 
-                  size={24} 
-                  color={selectedMethod === 'mobile' ? '#f97316' : '#6B7280'} 
-                />
-                <Text className={`ml-3 font-medium ${
-                  selectedMethod === 'mobile' ? 'text-orange-600' : 'text-gray-700'
-                }`}>
-                  Mobile Money
-                </Text>
-                <View className="ml-auto">
-                  {selectedMethod === 'mobile' && (
-                    <Ionicons name="checkmark-circle" size={20} color="#f97316" />
-                  )}
-                </View>
-              </View>
-              <Text className="text-gray-500 text-sm mt-1 ml-9">
-                Instant • Small fee may apply
+              <MaterialCommunityIcons name="pencil" size={16} color="#f97316" />
+              <Text className="text-orange-500 ml-1 font-medium">
+                {bankDetails ? 'Edit' : 'Add'}
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* Payment Details */}
-        <View className="mb-6">
-          <Text className="text-lg font-semibold mb-3">Payment Details</Text>
-          {selectedMethod === 'bank' ? (
-            <View className="space-y-3">
-              <View>
-                <Text className="text-gray-600 mb-2">Bank Name</Text>
-                <TextInput
-                  value={bankName}
-                  onChangeText={setBankName}
-                  placeholder="Enter bank name"
-                  className="bg-gray-50 p-4 rounded-lg border border-gray-200"
-                  placeholderTextColor="#9CA3AF"
-                />
+          {bankDetailsLoading ? (
+            <View className="bg-white rounded-lg p-4 items-center">
+              <ActivityIndicator size="small" color="#f97316" />
+              <Text className="text-gray-600 mt-2">Loading bank details...</Text>
+            </View>
+          ) : bankDetails ? (
+            <View className="bg-white rounded-lg border border-gray-200 p-4">
+              <View className="flex-row items-center mb-3">
+                <MaterialCommunityIcons name="bank" size={24} color="#f97316" />
+                <Text className="text-gray-800 font-semibold ml-2">{bankDetails.bankName}</Text>
               </View>
-              <View>
-                <Text className="text-gray-600 mb-2">Account Name</Text>
-                <TextInput
-                  value={accountName}
-                  onChangeText={setAccountName}
-                  placeholder="Enter account name"
-                  className="bg-gray-50 p-4 rounded-lg border border-gray-200"
-                  placeholderTextColor="#9CA3AF"
-                />
-              </View>
-              <View>
-                <Text className="text-gray-600 mb-2">Account Number</Text>
-                <TextInput
-                  value={accountNumber}
-                  onChangeText={setAccountNumber}
-                  placeholder="Enter account number"
-                  keyboardType="numeric"
-                  className="bg-gray-50 p-4 rounded-lg border border-gray-200"
-                  placeholderTextColor="#9CA3AF"
-                />
+              <View className="space-y-2">
+                <View className="flex-row justify-between">
+                  <Text className="text-gray-600">Account Name:</Text>
+                  <Text className="text-gray-800 font-medium">{bankDetails.accountName}</Text>
+                </View>
+                <View className="flex-row justify-between">
+                  <Text className="text-gray-600">Account Number:</Text>
+                  <Text className="text-gray-800 font-mono">
+                    ****{bankDetails.accountNumber.slice(-4)}
+                  </Text>
+                </View>
+                {bankDetails.branchCode && (
+                  <View className="flex-row justify-between">
+                    <Text className="text-gray-600">Branch Code:</Text>
+                    <Text className="text-gray-800">{bankDetails.branchCode}</Text>
+                  </View>
+                )}
               </View>
             </View>
           ) : (
-            <View>
-              <Text className="text-gray-600 mb-2">Mobile Number</Text>
-              <TextInput
-                value={mobileNumber}
-                onChangeText={setMobileNumber}
-                placeholder="Enter mobile number"
-                keyboardType="phone-pad"
-                className="bg-gray-50 p-4 rounded-lg border border-gray-200"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
+            <TouchableOpacity 
+              onPress={() => setShowPaymentModal(true)}
+              className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-6 items-center"
+            >
+              <MaterialCommunityIcons name="bank-plus" size={48} color="#9CA3AF" />
+              <Text className="text-gray-600 font-medium mt-2">Add Bank Details</Text>
+              <Text className="text-gray-400 text-sm text-center mt-1">
+                Tap to add your bank account for withdrawals
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
 
-        {/* Summary */}
+        {/* Summary Section */}
         {amount && parseFloat(amount) > 0 && (
-          <View className="bg-gray-50 p-4 rounded-lg mb-6">
-            <Text className="text-lg font-semibold mb-2">Summary</Text>
-            <View className="flex-row justify-between items-center mb-1">
-              <Text className="text-gray-600">Amount</Text>
-              <Text className="font-semibold">{formatCurrency(parseFloat(amount))}</Text>
-            </View>
-            <View className="flex-row justify-between items-center mb-1">
-              <Text className="text-gray-600">Processing Fee</Text>
-              <Text className="font-semibold">
-                {selectedMethod === 'bank' ? 'Free' : formatCurrency(parseFloat(amount) * 0.01)}
-              </Text>
-            </View>
-            <View className="border-t border-gray-200 pt-2 mt-2">
-              <View className="flex-row justify-between items-center">
-                <Text className="text-lg font-semibold">You'll Receive</Text>
-                <Text className="text-lg font-bold text-orange-600">
-                  {formatCurrency(selectedMethod === 'bank' ? parseFloat(amount) : parseFloat(amount) * 0.99)}
-                </Text>
+          <PrimaryCard className="mb-6">
+            <Text className="text-lg font-semibold mb-4">Withdrawal Summary</Text>
+            <View className="space-y-3">
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600">Withdrawal Amount:</Text>
+                <Text className="font-semibold">{formatCurrency(parseFloat(amount))}</Text>
+              </View>
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600">Processing Fee:</Text>
+                <Text className="font-semibold">Free</Text>
+              </View>
+              <View className="border-t border-gray-200 pt-3">
+                <View className="flex-row justify-between">
+                  <Text className="text-gray-800 font-semibold">You'll Receive:</Text>
+                  <Text className="font-bold text-green-600">{formatCurrency(parseFloat(amount))}</Text>
+                </View>
               </View>
             </View>
-          </View>
+          </PrimaryCard>
         )}
-        </ScrollView>
-      )}
 
-      {/* Bottom Buttons */}
-      <View className="p-4 border-t border-gray-200">
-        <PrimaryButton
-          title="Confirm Withdrawal"
-          onPress={handleWithdrawal}
-          style={{ marginBottom: 8 }}
-        />
-        <SecondaryButton
-          title="Cancel"
-          onPress={() => router.back()}
-        />
+        {/* Processing Info */}
+        <View className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <View className="flex-row items-center mb-2">
+            <Ionicons name="information-circle" size={20} color="#3b82f6" />
+            <Text className="text-blue-800 font-semibold ml-2">Processing Information</Text>
+          </View>
+          <Text className="text-blue-700 text-sm">
+            • Withdrawals are processed within 1-3 business days{'\n'}
+            • You'll receive a confirmation once processing begins{'\n'}
+            • Ensure your bank details are correct to avoid delays
+          </Text>
+        </View>
+      </ScrollView>
+
+      {/* Footer */}
+      <View className="bg-white px-6 py-4 border-t border-gray-200">
+        <View className="flex-row space-x-4">
+          <View className="flex-1">
+            <SecondaryButton
+              title="Cancel"
+              onPress={() => router.back()}
+              disabled={submitting}
+            />
+          </View>
+          <View className="flex-1">
+            <PrimaryButton
+              title={submitting ? "Processing..." : "Confirm Withdrawal"}
+              onPress={handleWithdrawal}
+              disabled={!amount || !bankDetails || submitting || parseFloat(amount || '0') <= 0}
+              icon={submitting ? <ActivityIndicator size="small" color="white" /> : undefined}
+            />
+          </View>
+        </View>
       </View>
+
+      {/* Payment Preferences Modal */}
+      <PaymentPreferencesModal
+        visible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        driverId={driverId}
+        onBankDetailsUpdated={handleBankDetailsUpdated}
+      />
+
+      {/* Success Animation */}
+      {showSuccess && (
+        <Animated.View
+          style={{
+            transform: [{ translateY: slideAnim }],
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: '#10b981',
+            paddingVertical: 16,
+            paddingHorizontal: 20,
+            zIndex: 1000,
+          }}
+        >
+          <View className="flex-row items-center justify-center">
+            <Ionicons name="checkmark-circle" size={24} color="white" />
+            <Text className="text-white font-semibold text-base ml-2">
+              Withdrawal request submitted successfully!
+            </Text>
+          </View>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 };
