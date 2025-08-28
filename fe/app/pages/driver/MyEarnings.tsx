@@ -1,18 +1,34 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import PrimaryCard from '@/components/ui/PrimaryCard';
+import WithdrawalHistoryCard from '@/components/ui/WithdrawalHistoryCard';
+import PaymentPreferencesModal from '@/components/ui/PaymentPreferencesModal';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
 import { useEarningsData, useDriverInfo } from '@/hooks/useEarningsData';
 import { useMultipleLocationDescriptions } from '@/hooks/useLocationDescription';
 import { formatCurrency, formatDateTime, getRouteDescription, EarningsHistory } from '@/services/apiService';
+import { WithdrawalAPI, WithdrawalHistory, BankDetailsAPI } from '@/services/withdrawalService';
+
+type TabType = 'earnings' | 'withdrawals';
+type EarningsFilterType = 'ALL' | 'PENDING' | 'AVAILABLE' | 'WITHDRAWN';
+type WithdrawalsFilterType = 'ALL' | 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 
 const MyEarnings = () => {
   const router = useRouter();
-  const [selectedFilter, setSelectedFilter] = useState<'ALL' | 'PENDING' | 'AVAILABLE' | 'WITHDRAWN'>('ALL');
+  const [activeTab, setActiveTab] = useState<TabType>('earnings');
+  const [selectedEarningsFilter, setSelectedEarningsFilter] = useState<EarningsFilterType>('ALL');
+  const [selectedWithdrawalsFilter, setSelectedWithdrawalsFilter] = useState<WithdrawalsFilterType>('ALL');
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  
+  // Withdrawal data
+  const [withdrawalHistory, setWithdrawalHistory] = useState<WithdrawalHistory[]>([]);
+  const [withdrawalLoading, setWithdrawalLoading] = useState(false);
+  const [availableBalance, setAvailableBalance] = useState<number>(0);
+  const [hasBankDetails, setHasBankDetails] = useState(false);
   
   // Get driver information and earnings data
   const { driverId } = useDriverInfo();
@@ -27,11 +43,63 @@ const MyEarnings = () => {
     getEarningsByStatus,
   } = useEarningsData(driverId);
 
+  // Load withdrawal data when tab changes
+  useEffect(() => {
+    if (activeTab === 'withdrawals' && driverId) {
+      loadWithdrawalData();
+    }
+  }, [activeTab, driverId]);
+
+  // Load available balance when component mounts
+  useEffect(() => {
+    if (driverId) {
+      loadAvailableBalance();
+      checkBankDetails();
+    }
+  }, [driverId]);
+
+  const loadWithdrawalData = async () => {
+    setWithdrawalLoading(true);
+    try {
+      const history = await WithdrawalAPI.getWithdrawalHistory(driverId);
+      setWithdrawalHistory(history);
+    } catch (error) {
+      console.error('Error loading withdrawal history:', error);
+      Alert.alert('Error', 'Failed to load withdrawal history');
+    } finally {
+      setWithdrawalLoading(false);
+    }
+  };
+
+  const loadAvailableBalance = async () => {
+    try {
+      const balanceResult = await WithdrawalAPI.getAvailableBalance(driverId);
+      setAvailableBalance(balanceResult.availableBalance);
+    } catch (error) {
+      console.error('Error loading available balance:', error);
+    }
+  };
+
+  const checkBankDetails = async () => {
+    try {
+      const bankDetails = await BankDetailsAPI.getBankDetails(driverId);
+      setHasBankDetails(!!bankDetails);
+    } catch (error) {
+      console.error('Error checking bank details:', error);
+    }
+  };
+
   // Filter earnings based on selected status
   const filteredEarnings = useMemo(() => {
-    if (selectedFilter === 'ALL') return history;
-    return getEarningsByStatus(selectedFilter);
-  }, [history, selectedFilter, getEarningsByStatus]);
+    if (selectedEarningsFilter === 'ALL') return history;
+    return getEarningsByStatus(selectedEarningsFilter);
+  }, [history, selectedEarningsFilter, getEarningsByStatus]);
+
+  // Filter withdrawals based on selected status
+  const filteredWithdrawals = useMemo(() => {
+    if (selectedWithdrawalsFilter === 'ALL') return withdrawalHistory;
+    return withdrawalHistory.filter(w => w.status === selectedWithdrawalsFilter);
+  }, [withdrawalHistory, selectedWithdrawalsFilter]);
 
   // Use geocoding hook for location descriptions
   const locationDescriptions = useMultipleLocationDescriptions(filteredEarnings);
@@ -46,20 +114,33 @@ const MyEarnings = () => {
     }
   };
 
-  // Handle withdrawal request
-  const handleWithdrawal = (earning: EarningsHistory) => {
+  // Handle withdrawal navigation
+  const handleWithdrawFunds = () => {
+    if (!hasBankDetails) {
+      Alert.alert(
+        'Bank Details Required',
+        'Please add your bank details first to proceed with withdrawal.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Add Bank Details', onPress: () => setShowPaymentModal(true) }
+        ]
+      );
+      return;
+    }
+    router.push('/pages/driver/WithdrawalForm');
+  };
+
+  // Handle withdrawal retry
+  const handleRetryWithdrawal = async (withdrawalId: string) => {
     Alert.alert(
-      'Withdraw Earnings',
-      `Are you sure you want to withdraw ${formatCurrency(earning.netAmount)}?`,
+      'Retry Withdrawal',
+      'This will create a new withdrawal request with the same details.',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Proceed',
-          onPress: () => {
-            // Navigate to withdrawal form
-            router.push('/pages/driver/WithdrawalForm');
-          }
-        }
+        { text: 'Retry', onPress: () => {
+          // Navigate to withdrawal form
+          router.push('/pages/driver/WithdrawalForm');
+        }}
       ]
     );
   };
@@ -78,15 +159,23 @@ const MyEarnings = () => {
     }
   };
 
-  const filterOptions: { key: 'ALL' | 'PENDING' | 'AVAILABLE' | 'WITHDRAWN'; label: string; count: number }[] = [
+  const earningsFilterOptions: { key: EarningsFilterType; label: string; count: number }[] = [
     { key: 'ALL', label: 'All', count: history.length },
     { key: 'PENDING', label: 'Pending', count: getEarningsByStatus('PENDING').length },
     { key: 'AVAILABLE', label: 'Available', count: getEarningsByStatus('AVAILABLE').length },
     { key: 'WITHDRAWN', label: 'Withdrawn', count: getEarningsByStatus('WITHDRAWN').length },
   ];
 
-  // Get icon for transaction type
-  const getTransactionIcon = (status: string) => {
+  const withdrawalsFilterOptions: { key: WithdrawalsFilterType; label: string; count: number }[] = [
+    { key: 'ALL', label: 'All', count: withdrawalHistory.length },
+    { key: 'PENDING', label: 'Pending', count: withdrawalHistory.filter(w => w.status === 'PENDING').length },
+    { key: 'PROCESSING', label: 'Processing', count: withdrawalHistory.filter(w => w.status === 'PROCESSING').length },
+    { key: 'COMPLETED', label: 'Completed', count: withdrawalHistory.filter(w => w.status === 'COMPLETED').length },
+    { key: 'FAILED', label: 'Failed', count: withdrawalHistory.filter(w => w.status === 'FAILED').length },
+  ];
+
+  // Get status icon
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'PENDING':
         return (
@@ -115,6 +204,14 @@ const MyEarnings = () => {
     }
   };
 
+  const refreshAllData = async () => {
+    await refreshData();
+    if (activeTab === 'withdrawals') {
+      await loadWithdrawalData();
+    }
+    await loadAvailableBalance();
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-white">
       {/* Top Bar */}
@@ -133,208 +230,211 @@ const MyEarnings = () => {
         </Link>
       </View>
 
+      {/* Tab Navigation */}
+      <View className="flex-row bg-gray-50 mx-4 mt-4 rounded-lg p-1">
+        <TouchableOpacity
+          onPress={() => setActiveTab('earnings')}
+          className={`flex-1 py-3 rounded-md ${activeTab === 'earnings' ? 'bg-white shadow-sm' : ''}`}
+        >
+          <Text className={`text-center font-semibold ${activeTab === 'earnings' ? 'text-orange-500' : 'text-gray-600'}`}>
+            Earnings History
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setActiveTab('withdrawals')}
+          className={`flex-1 py-3 rounded-md ${activeTab === 'withdrawals' ? 'bg-white shadow-sm' : ''}`}
+        >
+          <Text className={`text-center font-semibold ${activeTab === 'withdrawals' ? 'text-orange-500' : 'text-gray-600'}`}>
+            Withdrawal History
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView 
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={refreshData} />
+          <RefreshControl refreshing={refreshing || withdrawalLoading} onRefresh={refreshAllData} />
         }
       >
         {/* Summary Cards */}
-        {summary && (
-          <View className="p-4 space-y-4">
-            {/* Total Balance Card */}
-            <PrimaryCard style={{ marginBottom: 12 }}>
-              <Text className="text-gray-600 text-base mb-2">Your Available Balance</Text>
-              <View className="flex-row items-center mb-4">
+        <View className="p-4 space-y-4">
+          {/* Available Balance Card */}
+          <PrimaryCard style={{ marginBottom: 12 }}>
+            <Text className="text-gray-600 text-base mb-2">Available for Withdrawal</Text>
+            <View className="flex-row items-center justify-between mb-4">
+              <View className="flex-row items-center">
                 <FontAwesome5 name="dollar-sign" size={24} color="#f97316" />
-                <Text className="text-3xl font-bold ml-2 text-orange-600">
-                  {formatCurrency(summary.availableBalance)}
+                <Text className="text-3xl font-bold text-gray-800 ml-2">
+                  {formatCurrency(availableBalance)}
                 </Text>
               </View>
-              <PrimaryButton
-                title="Withdraw Funds"
-                onPress={() => {
-                  if (summary.availableBalance > 0) {
-                    router.push('/pages/driver/WithdrawalForm');
-                  } else {
-                    Alert.alert('Info', 'No available balance to withdraw');
-                  }
-                }}
-              />
-            </PrimaryCard>
-
-            {/* Additional Summary Cards */}
-            <View className="flex-row space-x-4">
-              <View className="flex-1 bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                <Text className="text-yellow-600 text-sm font-medium">Pending Amount</Text>
-                <Text className="text-yellow-800 text-xl font-bold">{formatCurrency(summary.pendingAmount)}</Text>
-                <Text className="text-yellow-600 text-xs mt-1">Being processed</Text>
-              </View>
-              <View className="flex-1 bg-green-50 p-4 rounded-lg border border-green-200">
-                <Text className="text-green-600 text-sm font-medium">Weekly Earnings</Text>
-                <Text className="text-green-800 text-xl font-bold">{formatCurrency(summary.weeklyEarnings)}</Text>
-                <Text className="text-green-600 text-xs mt-1">This week</Text>
-              </View>
             </View>
-          </View>
-        )}
+            <PrimaryButton
+              title={hasBankDetails ? "Withdraw Funds" : "Add Bank Details First"}
+              onPress={handleWithdrawFunds}
+              icon={<MaterialCommunityIcons name="bank-transfer-out" size={20} color="white" />}
+            />
+          </PrimaryCard>
+
+          {/* Summary Stats */}
+          {summary && (
+            <View className="flex-row space-x-3">
+              <PrimaryCard style={{ flex: 1, marginBottom: 0 }}>
+                <Text className="text-gray-600 text-sm">Total Earned</Text>
+                <Text className="text-xl font-bold text-gray-800">
+                  {formatCurrency(summary.totalEarnings)}
+                </Text>
+              </PrimaryCard>
+              
+              <PrimaryCard style={{ flex: 1, marginBottom: 0 }}>
+                <Text className="text-gray-600 text-sm">This Month</Text>
+                <Text className="text-xl font-bold text-gray-800">
+                  {formatCurrency(summary.monthlyEarnings)}
+                </Text>
+              </PrimaryCard>
+            </View>
+          )}
+        </View>
 
         {/* Filter Tabs */}
-        <View className="px-4 pb-4">
-          <Text className="text-xl font-bold mb-4">Transaction History</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View className="flex-row space-x-2">
-              {filterOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.key}
-                  onPress={() => setSelectedFilter(option.key)}
-                  className={`px-4 py-2 rounded-full border ${
-                    selectedFilter === option.key
-                      ? 'bg-orange-500 border-orange-500'
-                      : 'bg-white border-gray-300'
+        <View className="px-4 mb-4">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-row">
+            {(activeTab === 'earnings' ? earningsFilterOptions : withdrawalsFilterOptions).map((option) => (
+              <TouchableOpacity
+                key={option.key}
+                onPress={() => activeTab === 'earnings' ? 
+                  setSelectedEarningsFilter(option.key as EarningsFilterType) : 
+                  setSelectedWithdrawalsFilter(option.key as WithdrawalsFilterType)
+                }
+                className={`mr-3 px-4 py-2 rounded-full border ${
+                  (activeTab === 'earnings' && selectedEarningsFilter === option.key) ||
+                  (activeTab === 'withdrawals' && selectedWithdrawalsFilter === option.key)
+                    ? 'bg-orange-500 border-orange-500'
+                    : 'bg-white border-gray-300'
+                }`}
+              >
+                <Text
+                  className={`font-medium ${
+                    (activeTab === 'earnings' && selectedEarningsFilter === option.key) ||
+                    (activeTab === 'withdrawals' && selectedWithdrawalsFilter === option.key)
+                      ? 'text-white'
+                      : 'text-gray-700'
                   }`}
                 >
-                  <Text
-                    className={`font-medium ${
-                      selectedFilter === option.key ? 'text-white' : 'text-gray-700'
-                    }`}
-                  >
-                    {option.label} ({option.count})
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                  {option.label} ({option.count})
+                </Text>
+              </TouchableOpacity>
+            ))}
           </ScrollView>
         </View>
 
-        {/* Earnings List */}
-        <View className="px-4 pb-20">
-          {loading ? (
-            <View className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <Text className="text-gray-500 text-center">Loading earnings...</Text>
-            </View>
-          ) : error ? (
-            <View className="bg-red-50 p-4 rounded-lg border border-red-200">
-              <Text className="text-red-600 text-center">{error}</Text>
-            </View>
-          ) : filteredEarnings.length > 0 ? (
-            <View className="space-y-3">
-              {filteredEarnings.map((earning, index) => {
-                const statusStyle = getStatusBadgeStyle(earning.status);
-                const locationDesc = locationDescriptions[index];
-                
-                return (
-                  <TouchableOpacity
-                    key={earning.id}
-                    className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm"
-                    onPress={() => {
-                      Alert.alert(
-                        'Earnings Details',
-                        `Amount: ${formatCurrency(earning.netAmount)}\nStatus: ${earning.status}\nCustomer: ${earning.customerName || 'N/A'}`,
-                        [
-                          { text: 'OK' },
-                          ...(earning.status === 'PENDING' ? [{
-                            text: 'Mark Available',
-                            onPress: () => handleStatusUpdate(earning.id, 'AVAILABLE')
-                          }] : [])
-                        ]
-                      );
-                    }}
-                  >
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-row items-center flex-1">
-                        {getTransactionIcon(earning.status)}
+        {/* Content based on active tab */}
+        <View className="px-4">
+          {activeTab === 'earnings' ? (
+            // Earnings History
+            <>
+              {loading ? (
+                <View className="items-center py-8">
+                  <ActivityIndicator size="large" color="#f97316" />
+                  <Text className="text-gray-600 mt-2">Loading earnings...</Text>
+                </View>
+              ) : filteredEarnings.length === 0 ? (
+                <View className="items-center py-12">
+                  <MaterialCommunityIcons name="cash-off" size={64} color="#9CA3AF" />
+                  <Text className="text-xl font-semibold text-gray-600 mt-4">No earnings found</Text>
+                  <Text className="text-gray-500 text-center mt-2">
+                    {selectedEarningsFilter === 'ALL' 
+                      ? "You haven't completed any deliveries yet"
+                      : `No ${selectedEarningsFilter.toLowerCase()} earnings found`
+                    }
+                  </Text>
+                </View>
+              ) : (
+                filteredEarnings.map((earning, index) => {
+                  const description = locationDescriptions[earning.id] || getRouteDescription(earning);
+                  const statusStyle = getStatusBadgeStyle(earning.status);
+                  
+                  return (
+                    <PrimaryCard key={earning.id} style={{ marginBottom: 12 }}>
+                      <View className="flex-row items-center">
+                        {getStatusIcon(earning.status)}
+                        
                         <View className="flex-1">
-                          <View className="flex-row items-center justify-between mb-1">
-                            <Text className="font-semibold text-gray-800 text-lg">
+                          <View className="flex-row items-center justify-between mb-2">
+                            <Text className="text-lg font-bold text-gray-800">
                               {formatCurrency(earning.netAmount)}
                             </Text>
                             <View className={`px-3 py-1 rounded-full ${statusStyle.bg}`}>
-                              <Text className={`text-xs font-medium ${statusStyle.text}`}>
+                              <Text className={`text-xs font-semibold ${statusStyle.text}`}>
                                 {earning.status}
                               </Text>
                             </View>
                           </View>
                           
-                          <View className="flex-row items-center">
-                            <Text className="text-gray-700 mb-1 flex-1">
-                              {locationDesc?.description || getRouteDescription(earning)}
-                            </Text>
-                            {locationDesc?.isLoading && (
-                              <View className="ml-2">
-                                <Ionicons name="refresh" size={12} color="#9CA3AF" />
-                              </View>
-                            )}
-                          </View>
+                          <Text className="text-gray-600 text-sm mb-1" numberOfLines={2}>
+                            {description}
+                          </Text>
                           
-                          <View className="flex-row items-center justify-between">
-                            <Text className="text-gray-500 text-sm">
-                              {formatDateTime(earning.earnedAt)}
-                            </Text>
-                          </View>
-                          <View className="flex-row items-center justify-between mt-1">
-                            <Text className="text-gray-600 text-sm">
-                              Gross: {formatCurrency(earning.grossAmount)}
-                            </Text>
-                            <Text className="text-gray-600 text-sm">
-                              Fee: {formatCurrency(earning.appFee)}
-                            </Text>
-                          </View>
-                          
-                          {earning.customerName && (
-                            <Text className="text-gray-600 text-sm mt-1">
-                              Customer: {earning.customerName}
-                            </Text>
-                          )}
+                          <Text className="text-gray-500 text-xs">
+                            {formatDateTime(earning.earnedAt)}
+                          </Text>
                         </View>
                       </View>
-                    </View>
-
-                    {/* Action Buttons */}
-                    <View className="flex-row justify-end mt-3 pt-3 border-t border-gray-100 space-x-2">
-                      {earning.status === 'PENDING' && (
-                        <TouchableOpacity
-                          onPress={() => handleStatusUpdate(earning.id, 'AVAILABLE')}
-                          className="bg-green-500 px-4 py-2 rounded-lg"
-                        >
-                          <Text className="text-white text-sm font-medium">Mark Available</Text>
-                        </TouchableOpacity>
-                      )}
-
-                      {earning.status === 'AVAILABLE' && (
-                        <TouchableOpacity
-                          onPress={() => handleWithdrawal(earning)}
-                          className="bg-orange-500 px-4 py-2 rounded-lg"
-                        >
-                          <Text className="text-white text-sm font-medium">Withdraw</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                    </PrimaryCard>
+                  );
+                })
+              )}
+            </>
           ) : (
-            <View className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
-              <View className="items-center">
-                <FontAwesome5 name="wallet" size={48} color="#d1d5db" />
-                <Text className="text-gray-500 text-center mt-2">
-                  No {selectedFilter.toLowerCase()} earnings found
-                </Text>
-                <Text className="text-gray-400 text-center text-sm">
-                  {selectedFilter === 'ALL' 
-                    ? 'Complete routes to start earning' 
-                    : `No earnings with ${selectedFilter.toLowerCase()} status`
-                  }
-                </Text>
-              </View>
-            </View>
+            // Withdrawal History
+            <>
+              {withdrawalLoading ? (
+                <View className="items-center py-8">
+                  <ActivityIndicator size="large" color="#f97316" />
+                  <Text className="text-gray-600 mt-2">Loading withdrawals...</Text>
+                </View>
+              ) : filteredWithdrawals.length === 0 ? (
+                <View className="items-center py-12">
+                  <MaterialCommunityIcons name="bank-transfer" size={64} color="#9CA3AF" />
+                  <Text className="text-xl font-semibold text-gray-600 mt-4">No withdrawals found</Text>
+                  <Text className="text-gray-500 text-center mt-2">
+                    {selectedWithdrawalsFilter === 'ALL' 
+                      ? "You haven't made any withdrawal requests yet"
+                      : `No ${selectedWithdrawalsFilter.toLowerCase()} withdrawals found`
+                    }
+                  </Text>
+                  <PrimaryButton
+                    title="Make Your First Withdrawal"
+                    onPress={handleWithdrawFunds}
+                    style={{ marginTop: 16 }}
+                  />
+                </View>
+              ) : (
+                filteredWithdrawals.map((withdrawal) => (
+                  <WithdrawalHistoryCard
+                    key={withdrawal.id}
+                    withdrawal={withdrawal}
+                    onRetry={handleRetryWithdrawal}
+                  />
+                ))
+              )}
+            </>
           )}
         </View>
       </ScrollView>
 
-      {/* Bottom Navigation Bar */}
+      {/* Payment Preferences Modal */}
+      <PaymentPreferencesModal
+        visible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        driverId={driverId}
+        onBankDetailsUpdated={() => {
+          setHasBankDetails(true);
+          setShowPaymentModal(false);
+        }}
+      />
+
       <DriverBottomNavigation />
     </SafeAreaView>
   );

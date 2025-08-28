@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ApiService, EarningsSummary, EarningsHistory, PendingBid } from '@/services/apiService';
+import { useAuth } from '@/lib/auth';
 
 // Custom hook for earnings data
 export const useEarningsData = (driverId: string) => {
@@ -116,24 +117,19 @@ export const useEarningsData = (driverId: string) => {
 
 // Custom hook for driver information
 export const useDriverInfo = () => {
-  const [driverId, setDriverId] = useState<string>('');
-  const [driverName, setDriverName] = useState<string>('');
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // For now, we'll use the test driver ID from our API tests
-    // In a real app, this would come from authentication/user session
-    const testDriverId = 'cdceaa3e-ab91-45d3-a971-efef43624682'; // Mishaf Hasan
-    const testDriverName = 'Mishaf Hasan';
-    
-    setDriverId(testDriverId);
-    setDriverName(testDriverName);
-    setLoading(false);
-  }, []);
+    // Wait for auth to load, then set loading to false
+    if (!authLoading) {
+      setLoading(false);
+    }
+  }, [authLoading]);
 
   return {
-    driverId,
-    driverName,
-    loading,
+    driverId: user?.id || '',
+    driverName: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.email || '',
+    loading: loading || authLoading,
   };
 };

@@ -5,22 +5,21 @@ import { Ionicons } from '@expo/vector-icons';
 import PrimaryButton from '../../../../components/ui/PrimaryButton';
 import SecondaryButton from '../../../../components/ui/SecondaryButton';
 import { useRouteCreation } from '../../../../contexts/RouteCreationContext';
+import { useDriverInfo } from '../../../../hooks/useEarningsData';
 import { createRoute, CreateRouteRequest, RouteSegmentRequest } from '../../../../services/routeService';
 
 const ConfirmCreateRoute = () => {
   const router = useRouter();
   const { routeData, getCreateRoutePayload, clearRouteData } = useRouteCreation();
+  const { driverId } = useDriverInfo();
   const [isCreating, setIsCreating] = useState(false);
-
-  // Mock driver ID - in real app, get from auth context
-  const MOCK_DRIVER_ID = '797c6f16-a06a-46b4-ae9f-9ded8aa4ab27';
 
   const handleCreateRoute = async () => {
     try {
       setIsCreating(true);
 
       // Get payload from context
-      const payload = getCreateRoutePayload(MOCK_DRIVER_ID);
+      const payload = getCreateRoutePayload(driverId);
       
       // Convert segments to the format expected by backend
       const segments: RouteSegmentRequest[] = payload.segments?.map((segment, index) => ({

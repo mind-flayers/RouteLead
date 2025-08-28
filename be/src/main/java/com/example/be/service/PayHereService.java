@@ -3,13 +3,17 @@ package com.example.be.service;
 import com.example.be.config.PayHereConfig;
 import com.example.be.dto.PayHereRequestDto;
 import com.example.be.dto.PayHereResponseDto;
+import com.example.be.dto.NotificationCreateDto;
 import com.example.be.model.Payment;
 import com.example.be.model.Profile;
 import com.example.be.model.Bid;
+import com.example.be.model.Conversation;
 import com.example.be.repository.PaymentRepository;
 import com.example.be.repository.ProfileRepository;
 import com.example.be.repository.BidRepository;
+import com.example.be.repository.ConversationRepository;
 import com.example.be.types.PaymentStatusEnum;
+import com.example.be.types.NotificationType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -34,6 +38,8 @@ public class PayHereService {
     private final PaymentRepository paymentRepository;
     private final ProfileRepository profileRepository;
     private final BidRepository bidRepository;
+    private final ConversationRepository conversationRepository;
+    private final NotificationService notificationService;
     private final RestTemplate restTemplate = new RestTemplate();
 
     /**
@@ -324,7 +330,8 @@ public class PayHereService {
             if (paymentOpt.isPresent()) {
                 Payment payment = paymentOpt.get();
                 payment.setTransactionId(response.getTransactionId());
-                payment.setPaymentStatus(PaymentStatusEnum.valueOf(response.getPaymentStatus()));
+                PaymentStatusEnum newStatus = PaymentStatusEnum.valueOf(response.getPaymentStatus());
+                payment.setPaymentStatus(newStatus);
                 
                 Map<String, Object> gatewayResponse = new HashMap<>();
                 gatewayResponse.put("paymentId", response.getPaymentId());
@@ -337,12 +344,98 @@ public class PayHereService {
                 
                 paymentRepository.save(payment);
                 log.info("Payment record updated successfully. Payment ID: {}", payment.getId());
+                
+                // NEW: After successful payment, create notification for driver and auto-create conversation
+                if (newStatus == PaymentStatusEnum.completed) {
+                    notifyDriverOfPaymentCompletion(payment);
+                }
+                
             } else {
                 log.warn("Payment record not found for bid ID: {}", bidId);
             }
             
         } catch (Exception e) {
             log.error("Error updating payment record", e);
+        }
+    }
+
+    /**
+     * Notify driver of payment completion and create conversation if needed
+     */
+    private void notifyDriverOfPaymentCompletion(Payment payment) {
+        try {
+            log.info("Processing payment completion notification for payment: {}", payment.getId());
+            
+            Bid bid = payment.getBid();
+            if (bid == null) {
+                log.warn("No bid found for payment: {}", payment.getId());
+                return;
+            }
+            
+            UUID customerId = payment.getUser().getId();
+            UUID driverId = bid.getRoute().getDriver().getId();
+            String customerName = payment.getUser().getFirstName() + " " + payment.getUser().getLastName();
+            
+            // Create conversation if it doesn't exist
+            createConversationAfterPayment(bid, customerId, driverId);
+            
+            // Create notification for driver
+            Map<String, Object> notificationPayload = new HashMap<>();
+            notificationPayload.put("type", "PAYMENT_COMPLETED");
+            notificationPayload.put("bidId", bid.getId().toString());
+            notificationPayload.put("customerId", customerId.toString());
+            notificationPayload.put("customerName", customerName);
+            notificationPayload.put("amount", payment.getAmount().toString());
+            notificationPayload.put("message", "Payment completed by " + customerName + ". You can now start chatting!");
+            
+            NotificationCreateDto notification = new NotificationCreateDto();
+            notification.setUserId(driverId);
+            notification.setType(NotificationType.BOOKING_CONFIRMED); // Using existing type
+            notification.setPayload(notificationPayload);
+            
+            notificationService.createNotification(notification);
+            
+            log.info("Driver notification created for payment completion. Driver ID: {}, Customer: {}", 
+                    driverId, customerName);
+            
+        } catch (Exception e) {
+            log.error("Error creating driver notification for payment completion", e);
+        }
+    }
+
+    /**
+     * Create conversation after payment if it doesn't already exist
+     */
+    private void createConversationAfterPayment(Bid bid, UUID customerId, UUID driverId) {
+        try {
+            // Check if conversation already exists
+            Conversation existingConversation = conversationRepository.findByBidId(bid.getId());
+            
+            if (existingConversation == null) {
+                // Create new conversation
+                Conversation conversation = new Conversation();
+                conversation.setBid(bid);
+                
+                // Get customer and driver profiles
+                Profile customer = profileRepository.findById(customerId)
+                    .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
+                Profile driver = profileRepository.findById(driverId)
+                    .orElseThrow(() -> new RuntimeException("Driver not found: " + driverId));
+                
+                conversation.setCustomer(customer);
+                conversation.setDriver(driver);
+                conversation.setLastMessageAt(java.time.ZonedDateTime.now());
+                
+                conversationRepository.save(conversation);
+                
+                log.info("Conversation created after payment. Bid ID: {}, Customer: {}, Driver: {}", 
+                        bid.getId(), customerId, driverId);
+            } else {
+                log.info("Conversation already exists for bid: {}", bid.getId());
+            }
+            
+        } catch (Exception e) {
+            log.error("Error creating conversation after payment for bid: {}", bid.getId(), e);
         }
     }
 

@@ -8,10 +8,13 @@ import com.example.be.dto.RouteBidCreateDto;
 import com.example.be.model.Bid;
 import com.example.be.model.Profile;
 import com.example.be.model.ReturnRoute;
+import com.example.be.model.DeliveryTracking;
 import com.example.be.repository.BidRepository;
 import com.example.be.repository.ProfileRepository;
 import com.example.be.repository.ReturnRouteRepository;
 import com.example.be.repository.ParcelRequestRepository;
+import com.example.be.repository.DeliveryTrackingRepository;
+import com.example.be.types.DeliveryStatusEnum;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -31,15 +36,18 @@ public class BidService {
     private final ReturnRouteRepository routeRepository;
     private final ProfileRepository profileRepository;
     private final ParcelRequestRepository parcelRequestRepository;
+    private final DeliveryTrackingRepository deliveryTrackingRepository;
 
     @Autowired
     public BidService(BidRepository bidRepository, com.example.be.repository.CustomerBidRepository customerBidRepository, 
-                     ReturnRouteRepository routeRepository, ProfileRepository profileRepository, ParcelRequestRepository parcelRequestRepository) {
+                     ReturnRouteRepository routeRepository, ProfileRepository profileRepository, 
+                     ParcelRequestRepository parcelRequestRepository, DeliveryTrackingRepository deliveryTrackingRepository) {
         this.bidRepository = bidRepository;
         this.customerBidRepository = customerBidRepository;
         this.routeRepository = routeRepository;
         this.profileRepository = profileRepository;
         this.parcelRequestRepository = parcelRequestRepository;
+        this.deliveryTrackingRepository = deliveryTrackingRepository;
     }
     @Transactional(readOnly = true)
     public List<BidDto> getBidsByParcelRequestIdAndStatus(UUID parcelRequestId, com.example.be.types.BidStatus status) {
@@ -294,6 +302,11 @@ public class BidService {
         // Update using native SQL to handle enum properly
         bidRepository.updateBidStatus(bidId, status.name());
         
+        // If bid is accepted, create delivery tracking record
+        if (status == com.example.be.types.BidStatus.ACCEPTED) {
+            createDeliveryTrackingForBid(bidId);
+        }
+        
         // Refresh the entity to get updated data
         bid = bidRepository.findById(bidId)
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Bid not found after update"));
@@ -441,5 +454,37 @@ public class BidService {
         
         logger.info("Route bid created successfully with ID: {}", savedBid.getId());
         return dto;
+    }
+    
+    /**
+     * Create delivery tracking record for an accepted bid
+     */
+    private void createDeliveryTrackingForBid(UUID bidId) {
+        try {
+            // Check if delivery tracking already exists for this bid
+            if (deliveryTrackingRepository.findByBidId(bidId).isPresent()) {
+                logger.info("Delivery tracking already exists for bid: {}", bidId);
+                return;
+            }
+            
+            // Get the bid details
+            Bid bid = bidRepository.findById(bidId)
+                    .orElseThrow(() -> new RuntimeException("Bid not found: " + bidId));
+            
+            // Create delivery tracking record
+            DeliveryTracking deliveryTracking = new DeliveryTracking();
+            deliveryTracking.setBid(bid);
+            deliveryTracking.setStatus(DeliveryStatusEnum.ACCEPTED);
+            
+            // Calculate estimated arrival time (for now, set to 2 hours from now)
+            deliveryTracking.setEstimatedArrival(ZonedDateTime.now().plusHours(2));
+            
+            deliveryTrackingRepository.save(deliveryTracking);
+            logger.info("Created delivery tracking record for bid: {}", bidId);
+            
+        } catch (Exception e) {
+            logger.error("Error creating delivery tracking for bid {}: ", bidId, e);
+            // Don't throw exception to avoid breaking the bid acceptance flow
+        }
     }
 }

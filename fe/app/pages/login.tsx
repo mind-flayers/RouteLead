@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import CustomAlert from '../../components/CustomAlert';
-// import { useAuth } from '../../lib/auth';
+import { useAuth } from '../../lib/auth';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -25,7 +25,22 @@ export default function LoginScreen() {
     type: 'info' as 'success' | 'error' | 'info'
   });
 
-  // const { user } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
+
+  // Check if user is already authenticated and redirect
+  useEffect(() => {
+    if (!authLoading && session && user) {
+      console.log('User already authenticated, redirecting based on role:', user.role);
+      if (user.role === 'CUSTOMER') {
+        router.replace('/pages/customer/Dashboard');
+      } else if (user.role === 'DRIVER') {
+        router.replace('/pages/driver/Dashboard');
+      } else {
+        // Default fallback for other roles
+        router.replace('/(tabs)/explore');
+      }
+    }
+  }, [authLoading, session, user]);
 
   const handleLogin = async () => {
     if (loading) return;

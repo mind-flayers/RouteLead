@@ -62,13 +62,26 @@ const ViewBids = () => {
           onPress: async () => {
             const success = await updateBidStatus(bidId, 'ACCEPTED');
             if (success) {
-              Alert.alert('Success', 'Bid accepted successfully!');
+              Alert.alert(
+                'Success', 
+                'Bid accepted successfully!',
+                [
+                  { text: 'OK' },
+                  { 
+                    text: 'Manage Delivery', 
+                    onPress: () => {
+                      // Navigate to DeliveryManagement with the bidId
+                      (navigation as any).navigate('pages/driver/DeliveryManagement', { bidId });
+                    }
+                  }
+                ]
+              );
             }
           }
         }
       ]
     );
-  }, [updateBidStatus]);
+  }, [updateBidStatus, navigation]);
 
   const handleRejectBid = useCallback(async (bidId: string) => {
     Alert.alert(

@@ -9,12 +9,17 @@ import { OptimizedImage } from '@/components/ui/OptimizedImage';
 import { useEarningsData, useDriverInfo } from '@/hooks/useEarningsData';
 import { useMultipleLocationDescriptions } from '@/hooks/useLocationDescription';
 import { formatCurrency, formatDateTime, getRouteDescription, EarningsHistory, testApiConnection } from '@/services/apiService';
+import { WithdrawalAPI } from '@/services/withdrawalService';
 
 const Dashboard = () => {
   const router = useRouter();
   
   // Get driver information
   const { driverId, driverName, loading: driverLoading } = useDriverInfo();
+  
+  // State for available balance (withdrawal balance)
+  const [availableBalance, setAvailableBalance] = useState<number>(0);
+  const [balanceLoading, setBalanceLoading] = useState<boolean>(true);
   
   // Get earnings data using the custom hook
   const {
@@ -32,6 +37,39 @@ const Dashboard = () => {
   useEffect(() => {
     testApiConnection();
   }, []);
+
+  // Fetch available balance from withdrawal service
+  const fetchAvailableBalance = async () => {
+    if (!driverId) return;
+    
+    try {
+      setBalanceLoading(true);
+      const balanceData = await WithdrawalAPI.getAvailableBalance(driverId);
+      setAvailableBalance(balanceData.availableBalance);
+    } catch (error) {
+      console.error('Error fetching available balance:', error);
+      // Fallback to earnings summary balance if withdrawal balance fails
+      if (summary) {
+        setAvailableBalance(summary.availableBalance);
+      }
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
+
+  // Fetch balance when driverId is available
+  useEffect(() => {
+    if (driverId) {
+      fetchAvailableBalance();
+    }
+  }, [driverId]);
+
+  // Refresh balance when earnings data is refreshed
+  useEffect(() => {
+    if (!refreshing && driverId) {
+      fetchAvailableBalance();
+    }
+  }, [refreshing, driverId]);
 
   // Memoized KPI data based on real API data
   const kpiData = useMemo(() => {
@@ -57,10 +95,10 @@ const Dashboard = () => {
           subtext: "Calculating..."
         },
         {
-          title: "Routes\nCompleted",
+          title: "Available\nBalance",
           icon: <AntDesign name="checkcircle" size={20} color="#f97316" />,
-          value: "...",
-          subtext: "This month"
+          value: "Loading...",
+          subtext: "Calculating balance..."
         }
       ];
     }
@@ -91,11 +129,11 @@ const Dashboard = () => {
       {
         title: "Available\nBalance",
         icon: <AntDesign name="checkcircle" size={20} color="#f97316" />,
-        value: formatCurrency(summary.availableBalance),
+        value: balanceLoading ? "Loading..." : formatCurrency(availableBalance),
         subtext: "Ready for withdrawal"
       }
     ];
-  }, [summary, pendingBids, getPercentageChange]);
+  }, [summary, pendingBids, getPercentageChange, availableBalance, balanceLoading]);
 
   // Get the most recent 3 earnings entries for geocoding
   const recentEarnings = useMemo(() => {
