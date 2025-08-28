@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+// WYSIWYG PDF export libs (client-side)
+// Loaded only on client when used
 
 const NAVY_BLUE = '#1A237E';
 const ROYAL_ORANGE = '#FF8C00';
@@ -9,6 +11,8 @@ const ROYAL_ORANGE = '#FF8C00';
 
 const Analytics = () => {
   const [loading, setLoading] = useState(true);
+  const dashboardRef = useRef<HTMLDivElement | null>(null);
+  const reportHeaderRef = useRef<HTMLDivElement | null>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [routes, setRoutes] = useState<any[]>([]);
   const [bids, setBids] = useState<any[]>([]);
@@ -308,8 +312,47 @@ const Analytics = () => {
             <option value="all">All Time</option>
           </select>
           <button
-            onClick={() => {
-              alert('Report download functionality would be implemented here in a production environment.');
+            onClick={async () => {
+              try {
+                const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+                  import('html2canvas'),
+                  import('jspdf')
+                ]);
+                const target = dashboardRef.current;
+                if (!target) {
+                  alert('Dashboard not ready.');
+                  return;
+                }
+                // Temporarily show report header for PDF capture
+                const headerEl = reportHeaderRef.current;
+                const previousDisplay = headerEl ? headerEl.style.display : '';
+                if (headerEl) headerEl.style.display = 'block';
+                // Increase scale for sharper PDF
+                const canvas = await html2canvas(target, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                if (headerEl) headerEl.style.display = previousDisplay;
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'pt', 'a4');
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const imgWidth = pageWidth;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                let position = 0;
+                let remainingHeight = imgHeight;
+
+                // Add pages if content overflows
+                while (remainingHeight > 0) {
+                  pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                  remainingHeight -= pageHeight;
+                  if (remainingHeight > 0) {
+                    pdf.addPage();
+                    position = 0 - (imgHeight - remainingHeight);
+                  }
+                }
+                pdf.save('analytics-dashboard.pdf');
+              } catch (e: any) {
+                alert(`Failed to export PDF: ${e?.message || 'Unknown error'}`);
+              }
             }}
             style={{
               background: '#fff',
@@ -326,8 +369,27 @@ const Analytics = () => {
           </button>
         </div>
       </div>
-      {/* Stat Cards */}
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 22 }}>
+      {/* Wrap dashboard for WYSIWYG export */}
+      <div ref={dashboardRef} style={{ width: '100%' }}>
+        {/* PDF-only header (hidden on screen, shown during capture) */}
+        <div
+          ref={reportHeaderRef}
+          style={{
+            display: 'none',
+            textAlign: 'center',
+            fontWeight: 800,
+            fontSize: 22,
+            color: NAVY_BLUE,
+            marginBottom: 12
+          }}
+        >
+          Analytics Report
+          <div style={{ fontSize: 12, color: '#7B7B93', fontWeight: 500 }}>
+            {new Date().toLocaleString()}
+          </div>
+        </div>
+        {/* Stat Cards */}
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 22 }}>
         {stats.map((s: any) => (
           <div
             key={s.label}
@@ -349,9 +411,9 @@ const Analytics = () => {
             <div style={{ fontSize: 14, color: '#7B7B93', fontWeight: 500 }}>{s.desc}</div>
           </div>
         ))}
-      </div>
-      {/* Trends & Demographics */}
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 22 }}>
+        </div>
+        {/* Trends & Demographics */}
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 22 }}>
         {/* Trends */}
         <div style={{
           background: '#fff',
@@ -532,9 +594,9 @@ const Analytics = () => {
             </svg>
           </div>
         </div>
-      </div>
-      {/* Overview & Activities */}
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 22 }}>
+        </div>
+        {/* Overview & Activities */}
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 22 }}>
         {/* Route Status Overview (replaces Dispute Categories) */}
         <div style={{
           background: '#fff',
@@ -651,6 +713,7 @@ const Analytics = () => {
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
     </div>
