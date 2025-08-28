@@ -80,6 +80,8 @@ const Login: React.FC = () => {
       }
       
       console.log('Login successful, redirecting to dashboard');
+      // Mark admin session for middleware by setting a non-sensitive cookie
+      document.cookie = 'rl_admin=1; Path=/; SameSite=Lax';
       // Redirect to admin dashboard
       window.location.href = '/dashboard';
     } catch (error) {
@@ -155,7 +157,24 @@ const Login: React.FC = () => {
             >
               {loading ? 'Logging in...' : 'Login'}
             </button>
-            {error && <div style={{ color: 'red', marginTop: 12 }}>{error}</div>}
+            {error && (
+              <div
+                style={{
+                  marginTop: 12,
+                  width: '100%',
+                  background: '#FEE2E2',
+                  color: '#B91C1C',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  fontSize: 14,
+                  textAlign: 'center',
+                }}
+                role="alert"
+              >
+                {error} — please try again.
+              </div>
+            )}
           </form>
           <div style={styles.forgot}>
             <a href="#" style={styles.forgotLink}>Forgot Password?</a>

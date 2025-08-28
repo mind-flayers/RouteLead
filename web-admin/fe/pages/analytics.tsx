@@ -4,6 +4,11 @@ import React, { useEffect, useRef, useState } from 'react';
 // WYSIWYG PDF export libs (client-side)
 // Loaded only on client when used
 
+const getAuth = async () => {
+  const mod = await import('../lib/authHeaders');
+  return (mod as any).authHeaders();
+};
+
 const NAVY_BLUE = '#1A237E';
 const ROYAL_ORANGE = '#FF8C00';
 
@@ -56,13 +61,14 @@ const Analytics = () => {
           }
         };
         
+        const headers = await getAuth();
         const [usersRes, routesRes, trendsRes, categoriesRes, activitiesRes, disputesRes] = await Promise.all([
-          fetchWithTimeout('/api/admin/users').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
-          fetchWithTimeout('/api/admin/routes').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
-          fetchWithTimeout('/api/admin/trends').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
-          fetchWithTimeout('/api/admin/dispute-categories').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
-          fetchWithTimeout('/api/admin/activities').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
-          fetchWithTimeout('/api/admin/disputes').catch(err => ({ ok: false, json: () => Promise.resolve({}) }))
+          fetchWithTimeout('/api/admin/users', { headers }).catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/routes', { headers }).catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/trends', { headers }).catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/dispute-categories', { headers }).catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/activities', { headers }).catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/disputes', { headers }).catch(err => ({ ok: false, json: () => Promise.resolve({}) }))
         ]);
         
         // Parse response data
@@ -77,10 +83,12 @@ const Analytics = () => {
         setUsers(usersData);
         setRoutes(routesData.routes || []);          // Convert trends data to the format needed by our charts
         setDisputes(disputesData.disputes || []);
+        let totalRevenueAllTime = 0;
         if (trendsData.trends && trendsData.trends.length > 0) {
           const routePoints = trendsData.trends.map((item: any) => item.routes);
           const bidPoints = trendsData.trends.map((item: any) => item.bids);
           const userPoints = trendsData.trends.map((item: any) => item.users);
+          totalRevenueAllTime = trendsData.trends.reduce((sum: number, item: any) => sum + (item.revenue || 0), 0);
           
           console.log('Route data points:', routePoints);
           
@@ -185,7 +193,10 @@ const Analytics = () => {
           {
             label: 'Revenue (This Month)',
             value: `Rs.${revenueThisMonth}`,
-            desc: 'App fee total',
+          },
+          {
+            label: 'Total Revenue',
+            value: `Rs.${totalRevenueAllTime}`,
           },
           {
             label: 'Open Disputes',
@@ -229,7 +240,8 @@ const Analytics = () => {
     let cancelled = false;
     const refreshActivities = async () => {
       try {
-        const res = await fetch('/api/admin/activities');
+        const headers = await getAuth();
+        const res = await fetch('/api/admin/activities', { headers });
         const data = await res.json();
         if (!cancelled && data && Array.isArray(data.activities)) {
           setActivities(data.activities);
@@ -246,11 +258,12 @@ const Analytics = () => {
   }, []);
 
   const maxDemographic = demographics.length > 0 ? Math.max(...demographics.map(d => d.value)) : 1;
-  // Route status overview counts
-  const openRoutes = routes.filter((r: any) => r.status === 'OPEN').length;
-  const pendingRoutes = routes.filter((r: any) => r.status === 'PENDING').length;
-  const activeRoutes = routes.filter((r: any) => r.status === 'ACTIVE').length;
-  const suspendedRoutes = routes.filter((r: any) => r.status === 'SUSPENDED').length;
+  // Route status overview counts (case-insensitive) from backend data
+  const normalizeStatus = (s: any) => s ? String(s).toUpperCase() : '';
+  const openRoutes = routes.filter((r: any) => normalizeStatus(r.status) === 'OPEN').length;
+  const pendingRoutes = routes.filter((r: any) => normalizeStatus(r.status) === 'PENDING').length;
+  const bookedRoutes = routes.filter((r: any) => normalizeStatus(r.status) === 'BOOKED').length;
+  const completedRoutes = routes.filter((r: any) => normalizeStatus(r.status) === 'COMPLETED').length;
 
   if (loading) {
     return <div style={{ padding: 32, textAlign: 'center', color: NAVY_BLUE }}>Loading analytics...</div>;
@@ -628,12 +641,12 @@ const Analytics = () => {
                 <div style={{ fontWeight: 800, fontSize: 22, color: ROYAL_ORANGE }}>{pendingRoutes}</div>
               </div>
               <div style={{ background: '#EEF2FF', borderRadius: 10, padding: '12px 14px' }}>
-                <div style={{ fontSize: 13, color: '#7B7B93' }}>Active</div>
-                <div style={{ fontWeight: 800, fontSize: 22, color: NAVY_BLUE }}>{activeRoutes}</div>
+                <div style={{ fontSize: 13, color: '#7B7B93' }}>Booked</div>
+                <div style={{ fontWeight: 800, fontSize: 22, color: NAVY_BLUE }}>{bookedRoutes}</div>
               </div>
               <div style={{ background: '#F4F4F5', borderRadius: 10, padding: '12px 14px' }}>
-                <div style={{ fontSize: 13, color: '#7B7B93' }}>Suspended</div>
-                <div style={{ fontWeight: 800, fontSize: 22, color: '#6B7280' }}>{suspendedRoutes}</div>
+                <div style={{ fontSize: 13, color: '#7B7B93' }}>Completed</div>
+                <div style={{ fontWeight: 800, fontSize: 22, color: '#6B7280' }}>{completedRoutes}</div>
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { authHeaders } from '../lib/authHeaders';
 
 const NAVY_BLUE = '#1A237E';
 const ROYAL_ORANGE = '#FF8C00';
@@ -92,7 +93,7 @@ const DisputePage: React.FC = () => {
 		async function fetchDisputes() {
 			setLoading(true);
 			try {
-				const res = await fetch('/api/admin/disputes');
+				const res = await fetch('/api/admin/disputes', { headers: await authHeaders() });
 				const data = await res.json();
 				setDisputes(data.disputes || []);
 				setSelected((data.disputes && data.disputes[0]) || null);

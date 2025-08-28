@@ -1,11 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import { ensureAdmin } from '../../../lib/serverAuth';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const adminSupabase = createClient(supabaseUrl, serviceRoleKey);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!(await ensureAdmin(req, res))) return;
   // GET /api/admin/disputes/:id
   if (req.method === 'GET' && req.query.id) {
     const { id } = req.query;

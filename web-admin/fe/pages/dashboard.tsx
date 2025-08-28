@@ -103,7 +103,7 @@ const Dashboard: React.FC = () => {
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeRoutes: 0,
-    pendingDisputes: 0,
+    openDisputes: 0,
     revenue: 0,
     drivers: 0,
     customers: 0,
@@ -114,15 +114,25 @@ const Dashboard: React.FC = () => {
     async function fetchData() {
       setLoading(true);
       try {
+        const { authHeaders } = await import('../lib/authHeaders');
+        const headers = await authHeaders();
         // Fetch users
-        const usersRes = await fetch('/api/admin/users');
+        const usersRes = await fetch('/api/admin/users', { headers });
+        if (!usersRes.ok) { window.location.href = '/login'; return; }
         const usersData = await usersRes.json();
+        if (!Array.isArray(usersData)) { window.location.href = '/login'; return; }
         setUsers(usersData);
 
         // Fetch routes
-        const routesRes = await fetch('/api/admin/routes');
+        const routesRes = await fetch('/api/admin/routes', { headers });
+        if (!routesRes.ok) { window.location.href = '/login'; return; }
         const routesData = await routesRes.json();
         setRoutes(routesData.routes || []);
+
+        // Fetch disputes
+        const disputesRes = await fetch('/api/admin/disputes', { headers });
+        if (!disputesRes.ok) { window.location.href = '/login'; return; }
+        const disputesData = await disputesRes.json();
 
         // Calculate stats (excluding admins, case-insensitive)
         const normalizeRole = (r: any) => String(r || '').toUpperCase();
@@ -131,13 +141,15 @@ const Dashboard: React.FC = () => {
         const drivers = nonAdminUsers.filter((u: any) => normalizeRole(u.role) === 'DRIVER').length;
         const customers = nonAdminUsers.filter((u: any) => normalizeRole(u.role) === 'CUSTOMER').length;
         const activeRoutes = routesData.routes?.length || 0;
-        const pendingDisputes = 0; // TODO: Add disputes API when available
+        const openDisputes = Array.isArray(disputesData.disputes)
+          ? disputesData.disputes.filter((d: any) => String(d.status || '').toUpperCase() === 'OPEN').length
+          : 0;
         const revenue = 0; // Placeholder; card will reflect latest trendRevenue below
 
         setStats(prev => ({
           totalUsers,
           activeRoutes,
-          pendingDisputes,
+          openDisputes,
           revenue: prev.revenue,
           drivers,
           customers,
@@ -145,6 +157,7 @@ const Dashboard: React.FC = () => {
         }));
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        window.location.href = '/login';
       }
       setLoading(false);
     }
@@ -156,7 +169,9 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     async function fetchTrends() {
       try {
-        const res = await fetch('/api/admin/trends');
+        const { authHeaders } = await import('../lib/authHeaders');
+        const res = await fetch('/api/admin/trends', { headers: await authHeaders() });
+        if (!res.ok) { window.location.href = '/login'; return; }
         const data = await res.json();
         if (data && Array.isArray(data.trends)) {
           setTrendMonths(data.trends.map((t: any) => t.month));
@@ -165,9 +180,10 @@ const Dashboard: React.FC = () => {
           // Update revenue card to show latest month's revenue
           const latestRevenue = data.trends.length > 0 ? (data.trends[data.trends.length - 1].revenue ?? 0) : 0;
           setStats(prev => ({ ...prev, revenue: latestRevenue }));
-        }
+        } else { window.location.href = '/login'; }
       } catch (e) {
         // keep defaults on failure
+        window.location.href = '/login';
       }
     }
     fetchTrends();
@@ -251,8 +267,8 @@ const Dashboard: React.FC = () => {
           <div style={cardValue}>{stats.activeRoutes}</div>
         </div>
         <div style={{ ...cardStyle, flex: 1, minWidth: 180, maxWidth: 300 }}>
-          <div style={cardTitle}>Pending Disputes</div>
-          <div style={cardValue}>{stats.pendingDisputes}</div>
+          <div style={cardTitle}>Open Disputes</div>
+          <div style={cardValue}>{stats.openDisputes}</div>
         </div>
         <div style={{ ...cardStyle, flex: 1, minWidth: 180, maxWidth: 300 }}>
           <div style={cardTitle}>Revenue (This Month)</div>
