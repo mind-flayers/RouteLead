@@ -1,6 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+// WYSIWYG PDF export libs (client-side)
+// Loaded only on client when used
+
+const getAuth = async () => {
+  const mod = await import('../lib/authHeaders');
+  return (mod as any).authHeaders();
+};
 
 const NAVY_BLUE = '#1A237E';
 const ROYAL_ORANGE = '#FF8C00';
@@ -9,6 +16,8 @@ const ROYAL_ORANGE = '#FF8C00';
 
 const Analytics = () => {
   const [loading, setLoading] = useState(true);
+  const dashboardRef = useRef<HTMLDivElement | null>(null);
+  const reportHeaderRef = useRef<HTMLDivElement | null>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [routes, setRoutes] = useState<any[]>([]);
   const [bids, setBids] = useState<any[]>([]);
@@ -52,13 +61,14 @@ const Analytics = () => {
           }
         };
         
+        const headers = await getAuth();
         const [usersRes, routesRes, trendsRes, categoriesRes, activitiesRes, disputesRes] = await Promise.all([
-          fetchWithTimeout('/api/admin/users').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
-          fetchWithTimeout('/api/admin/routes').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
-          fetchWithTimeout('/api/admin/trends').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
-          fetchWithTimeout('/api/admin/dispute-categories').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
-          fetchWithTimeout('/api/admin/activities').catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
-          fetchWithTimeout('/api/admin/disputes').catch(err => ({ ok: false, json: () => Promise.resolve({}) }))
+          fetchWithTimeout('/api/admin/users', { headers }).catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/routes', { headers }).catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/trends', { headers }).catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/dispute-categories', { headers }).catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/activities', { headers }).catch(err => ({ ok: false, json: () => Promise.resolve({}) })),
+          fetchWithTimeout('/api/admin/disputes', { headers }).catch(err => ({ ok: false, json: () => Promise.resolve({}) }))
         ]);
         
         // Parse response data
@@ -73,10 +83,12 @@ const Analytics = () => {
         setUsers(usersData);
         setRoutes(routesData.routes || []);          // Convert trends data to the format needed by our charts
         setDisputes(disputesData.disputes || []);
+        let totalRevenueAllTime = 0;
         if (trendsData.trends && trendsData.trends.length > 0) {
           const routePoints = trendsData.trends.map((item: any) => item.routes);
           const bidPoints = trendsData.trends.map((item: any) => item.bids);
           const userPoints = trendsData.trends.map((item: any) => item.users);
+          totalRevenueAllTime = trendsData.trends.reduce((sum: number, item: any) => sum + (item.revenue || 0), 0);
           
           console.log('Route data points:', routePoints);
           
@@ -181,7 +193,10 @@ const Analytics = () => {
           {
             label: 'Revenue (This Month)',
             value: `Rs.${revenueThisMonth}`,
-            desc: 'App fee total',
+          },
+          {
+            label: 'Total Revenue',
+            value: `Rs.${totalRevenueAllTime}`,
           },
           {
             label: 'Open Disputes',
@@ -225,7 +240,8 @@ const Analytics = () => {
     let cancelled = false;
     const refreshActivities = async () => {
       try {
-        const res = await fetch('/api/admin/activities');
+        const headers = await getAuth();
+        const res = await fetch('/api/admin/activities', { headers });
         const data = await res.json();
         if (!cancelled && data && Array.isArray(data.activities)) {
           setActivities(data.activities);
@@ -242,11 +258,12 @@ const Analytics = () => {
   }, []);
 
   const maxDemographic = demographics.length > 0 ? Math.max(...demographics.map(d => d.value)) : 1;
-  // Route status overview counts
-  const openRoutes = routes.filter((r: any) => r.status === 'OPEN').length;
-  const pendingRoutes = routes.filter((r: any) => r.status === 'PENDING').length;
-  const activeRoutes = routes.filter((r: any) => r.status === 'ACTIVE').length;
-  const suspendedRoutes = routes.filter((r: any) => r.status === 'SUSPENDED').length;
+  // Route status overview counts (case-insensitive) from backend data
+  const normalizeStatus = (s: any) => s ? String(s).toUpperCase() : '';
+  const openRoutes = routes.filter((r: any) => normalizeStatus(r.status) === 'OPEN').length;
+  const pendingRoutes = routes.filter((r: any) => normalizeStatus(r.status) === 'PENDING').length;
+  const bookedRoutes = routes.filter((r: any) => normalizeStatus(r.status) === 'BOOKED').length;
+  const completedRoutes = routes.filter((r: any) => normalizeStatus(r.status) === 'COMPLETED').length;
 
   if (loading) {
     return <div style={{ padding: 32, textAlign: 'center', color: NAVY_BLUE }}>Loading analytics...</div>;
@@ -308,8 +325,47 @@ const Analytics = () => {
             <option value="all">All Time</option>
           </select>
           <button
-            onClick={() => {
-              alert('Report download functionality would be implemented here in a production environment.');
+            onClick={async () => {
+              try {
+                const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+                  import('html2canvas'),
+                  import('jspdf')
+                ]);
+                const target = dashboardRef.current;
+                if (!target) {
+                  alert('Dashboard not ready.');
+                  return;
+                }
+                // Temporarily show report header for PDF capture
+                const headerEl = reportHeaderRef.current;
+                const previousDisplay = headerEl ? headerEl.style.display : '';
+                if (headerEl) headerEl.style.display = 'block';
+                // Increase scale for sharper PDF
+                const canvas = await html2canvas(target, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+                if (headerEl) headerEl.style.display = previousDisplay;
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'pt', 'a4');
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const imgWidth = pageWidth;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                let position = 0;
+                let remainingHeight = imgHeight;
+
+                // Add pages if content overflows
+                while (remainingHeight > 0) {
+                  pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                  remainingHeight -= pageHeight;
+                  if (remainingHeight > 0) {
+                    pdf.addPage();
+                    position = 0 - (imgHeight - remainingHeight);
+                  }
+                }
+                pdf.save('analytics-dashboard.pdf');
+              } catch (e: any) {
+                alert(`Failed to export PDF: ${e?.message || 'Unknown error'}`);
+              }
             }}
             style={{
               background: '#fff',
@@ -326,8 +382,27 @@ const Analytics = () => {
           </button>
         </div>
       </div>
-      {/* Stat Cards */}
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 22 }}>
+      {/* Wrap dashboard for WYSIWYG export */}
+      <div ref={dashboardRef} style={{ width: '100%' }}>
+        {/* PDF-only header (hidden on screen, shown during capture) */}
+        <div
+          ref={reportHeaderRef}
+          style={{
+            display: 'none',
+            textAlign: 'center',
+            fontWeight: 800,
+            fontSize: 22,
+            color: NAVY_BLUE,
+            marginBottom: 12
+          }}
+        >
+          Analytics Report
+          <div style={{ fontSize: 12, color: '#7B7B93', fontWeight: 500 }}>
+            {new Date().toLocaleString()}
+          </div>
+        </div>
+        {/* Stat Cards */}
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 22 }}>
         {stats.map((s: any) => (
           <div
             key={s.label}
@@ -349,9 +424,9 @@ const Analytics = () => {
             <div style={{ fontSize: 14, color: '#7B7B93', fontWeight: 500 }}>{s.desc}</div>
           </div>
         ))}
-      </div>
-      {/* Trends & Demographics */}
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 22 }}>
+        </div>
+        {/* Trends & Demographics */}
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 22 }}>
         {/* Trends */}
         <div style={{
           background: '#fff',
@@ -532,9 +607,9 @@ const Analytics = () => {
             </svg>
           </div>
         </div>
-      </div>
-      {/* Overview & Activities */}
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 22 }}>
+        </div>
+        {/* Overview & Activities */}
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 22 }}>
         {/* Route Status Overview (replaces Dispute Categories) */}
         <div style={{
           background: '#fff',
@@ -566,12 +641,12 @@ const Analytics = () => {
                 <div style={{ fontWeight: 800, fontSize: 22, color: ROYAL_ORANGE }}>{pendingRoutes}</div>
               </div>
               <div style={{ background: '#EEF2FF', borderRadius: 10, padding: '12px 14px' }}>
-                <div style={{ fontSize: 13, color: '#7B7B93' }}>Active</div>
-                <div style={{ fontWeight: 800, fontSize: 22, color: NAVY_BLUE }}>{activeRoutes}</div>
+                <div style={{ fontSize: 13, color: '#7B7B93' }}>Booked</div>
+                <div style={{ fontWeight: 800, fontSize: 22, color: NAVY_BLUE }}>{bookedRoutes}</div>
               </div>
               <div style={{ background: '#F4F4F5', borderRadius: 10, padding: '12px 14px' }}>
-                <div style={{ fontSize: 13, color: '#7B7B93' }}>Suspended</div>
-                <div style={{ fontWeight: 800, fontSize: 22, color: '#6B7280' }}>{suspendedRoutes}</div>
+                <div style={{ fontSize: 13, color: '#7B7B93' }}>Completed</div>
+                <div style={{ fontWeight: 800, fontSize: 22, color: '#6B7280' }}>{completedRoutes}</div>
               </div>
             </div>
           </div>
@@ -651,6 +726,7 @@ const Analytics = () => {
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
     </div>

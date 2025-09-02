@@ -29,7 +29,8 @@ const RouteDashboard = () => {
     async function fetchRoutes() {
       setLoading(true);
       try {
-        const res = await fetch('/api/admin/routes');
+        const { authHeaders } = await import('../lib/authHeaders');
+        const res = await fetch('/api/admin/routes', { headers: await authHeaders() });
         const data = await res.json();
         setRoutes(data.routes || []);
       } catch (err) {

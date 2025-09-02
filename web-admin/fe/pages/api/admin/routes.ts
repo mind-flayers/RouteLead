@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import { ensureAdmin } from '../../../lib/serverAuth';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -27,6 +28,7 @@ async function fetchPlaceNames(originLat: number, originLng: number, destLat: nu
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!(await ensureAdmin(req, res))) return;
   if (req.method === 'POST') {
     // POST /api/admin/routes - create a new route
     const {

@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { authHeaders } from '../lib/authHeaders';
 
 const NAVY_BLUE = '#1A237E';
 const ROYAL_ORANGE = '#FF8C00';
@@ -141,7 +142,7 @@ const UserManagement: React.FC = () => {
 		async function fetchUsers() {
 			setLoading(true);
 			try {
-				const res = await fetch('/api/admin/users');
+				const res = await fetch('/api/admin/users', { headers: await authHeaders() });
 				const data = await res.json();
 				// Map snake_case to camelCase and exclude admin users
 				setUserList(
