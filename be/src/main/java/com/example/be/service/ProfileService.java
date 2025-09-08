@@ -279,17 +279,24 @@ public class ProfileService {
      */
     @Transactional
     public Profile submitForVerification(UUID userId) {
-        Profile profile = getProfile(userId);
-        
         // Check if personal information is complete
         if (!checkPersonalInformationCompleteness(userId)) {
             throw new RuntimeException("Personal information must be complete before submitting for verification");
         }
         
-        profile.setVerificationStatus(VerificationStatusEnum.PENDING);
-        profile.setIsVerified(false);
+        // Use native SQL to avoid enum casting issues
+        int updatedRows = profileRepository.updateVerificationStatus(
+            userId, 
+            VerificationStatusEnum.PENDING.name(), 
+            false
+        );
         
-        return profileRepository.save(profile);
+        if (updatedRows == 0) {
+            throw new RuntimeException("Failed to update verification status for user: " + userId);
+        }
+        
+        // Return the updated profile
+        return getProfile(userId);
     }
 
     /**

@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Alert, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Alert, Animated, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import TopBar from '../../../components/ui/TopBar';
 import ProgressBar from '../../../components/ui/ProgressBar';
 import { VerificationFlowService, DOCUMENT_TYPE_NAMES } from '../../../services/verificationFlowService';
+import { VerificationApiService } from '../../../services/verificationApiService';
 import { supabase } from '@/lib/supabase';
 
 interface DocumentUpload {
@@ -18,10 +21,70 @@ interface DocumentUpload {
 const UploadPersonalDocs = () => {
   const [licenseNumber, setLicenseNumber] = useState('');
   const [licenseExpiry, setLicenseExpiry] = useState('');
+  const [expiryDate, setExpiryDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [driverLicense, setDriverLicense] = useState<DocumentUpload>({});
   const [nationalId, setNationalId] = useState<DocumentUpload>({});
   const [billingProof, setBillingProof] = useState<DocumentUpload>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [verificationFlow] = useState(() => VerificationFlowService.getInstance());
+
+  // Helper functions for date formatting
+  const formatDateForDisplay = (date: Date): string => {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const formatDateForBackend = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    const currentDate = selectedDate || expiryDate;
+    setShowDatePicker(Platform.OS === 'ios');
+    setExpiryDate(currentDate);
+    setLicenseExpiry(formatDateForDisplay(currentDate));
+  };
+
+  useEffect(() => {
+    const initializeComponent = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserId(user.id);
+          
+          // Initialize verification flow
+          await verificationFlow.initializeFlow(user.id);
+          
+          // Check if documents already exist and populate UI
+          const flowState = verificationFlow.getFlowState();
+          
+          // Populate existing documents
+          const existingNationalId = flowState.documents.find(doc => doc.documentType === 'NATIONAL_ID');
+          const existingDriversLicense = flowState.documents.find(doc => doc.documentType === 'DRIVERS_LICENSE');
+          
+          if (existingNationalId && existingNationalId.localUri) {
+            setNationalId(prev => ({ ...prev, frontSide: existingNationalId.localUri }));
+          }
+          
+          if (existingDriversLicense && existingDriversLicense.localUri) {
+            setDriverLicense(prev => ({ ...prev, frontSide: existingDriversLicense.localUri }));
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing component:', error);
+        Alert.alert('Error', 'Failed to initialize verification. Please try again.');
+      }
+    };
+
+    initializeComponent();
+  }, []);
 
   const pickDocument = async (
     docType: 'driverLicense' | 'nationalId' | 'billingProof',
@@ -53,27 +116,28 @@ const UploadPersonalDocs = () => {
     }
   };
 
-  const uploadDocument = async (driverId: string, imageUri: string, documentType: string) => {
-    const fileName = `${documentType}_${driverId}_${Date.now()}.jpg`;
+  const uploadDocument = async (userId: string, imageUri: string, documentType: string, expiryDate?: string) => {
+    const fileName = `${documentType}_${userId}_${Date.now()}.jpg`;
     
-    const formData = new FormData();
-    formData.append('file', {
+    // Create file object compatible with VerificationFlowService
+    const fileData = {
       uri: imageUri,
       type: 'image/jpeg',
       name: fileName,
-    } as any);
+    };
 
-    return await VerificationApiService.uploadDocument(driverId, formData.get('file'), documentType);
+    // Upload using VerificationFlowService (handles Supabase Storage)
+    return await verificationFlow.uploadDocument(userId, fileData, documentType, expiryDate);
   };
 
   const validateAndContinue = async () => {
     // Validation checks
-    if (!driverLicense.frontSide || !driverLicense.backSide) {
-      Alert.alert('Missing Documents', 'Please upload both sides of your driving license.');
+    if (!driverLicense.frontSide) {
+      Alert.alert('Missing Documents', 'Please upload your driving license.');
       return;
     }
-    if (!nationalId.frontSide || !nationalId.backSide) {
-      Alert.alert('Missing Documents', 'Please upload both sides of your national ID card.');
+    if (!nationalId.frontSide) {
+      Alert.alert('Missing Documents', 'Please upload your national ID card.');
       return;
     }
     if (!licenseNumber.trim()) {
@@ -85,55 +149,47 @@ const UploadPersonalDocs = () => {
       return;
     }
 
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated. Please log in again.');
+      return;
+    }
+
     try {
       setIsUploading(true);
-      
-      // Get current user ID
-      const userData = await AsyncStorage.getItem('user_data');
-      if (!userData) {
-        Alert.alert('Error', 'User not found. Please log in again.');
-        return;
-      }
-      
-      const user = JSON.parse(userData);
-      const driverId = user.id;
 
-      // Upload all documents
+      // Upload all documents using VerificationFlowService
       const uploadPromises = [];
 
-      // Upload driver license documents
+      // Upload driver license document (correct enum: DRIVERS_LICENSE)
       if (driverLicense.frontSide) {
-        uploadPromises.push(uploadDocument(driverId, driverLicense.frontSide, 'DRIVER_LICENSE'));
+        uploadPromises.push(
+          uploadDocument(userId, driverLicense.frontSide, 'DRIVERS_LICENSE', formatDateForBackend(expiryDate))
+        );
       }
       
-      // Upload national ID documents
+      // Upload national ID document (correct enum: NATIONAL_ID)
       if (nationalId.frontSide) {
-        uploadPromises.push(uploadDocument(driverId, nationalId.frontSide, 'NATIONAL_ID'));
-      }
-
-      // Upload billing proof if available
-      if (billingProof.document) {
-        uploadPromises.push(uploadDocument(driverId, billingProof.document, 'BILLING_PROOF'));
+        uploadPromises.push(
+          uploadDocument(userId, nationalId.frontSide, 'NATIONAL_ID')
+        );
       }
 
       // Wait for all uploads to complete
       await Promise.all(uploadPromises);
 
-      // Also update profile with license details
-      await VerificationApiService.updateProfile(driverId, {
-        driverLicenseNumber: licenseNumber.trim(),
-        licenseExpiryDate: licenseExpiry.trim(),
-      });
+      // TODO: Store license details locally for now - will fix profile update later
+      await AsyncStorage.setItem('driverLicenseNumber', licenseNumber.trim());
+      await AsyncStorage.setItem('licenseExpiryDate', formatDateForBackend(expiryDate));
 
       Alert.alert(
         'Success!', 
-        'All documents uploaded successfully!',
-        [{ text: 'OK', onPress: () => router.push('/pages/driver/SelectVehicleType') }]
+        'Personal documents uploaded successfully!',
+        [{ text: 'Continue', onPress: () => router.push('/pages/driver/SelectVehicleType') }]
       );
       
     } catch (error) {
       console.error('Error uploading documents:', error);
-      Alert.alert('Upload Failed', 'Failed to upload documents. Please try again.');
+      Alert.alert('Upload Failed', error instanceof Error ? error.message : 'Failed to upload documents. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -233,13 +289,25 @@ const UploadPersonalDocs = () => {
             value={licenseNumber}
             onChangeText={setLicenseNumber}
           />
-          <TextInput
-            className="border border-gray-300 rounded-lg p-3 text-gray-700"
-            placeholder="Select Expiry Date (DD/MM/YYYY)"
-            placeholderTextColor="#9CA3AF"
-            value={licenseExpiry}
-            onChangeText={setLicenseExpiry}
-          />
+          <TouchableOpacity
+            className="border border-gray-300 rounded-lg p-3 flex-row items-center justify-between"
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text className={`text-gray-700 ${!licenseExpiry ? 'text-gray-400' : ''}`}>
+              {licenseExpiry || 'Select Expiry Date (DD/MM/YYYY)'}
+            </Text>
+            <Ionicons name="calendar-outline" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={expiryDate}
+              mode="date"
+              display="default"
+              onChange={onDateChange}
+              minimumDate={new Date()}
+              maximumDate={new Date(2050, 11, 31)}
+            />
+          )}
         </View>
 
         {/* National ID Card */}

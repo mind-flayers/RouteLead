@@ -131,7 +131,7 @@ const UploadFacePhoto = () => {
       Alert.alert(
         'Success!', 
         'Face photo uploaded successfully!',
-        [{ text: 'Continue', onPress: () => router.push('/pages/driver/VerificationDocuments') }]
+        [{ text: 'Continue', onPress: () => router.push('/pages/driver/UploadPersonalDocs') }]
       );
       
     } catch (error) {
