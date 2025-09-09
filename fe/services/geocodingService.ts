@@ -1,8 +1,8 @@
 // Geocoding Service for converting coordinates to place names
-// Uses Google Maps API (primary) with OpenStreetMap Nominatim as fallback
+// Uses OpenStreetMap Nominatim API (primary) for reliable Sri Lankan geocoding
 
 // Configuration
-const USE_GOOGLE_MAPS_PRIMARY = true; // Set to false to use Nominatim as primary
+const USE_GOOGLE_MAPS_PRIMARY = false; // Set to false to use Nominatim as primary
 
 interface GeocodingResult {
   success: boolean;
@@ -400,50 +400,30 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string> 
     return cached.placeName;
   }
   
-  // Try Google Maps first for best accuracy
+  // Use Nominatim directly for geocoding (Google Maps API key is disabled)
   try {
-    console.log(`🗺️ Attempting Google Maps geocoding for Sri Lankan coordinates: ${lat}, ${lng}`);
-    const result = await reverseGeocodeGoogle(lat, lng);
+    console.log(`🗺️ Using Nominatim geocoding for Sri Lankan coordinates: ${lat}, ${lng}`);
+    const nominatimResult = await reverseGeocodeNominatim(lat, lng);
     
-    // Cache the result if successful
-    if (result.success) {
+    if (nominatimResult.success) {
+      // Cache the result
       geocodingCache.set(cacheKey, {
-        placeName: result.placeName,
-        fullAddress: result.fullAddress || '',
+        placeName: nominatimResult.placeName,
+        fullAddress: nominatimResult.fullAddress || '',
         timestamp: Date.now(),
       });
-      console.log(`🗺️ Google Maps geocoded ${cacheKey} → ${result.placeName}`);
-      return result.placeName;
-    } else {
-      // If Google fails, the function already falls back to Nominatim internally
-      return result.placeName;
+      console.log(`🗺️ Nominatim geocoded ${cacheKey} → ${nominatimResult.placeName}`);
+      return nominatimResult.placeName;
     }
-  } catch (error) {
-    console.error(`🗺️ Google Maps geocoding error for ${cacheKey}:`, error);
     
-    // Fallback to Nominatim if Google completely fails
-    try {
-      console.log(`🗺️ Falling back to Nominatim for ${cacheKey}`);
-      const nominatimResult = await reverseGeocodeNominatim(lat, lng);
-      
-      if (nominatimResult.success) {
-        geocodingCache.set(cacheKey, {
-          placeName: nominatimResult.placeName,
-          fullAddress: nominatimResult.fullAddress || '',
-          timestamp: Date.now(),
-        });
-        return nominatimResult.placeName;
-      }
-      
-      // Use enhanced fallback for failed geocoding
-      const fallback = getLocationFallback(lat, lng);
-      return fallback || nominatimResult.placeName;
-    } catch (nominatimError) {
-      console.error(`🗺️ Both Google and Nominatim failed for ${cacheKey}:`, nominatimError);
-      // Use enhanced fallback for errors
-      const fallback = getLocationFallback(lat, lng);
-      return fallback || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    }
+    // Use enhanced fallback for failed geocoding
+    const fallback = getLocationFallback(lat, lng);
+    return fallback || nominatimResult.placeName;
+  } catch (nominatimError) {
+    console.error(`🗺️ Nominatim geocoding failed for ${cacheKey}:`, nominatimError);
+    // Use enhanced fallback for errors
+    const fallback = getLocationFallback(lat, lng);
+    return fallback || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   }
 }
 
@@ -474,48 +454,48 @@ export async function parseAndGeocode(coordinateString: string): Promise<string>
 /**
  * Test if Google Maps API key is properly configured
  */
-export async function testGoogleMapsAPIKey(): Promise<boolean> {
-  const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
-  
-  if (!GOOGLE_MAPS_API_KEY) {
-    console.log('🗺️ No Google Maps API key found');
-    return false;
-  }
-  
-  console.log('🗺️ Testing Google Maps API key...');
-  
-  try {
-    // Test with a simple Colombo coordinate
-    const testLat = 6.9271;
-    const testLng = 79.8612;
-    
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${testLat},${testLng}&key=${GOOGLE_MAPS_API_KEY}&language=en&region=lk`;
-    
-    const response = await fetch(url);
-    const data = await response.json();
-    
-    if (data.status === 'OK') {
-      console.log('✅ Google Maps API key is working correctly');
-      console.log('🗺️ Test result:', data.results[0]?.formatted_address || 'No address found');
-      return true;
-    } else {
-      console.error('❌ Google Maps API error:', data.status, data.error_message);
-      console.log('🗺️ Will use Nominatim API as fallback');
-      return false;
-    }
-  } catch (error) {
-    console.error('❌ Error testing Google Maps API:', error);
-    console.log('🗺️ Will use Nominatim API as fallback');
-    return false;
-  }
-}
+// export async function testGoogleMapsAPIKey(): Promise<boolean> {
+//   const GOOGLE_MAPS_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+//   
+//   if (!GOOGLE_MAPS_API_KEY) {
+//     console.log('🗺️ No Google Maps API key found');
+//     return false;
+//     }
+//   
+//   console.log('🗺️ Testing Google Maps API key...');
+//   
+//   try {
+//     // Test with a simple Colombo coordinate
+//     const testLat = 6.9271;
+//     const testLng = 79.8612;
+//     
+//     const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${testLat},${testLng}&key=${GOOGLE_MAPS_API_KEY}&language=en&region=lk`;
+//     
+//     const response = await fetch(url);
+//     const data = await response.json();
+//     
+//     if (data.status === 'OK') {
+//       console.log('✅ Google Maps API key is working correctly');
+//       console.log('🗺️ Test result:', data.results[0]?.formatted_address || 'No address found');
+//       return true;
+//     } else {
+//       console.error('❌ Google Maps API error:', data.status, data.error_message);
+//       console.log('🗺️ Will use Nominatim API as fallback');
+//       return false;
+//     }
+//   } catch (error) {
+//     console.error('❌ Error testing Google Maps API:', error);
+//     console.log('🗺️ Will use Nominatim API as fallback');
+//     return false;
+//   }
+// }
 
 /**
  * Clear geocoding cache (for testing or memory management)
  */
 export function clearGeocodingCache(): void {
   geocodingCache.clear();
-  console.log('🗺️ Geocoding cache cleared - will use new precise location logic');
+  console.log('🗺️ Geocoding cache cleared - will use Nominatim for fresh results');
 }
 
 /**
@@ -529,10 +509,10 @@ export function getGeocodingCacheStats(): {size: number, entries: string[]} {
 }
 
 /**
- * Test precise location extraction with sample coordinates
+ * Test precise location extraction with sample coordinates using Nominatim
  */
 export async function testPreciseLocations(): Promise<void> {
-  console.log('🗺️ Testing precise location extraction...');
+  console.log('🗺️ Testing precise location extraction with Nominatim...');
   
   // Clear cache to test fresh results
   clearGeocodingCache();
@@ -550,7 +530,7 @@ export async function testPreciseLocations(): Promise<void> {
       console.error(`🗺️ Error testing ${coord.note}:`, error);
     }
     
-    // Respect rate limits
+    // Respect rate limits for Nominatim API
     await new Promise(resolve => setTimeout(resolve, 1200));
   }
 }

@@ -10,6 +10,7 @@ import com.example.be.model.*;
 import com.example.be.repository.BidRepository;
 import com.example.be.repository.DeliveryTrackingRepository;
 import com.example.be.repository.PaymentRepository;
+import com.example.be.repository.ProfileRepository;
 import com.example.be.types.DeliveryStatusEnum;
 import com.example.be.types.PaymentStatusEnum;
 import com.example.be.types.NotificationType;
@@ -35,6 +36,7 @@ public class DeliveryManagementService {
     private final DriverLocationUpdateService locationUpdateService;
     private final GeocodingService geocodingService;
     private final NotificationService notificationService;
+    private final ProfileRepository profileRepository;
     
     /**
      * Get comprehensive delivery details for a specific bid
@@ -198,11 +200,31 @@ public class DeliveryManagementService {
         // Location details with geocoding
         dto.setPickupLat(request.getPickupLat());
         dto.setPickupLng(request.getPickupLng());
-        dto.setPickupAddress(geocodingService.getLocationName(request.getPickupLat(), request.getPickupLng()));
+        try {
+            if (request.getPickupLat() != null && request.getPickupLng() != null) {
+                dto.setPickupAddress(geocodingService.getLocationName(request.getPickupLat(), request.getPickupLng()));
+            } else {
+                dto.setPickupAddress("Pickup location not specified");
+                log.warn("Pickup coordinates are null for bid: {}", bid.getId());
+            }
+        } catch (Exception e) {
+            log.error("Error geocoding pickup location for bid {}: ", bid.getId(), e);
+            dto.setPickupAddress("Pickup location unavailable");
+        }
         
         dto.setDropoffLat(request.getDropoffLat());
         dto.setDropoffLng(request.getDropoffLng());
-        dto.setDropoffAddress(geocodingService.getLocationName(request.getDropoffLat(), request.getDropoffLng()));
+        try {
+            if (request.getDropoffLat() != null && request.getDropoffLng() != null) {
+                dto.setDropoffAddress(geocodingService.getLocationName(request.getDropoffLat(), request.getDropoffLng()));
+            } else {
+                dto.setDropoffAddress("Dropoff location not specified");
+                log.warn("Dropoff coordinates are null for bid: {}", bid.getId());
+            }
+        } catch (Exception e) {
+            log.error("Error geocoding dropoff location for bid {}: ", bid.getId(), e);
+            dto.setDropoffAddress("Dropoff location unavailable");
+        }
         
         // Current location from latest update
         if (latestLocation.isPresent()) {
@@ -314,18 +336,30 @@ public class DeliveryManagementService {
     }
     
     /**
-     * Helper method to get customer name - you may need to implement based on your profile service
+     * Helper method to get customer name from profiles
      */
     private String getCustomerName(UUID customerId) {
-        // TODO: Implement proper customer name fetching from profiles
-        return "Customer"; // Placeholder
+        try {
+            return profileRepository.findById(customerId)
+                .map(profile -> profile.getFirstName() + " " + profile.getLastName())
+                .orElse("Customer");
+        } catch (Exception e) {
+            log.error("Error fetching customer name for ID {}: ", customerId, e);
+            return "Customer";
+        }
     }
     
     /**
-     * Helper method to get driver name - you may need to implement based on your profile service
+     * Helper method to get driver name from profiles
      */
     private String getDriverName(UUID driverId) {
-        // TODO: Implement proper driver name fetching from profiles
-        return "Driver"; // Placeholder
+        try {
+            return profileRepository.findById(driverId)
+                .map(profile -> profile.getFirstName() + " " + profile.getLastName())
+                .orElse("Driver");
+        } catch (Exception e) {
+            log.error("Error fetching driver name for ID {}: ", driverId, e);
+            return "Driver";
+        }
     }
 }

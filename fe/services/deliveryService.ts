@@ -34,20 +34,26 @@ const makeApiCall = async (endpoint: string, options: RequestInit = {}) => {
 export interface DeliveryDetails {
   deliveryTrackingId: string;
   bidId: string;
+  customerId: string;
   driverId: string;
-  driverName: string;
+  
+  // Customer details
   customerName: string;
   customerPhone: string;
+  customerEmail?: string;
+  
+  // Bid details
   bidAmount: number;
-  status: 'ACCEPTED' | 'PICKED_UP' | 'IN_TRANSIT' | 'DELIVERED';
+  status: 'ACCEPTED' | 'EN_ROUTE_PICKUP' | 'PICKED_UP' | 'EN_ROUTE_DELIVERY' | 'DELIVERED';
   estimatedArrival: string;
+  actualPickupTime?: string;
   actualDeliveryTime?: string;
   
   // Parcel details
   description: string;
   weightKg: number;
   volumeM3: number;
-  specialInstructions: string;
+  specialInstructions?: string;
   
   // Location details
   pickupLat: number;
@@ -60,6 +66,7 @@ export interface DeliveryDetails {
   // Current location
   currentLat?: number;
   currentLng?: number;
+  lastLocationUpdate?: string;
   
   // Contact details
   pickupContactName: string;
@@ -69,10 +76,11 @@ export interface DeliveryDetails {
   
   // Status
   paymentCompleted: boolean;
+  parcelPhotos?: string; // JSON string of photo URLs
 }
 
 export interface DeliveryStatusUpdate {
-  status: 'ACCEPTED' | 'PICKED_UP' | 'IN_TRANSIT' | 'DELIVERED';
+  status: 'ACCEPTED' | 'EN_ROUTE_PICKUP' | 'PICKED_UP' | 'EN_ROUTE_DELIVERY' | 'DELIVERED';
   currentLat?: number;
   currentLng?: number;
   notes?: string;
@@ -80,9 +88,11 @@ export interface DeliveryStatusUpdate {
 
 export interface DeliverySummary {
   deliveryTrackingId: string;
+  bidId: string;
   customerName: string;
   bidAmount: number;
   driverName: string;
+  deliveryStartedAt: string;
   deliveryCompletedAt: string;
   totalDeliveryTimeMinutes: number;
   
@@ -93,6 +103,10 @@ export interface DeliverySummary {
   // Parcel info
   parcelDescription: string;
   weightKg: number;
+  volumeM3: number;
+  
+  // Statistics
+  totalLocationUpdates?: number;
 }
 
 class DeliveryService {

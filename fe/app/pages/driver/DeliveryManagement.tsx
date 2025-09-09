@@ -238,21 +238,73 @@ const DeliveryManagement = () => {
   const handleStartNavigation = () => {
     if (!deliveryDetails) return;
 
-    const { dropoffLat, dropoffLng } = deliveryDetails;
+    let destination: string;
+    let locationName: string;
     
-    // Open Google Maps with navigation to dropoff location
-    const destination = `${dropoffLat},${dropoffLng}`;
+    // Determine navigation destination based on current status
+    if (deliveryDetails.status === 'ACCEPTED' || deliveryDetails.status === 'EN_ROUTE_PICKUP') {
+      // Navigate to pickup location
+      destination = `${deliveryDetails.pickupLat},${deliveryDetails.pickupLng}`;
+      locationName = deliveryDetails.pickupAddress;
+      
+      // Update status to EN_ROUTE_PICKUP if not already
+      if (deliveryDetails.status === 'ACCEPTED') {
+        updateDeliveryStatus('EN_ROUTE_PICKUP');
+      }
+    } else if (deliveryDetails.status === 'PICKED_UP' || deliveryDetails.status === 'EN_ROUTE_DELIVERY') {
+      // Navigate to delivery location
+      destination = `${deliveryDetails.dropoffLat},${deliveryDetails.dropoffLng}`;
+      locationName = deliveryDetails.dropoffAddress;
+      
+      // Update status to EN_ROUTE_DELIVERY if not already
+      if (deliveryDetails.status === 'PICKED_UP') {
+        updateDeliveryStatus('EN_ROUTE_DELIVERY');
+      }
+    } else {
+      Alert.alert('Navigation Error', 'Navigation is not available for the current delivery status.');
+      return;
+    }
+    
+    // Open Google Maps with navigation to destination
     const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
     
-    Linking.openURL(googleMapsUrl).catch((error) => {
-      console.error('Error opening Google Maps:', error);
-      Alert.alert('Error', 'Could not open navigation. Please install Google Maps.');
-    });
+    Alert.alert(
+      'Open Navigation',
+      `Navigate to ${locationName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Open Maps',
+          onPress: () => {
+            Linking.openURL(googleMapsUrl).catch((error) => {
+              console.error('Error opening Google Maps:', error);
+              Alert.alert('Error', 'Could not open navigation. Please install Google Maps.');
+            });
+          }
+        }
+      ]
+    );
   };
 
-  const updateDeliveryStatus = async (newStatus: 'ACCEPTED' | 'PICKED_UP' | 'IN_TRANSIT' | 'DELIVERED') => {
+  const updateDeliveryStatus = async (newStatus: 'ACCEPTED' | 'EN_ROUTE_PICKUP' | 'PICKED_UP' | 'EN_ROUTE_DELIVERY' | 'DELIVERED') => {
     if (!deliveryDetails || !bidId) {
       Alert.alert('Error', 'Delivery information not available');
+      return;
+    }
+
+    // Validate status transitions
+    const currentStatus = deliveryDetails.status;
+    const validTransitions: Record<string, string[]> = {
+      'ACCEPTED': ['EN_ROUTE_PICKUP'],
+      'EN_ROUTE_PICKUP': ['PICKED_UP'],
+      'PICKED_UP': ['EN_ROUTE_DELIVERY'],
+      'EN_ROUTE_DELIVERY': ['DELIVERED'],
+      'DELIVERED': [] // Final status
+    };
+
+    if (!validTransitions[currentStatus]?.includes(newStatus) && currentStatus !== newStatus) {
+      Alert.alert('Invalid Status Change', 
+        `Cannot change status from ${currentStatus} to ${newStatus}. Please follow the proper delivery sequence.`);
       return;
     }
 
@@ -272,12 +324,15 @@ const DeliveryManagement = () => {
         
         // Show success message and navigate to summary
         Alert.alert(
-          'Delivery Completed!',
-          'Great job! The delivery has been marked as completed.',
+          '🎉 Delivery Completed!',
+          'Congratulations! The delivery has been successfully completed.',
           [
             {
               text: 'View Summary',
-              onPress: () => router.push(`/pages/driver/DeliverySummary?summaryData=${JSON.stringify(summary)}`),
+              onPress: () => router.push({
+                pathname: '/pages/driver/DeliverySummary',
+                params: { summaryData: JSON.stringify(summary) }
+              }),
             },
           ]
         );
@@ -286,13 +341,39 @@ const DeliveryManagement = () => {
         const updatedDetails = await deliveryService.updateDeliveryStatus(bidId, update);
         setDeliveryDetails(updatedDetails);
         
-        Alert.alert('Status Updated', `Delivery status updated to ${newStatus}`);
+        // Show appropriate message for status
+        const statusMessages: Record<string, string> = {
+          'EN_ROUTE_PICKUP': 'En route to pickup location',
+          'PICKED_UP': 'Parcel picked up successfully!',
+          'EN_ROUTE_DELIVERY': 'En route to delivery location'
+        };
+        
+        Alert.alert('Status Updated', statusMessages[newStatus] || `Status updated to ${newStatus}`);
       }
     } catch (error) {
       console.error('Error updating delivery status:', error);
       Alert.alert('Error', 'Failed to update delivery status. Please try again.');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const getNavigationButtonText = () => {
+    if (!deliveryDetails) return 'Start Navigation';
+    
+    switch (deliveryDetails.status) {
+      case 'ACCEPTED':
+        return '🚗 Navigate to Pickup';
+      case 'EN_ROUTE_PICKUP':
+        return '📍 Continue to Pickup';
+      case 'PICKED_UP':
+        return '🎯 Navigate to Delivery';
+      case 'EN_ROUTE_DELIVERY':
+        return '📍 Continue to Delivery';
+      case 'DELIVERED':
+        return '✅ Delivery Complete';
+      default:
+        return 'Start Navigation';
     }
   };
 
@@ -387,7 +468,7 @@ const DeliveryManagement = () => {
           </View>
           
           <PrimaryButton
-            title="Start Navigation"
+            title={getNavigationButtonText()}
             onPress={handleStartNavigation}
             icon={<MaterialCommunityIcons name="navigation" size={20} color="white" />}
           />
@@ -436,11 +517,11 @@ const DeliveryManagement = () => {
             <Text className={`font-semibold ${getStatusTextClass('PICKED_UP')}`}>Picked Up</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={`flex-1 items-center py-2 rounded-md mx-1 ${getStatusButtonClass('IN_TRANSIT')}`}
-            onPress={() => updateDeliveryStatus('IN_TRANSIT')}
+            className={`flex-1 items-center py-2 rounded-md mx-1 ${getStatusButtonClass('EN_ROUTE_DELIVERY')}`}
+            onPress={() => updateDeliveryStatus('EN_ROUTE_DELIVERY')}
             disabled={updating}
           >
-            <Text className={`font-semibold ${getStatusTextClass('IN_TRANSIT')}`}>In Transit</Text>
+            <Text className={`font-semibold ${getStatusTextClass('EN_ROUTE_DELIVERY')}`}>En Route</Text>
           </TouchableOpacity>
           <TouchableOpacity
             className={`flex-1 items-center py-2 rounded-md mx-1 ${getStatusButtonClass('DELIVERED')}`}
