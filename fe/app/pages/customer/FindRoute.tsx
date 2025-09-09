@@ -307,27 +307,10 @@ export default function FindRouteScreen() {
       {step === 'done' && !showRoutes && (
         <View style={{ padding: 12 }}>
           <TouchableOpacity
-            style={{ backgroundColor: '#ff6b35', borderRadius: 8, padding: 16, alignItems: 'center', marginBottom: 8 }}
+            style={{ backgroundColor: '#ff6b35', borderRadius: 8, padding: 16, alignItems: 'center' }}
             onPress={handleSearch}
           >
             <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Search Routes</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={{ backgroundColor: '#1e3a8a', borderRadius: 8, padding: 16, alignItems: 'center' }}
-            onPress={() => router.push({
-              pathname: '/pages/customer/RequestParcel',
-              params: {
-                routeId: 'custom',
-                origin: pickupAddress || `${pickupCoord?.latitude}, ${pickupCoord?.longitude}`,
-                destination: dropoffAddress || `${dropoffCoord?.latitude}, ${dropoffCoord?.longitude}`,
-                pickupLat: pickupCoord?.latitude?.toString() || '',
-                pickupLng: pickupCoord?.longitude?.toString() || '',
-                dropoffLat: dropoffCoord?.latitude?.toString() || '',
-                dropoffLng: dropoffCoord?.longitude?.toString() || ''
-              }
-            })}
-          >
-            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Request Parcel</Text>
           </TouchableOpacity>
         </View>
       )}
