@@ -2,6 +2,7 @@ package com.example.be.model;
 
 import com.example.be.types.DocumentTypeEnum;
 import com.example.be.types.VerificationStatusEnum;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,6 +23,7 @@ public class DriverDocument {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "driver_id", nullable = false)
+    @JsonIgnore
     private Profile driver;
 
     @Enumerated(EnumType.STRING)
@@ -37,6 +39,7 @@ public class DriverDocument {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "verified_by")
+    @JsonIgnore
     private Profile verifiedBy;
 
     @Column(name = "verified_at")

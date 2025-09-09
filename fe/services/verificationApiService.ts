@@ -4,6 +4,22 @@ import { supabase } from '@/lib/supabase';
 
 const API_BASE_URL = Config.API_BASE;
 
+// Safe error logging to avoid circular reference issues
+function safeLog(level: 'log' | 'warn' | 'error', message: string, error?: any) {
+  console[level](message);
+  if (error) {
+    if (typeof error === 'string') {
+      console[level]('Error details:', error);
+    } else if (error.message) {
+      console[level]('Error message:', error.message);
+    } else if (error.status) {
+      console[level]('Error status:', error.status);
+    } else {
+      console[level]('Error type:', typeof error);
+    }
+  }
+}
+
 // Types for verification API
 export interface ProfileData {
   id: string;
@@ -70,26 +86,44 @@ export interface DocumentCompleteness {
 // Verification API Service Class
 export class VerificationApiService {
   private static async makeRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    // Get Supabase session token
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
-      ...options,
-    });
+    try {
+      safeLog('log', `🌐 API Request: ${endpoint}`);
+      
+      // Get Supabase session token
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+          ...options.headers,
+        },
+        ...options,
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Network error' }));
-      throw new Error(errorData.message || `API Error: ${response.status}`);
+      if (!response.ok) {
+        safeLog('warn', `API Response Error: ${response.status} ${response.statusText}`);
+        
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (parseError) {
+          errorData = { message: 'Network error - unable to parse response' };
+        }
+        
+        const errorMessage = errorData.message || `API Error: ${response.status}`;
+        safeLog('error', 'API Request failed', { status: response.status, message: errorMessage });
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      safeLog('log', `✅ API Request successful: ${endpoint}`);
+      return data.data; // Extract the data field from the response
+    } catch (error) {
+      safeLog('error', `💥 API Request failed for ${endpoint}`, error);
+      throw error;
     }
-
-    const data = await response.json();
-    return data.data; // Extract the data field from the response
   }
 
   // Profile management

@@ -1,5 +1,6 @@
 package com.example.be.service;
 
+import com.example.be.dto.DriverDocumentDTO;
 import com.example.be.model.DriverDocument;
 import com.example.be.model.Profile;
 import com.example.be.repository.DriverDocumentRepository;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +50,7 @@ public class DriverDocumentService {
 
         // Check if document already exists for this type
         DriverDocument existingDoc = driverDocumentRepository
-                .findByDriverIdAndDocumentType(driverId, documentType);
+                .findByDriverIdAndDocumentType(driverId, documentType.name());
 
         DriverDocument document;
         if (existingDoc != null) {
@@ -89,7 +91,7 @@ public class DriverDocumentService {
      */
     @Transactional(readOnly = true)
     public DriverDocument getDriverDocument(UUID driverId, DocumentTypeEnum documentType) {
-        return driverDocumentRepository.findByDriverIdAndDocumentType(driverId, documentType);
+        return driverDocumentRepository.findByDriverIdAndDocumentType(driverId, documentType.name());
     }
 
     /**
@@ -272,49 +274,77 @@ public class DriverDocumentService {
     }
 
     /**
-     * Save document from Supabase Storage
+     * Save document from Supabase Storage and return DTO to avoid circular references
      */
     @Transactional
-    public DriverDocument saveDocumentFromSupabase(UUID driverId, DocumentTypeEnum documentType, 
-                                                  String documentUrl, String filePath, String expiryDate) {
+    public DriverDocumentDTO saveDocumentFromSupabaseAsDTO(UUID driverId, DocumentTypeEnum documentType, 
+                                                          String documentUrl, String filePath, String expiryDate) {
         log.info("Saving document from Supabase for driver: {}, type: {}", driverId, documentType);
 
-        Profile driver = profileRepository.findById(driverId)
-                .orElseThrow(() -> new RuntimeException("Driver not found with ID: " + driverId));
+        // Verify driver exists
+        if (!profileRepository.existsById(driverId)) {
+            throw new RuntimeException("Driver not found with ID: " + driverId);
+        }
 
+        String documentTypeStr = documentType.name();
+        String verificationStatusStr = VerificationStatusEnum.PENDING.name();
+        
         // Check if document already exists for this type and update it
         DriverDocument existingDoc = driverDocumentRepository
-                .findByDriverIdAndDocumentType(driverId, documentType);
+                .findByDriverIdAndDocumentType(driverId, documentTypeStr);
 
-        DriverDocument document;
         if (existingDoc != null) {
-            // Update existing document
-            document = existingDoc;
-            document.setDocumentUrl(documentUrl);
-            document.setVerificationStatus(VerificationStatusEnum.PENDING); // Reset to pending when re-uploaded
-            document.setVerifiedBy(null);
-            document.setVerifiedAt(null);
+            // Update existing document using native SQL
+            log.info("Updating existing document for driver: {}, type: {}", driverId, documentTypeStr);
+            driverDocumentRepository.updateDocument(
+                driverId, 
+                documentTypeStr, 
+                documentUrl, 
+                verificationStatusStr,
+                expiryDate
+            );
+            
+            log.info("Document updated successfully");
+            
         } else {
-            // Create new document
-            document = new DriverDocument();
-            document.setDriver(driver); // Set the Profile object, not the UUID
-            document.setDocumentType(documentType);
-            document.setDocumentUrl(documentUrl);
-            document.setVerificationStatus(VerificationStatusEnum.PENDING);
-        }
-
-        // Set expiry date if provided
-        if (expiryDate != null && !expiryDate.trim().isEmpty()) {
-            try {
-                document.setExpiryDate(LocalDate.parse(expiryDate));
-            } catch (Exception e) {
-                log.warn("Invalid expiry date format: {}", expiryDate);
+            // Create new document using native SQL
+            UUID newDocumentId = UUID.randomUUID();
+            log.info("Creating new document for driver: {}, type: {}", driverId, documentTypeStr);
+            
+            driverDocumentRepository.insertDocument(
+                newDocumentId,
+                driverId,
+                documentTypeStr,
+                documentUrl,
+                verificationStatusStr
+            );
+            
+            // If expiry date provided, update it separately
+            if (expiryDate != null && !expiryDate.trim().isEmpty()) {
+                try {
+                    driverDocumentRepository.updateDocument(
+                        driverId, 
+                        documentTypeStr, 
+                        documentUrl, 
+                        verificationStatusStr,
+                        expiryDate
+                    );
+                } catch (Exception e) {
+                    log.warn("Invalid expiry date format: {}", expiryDate);
+                }
             }
+            
+            log.info("Document created successfully");
         }
-
-        DriverDocument savedDocument = driverDocumentRepository.save(document);
-        log.info("Document saved successfully with ID: {}", savedDocument.getId());
         
-        return savedDocument;
+        // Create and return DTO directly to avoid circular reference issues
+        DriverDocumentDTO dto = new DriverDocumentDTO();
+        dto.setDriverId(driverId);
+        dto.setDocumentType(documentTypeStr);
+        dto.setDocumentUrl(documentUrl);
+        dto.setVerificationStatus(verificationStatusStr);
+        // Note: We're not setting createdAt as it requires fetching from DB
+        
+        return dto;
     }
 }

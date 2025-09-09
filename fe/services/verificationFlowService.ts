@@ -2,6 +2,20 @@ import { Alert } from 'react-native';
 import { SupabaseStorageService, FileUploadResult } from './supabaseStorageService';
 import { VerificationApiService, DocumentData } from './verificationApiService';
 
+// Safe error logging to avoid circular reference issues
+function safeLog(level: 'log' | 'warn' | 'error', message: string, error?: any) {
+  console[level](message);
+  if (error) {
+    if (typeof error === 'string') {
+      console[level]('Error details:', error);
+    } else if (error.message) {
+      console[level]('Error message:', error.message);
+    } else {
+      console[level]('Error type:', typeof error);
+    }
+  }
+}
+
 export interface VerificationDocument {
   id?: string;
   documentType: string;
@@ -43,16 +57,36 @@ export class VerificationFlowService {
    */
   async initializeFlow(userId: string): Promise<VerificationFlowState> {
     try {
+      safeLog('log', '🚀 Initializing verification flow...');
+      
       // Initialize storage if needed (graceful failure)
       try {
         await SupabaseStorageService.initializeStorage();
+        safeLog('log', '✅ Storage initialization completed');
       } catch (storageError) {
-        console.warn('Storage initialization warning:', storageError);
+        safeLog('warn', 'Storage initialization warning', storageError);
         // Continue anyway - user can still view existing documents
       }
       
+      safeLog('log', '📋 Loading verification status and documents...');
+      
       // Load existing verification status and documents
-      const statusData = await VerificationApiService.getVerificationStatusWithDocs(userId);
+      let statusData;
+      try {
+        statusData = await VerificationApiService.getVerificationStatusWithDocs(userId);
+        safeLog('log', `✅ API Response received for user ${userId}`);
+      } catch (apiError) {
+        safeLog('warn', 'API call failed, providing fallback data', apiError);
+        
+        // Provide fallback data structure if API fails
+        statusData = {
+          verificationStatus: null,
+          isVerified: false,
+          personalInfoComplete: false,
+          documents: [],
+          canEdit: true
+        };
+      }
       
       this.flowState = {
         documents: statusData.documents.map(doc => ({
@@ -70,9 +104,11 @@ export class VerificationFlowService {
         canEdit: statusData.canEdit
       };
       
+      safeLog('log', `✅ Loaded ${this.flowState.documents.length} documents, status: ${this.flowState.verificationStatus}`);
+      
       return this.flowState;
     } catch (error) {
-      console.error('Error initializing verification flow:', error);
+      safeLog('error', 'Error initializing verification flow', error);
       // Provide fallback state if API fails
       this.flowState = {
         documents: [],
@@ -81,7 +117,9 @@ export class VerificationFlowService {
         verificationStatus: null,
         canEdit: true
       };
-      return this.flowState;
+      
+      // Re-throw with user-friendly message
+      throw new Error('Failed to initialize verification flow. Please check your connection and try again.');
     }
   }
 
@@ -95,12 +133,16 @@ export class VerificationFlowService {
     expiryDate?: string
   ): Promise<VerificationDocument> {
     try {
+      safeLog('log', `📤 Starting document upload: ${documentType}`);
+      
       // Upload to Supabase Storage
       const uploadResult: FileUploadResult = await SupabaseStorageService.uploadFile(
         file,
         userId,
         documentType
       );
+      
+      safeLog('log', '💾 Saving document URL to database...');
       
       // Save document URL to database
       const documentData = await VerificationApiService.saveDocumentUrl(userId, {
@@ -135,9 +177,10 @@ export class VerificationFlowService {
       
       this.updateFlowState();
       
+      safeLog('log', `✅ Document upload completed: ${documentType}`);
       return verificationDoc;
     } catch (error) {
-      console.error('Error uploading document:', error);
+      safeLog('error', 'Error uploading document', error);
       throw error;
     }
   }

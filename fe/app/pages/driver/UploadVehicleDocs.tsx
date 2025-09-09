@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -7,7 +7,10 @@ import { router } from 'expo-router';
 import TopBar from '../../../components/ui/TopBar';
 import ProgressBar from '../../../components/ui/ProgressBar';
 import { VerificationApiService } from '../../../services/verificationApiService';
+import { VerificationFlowService } from '../../../services/verificationFlowService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '@/lib/supabase';
+import { Config } from '@/constants/Config';
 
 interface VehicleDocuments {
   frontView?: string;
@@ -24,6 +27,42 @@ const UploadVehicleDocs = () => {
   const [isOwner, setIsOwner] = useState<boolean | null>(true);
   const [documents, setDocuments] = useState<VehicleDocuments>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const verificationFlow = VerificationFlowService.getInstance();
+
+  useEffect(() => {
+    const initializeComponent = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          setUserId(user.id);
+          
+          // Initialize verification flow
+          await verificationFlow.initializeFlow(user.id);
+          
+          // Check if documents already exist and populate UI
+          const flowState = verificationFlow.getFlowState();
+          
+          // Populate existing vehicle documents if any
+          const existingVehicleReg = flowState.documents.find(doc => doc.documentType === 'VEHICLE_REGISTRATION');
+          const existingVehicleIns = flowState.documents.find(doc => doc.documentType === 'INSURANCE');
+          
+          if (existingVehicleReg && existingVehicleReg.localUri) {
+            setDocuments(prev => ({ ...prev, vehicleRegistration: existingVehicleReg.localUri }));
+          }
+          
+          if (existingVehicleIns && existingVehicleIns.localUri) {
+            setDocuments(prev => ({ ...prev, vehicleInsurance: existingVehicleIns.localUri }));
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing component:', error);
+        Alert.alert('Error', 'Failed to initialize verification. Please try again.');
+      }
+    };
+
+    initializeComponent();
+  }, []);
 
   const pickDocument = async (docType: keyof VehicleDocuments) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -44,57 +83,35 @@ const UploadVehicleDocs = () => {
     }
   };
 
-  const uploadDocument = async (driverId: string, imageUri: string, documentType: string) => {
-    const fileName = `${documentType}_${driverId}_${Date.now()}.jpg`;
+  const uploadDocument = async (userId: string, imageUri: string, documentType: string, expiryDate?: string) => {
+    const fileName = `${documentType}_${userId}_${Date.now()}.jpg`;
     
-    const formData = new FormData();
-    formData.append('file', {
+    // Create file object compatible with VerificationFlowService
+    const fileData = {
       uri: imageUri,
       type: 'image/jpeg',
       name: fileName,
-    } as any);
+    };
 
-    return await VerificationApiService.uploadDocument(driverId, formData.get('file'), documentType);
+    // Upload using VerificationFlowService (handles Supabase Storage)
+    return await verificationFlow.uploadDocument(userId, fileData, documentType, expiryDate);
   };
 
   const validateAndSubmit = () => {
-    // Check required vehicle photos
-    if (!documents.frontView) {
-      Alert.alert('Missing Document', 'Please upload front view of the vehicle.');
-      return;
-    }
-    if (!documents.backView) {
-      Alert.alert('Missing Document', 'Please upload back view of the vehicle.');
-      return;
-    }
-    if (!documents.insideView) {
-      Alert.alert('Missing Document', 'Please upload inside view of the vehicle.');
-      return;
-    }
-
-    // Check required vehicle documents
-    if (!documents.vehicleLicense) {
-      Alert.alert('Missing Document', 'Please upload vehicle license.');
+    // Check ONLY required vehicle documents that are supported by backend
+    if (!documents.vehicleRegistration) {
+      Alert.alert('Missing Document', 'Please upload vehicle registration document.');
       return;
     }
     if (!documents.vehicleInsurance) {
-      Alert.alert('Missing Document', 'Please upload vehicle insurance.');
-      return;
-    }
-    if (!documents.vehicleRegistration) {
-      Alert.alert('Missing Document', 'Please upload vehicle registration.');
+      Alert.alert('Missing Document', 'Please upload vehicle insurance document.');
       return;
     }
 
-    // Check owner documents if not the owner
-    if (!isOwner) {
-      if (!documents.ownerNicFront || !documents.ownerNicBack) {
-        Alert.alert('Missing Document', 'Please upload both sides of the owner\'s NIC.');
-        return;
-      }
-    }
+    // Note: Vehicle photos and owner NIC validation removed as they're not supported by backend enum
+    // Backend only supports: DRIVERS_LICENSE, NATIONAL_ID, VEHICLE_REGISTRATION, INSURANCE, FACE_PHOTO
 
-    // All documents are uploaded, proceed with submission
+    // All required documents are uploaded, proceed with submission
     Alert.alert(
       'Submit for Review',
       'Are you sure you want to submit your documents for review? You won\'t be able to edit them after submission.',
@@ -106,71 +123,90 @@ const UploadVehicleDocs = () => {
   };
 
   const handleFinalSubmission = async () => {
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated. Please log in again.');
+      return;
+    }
+
     try {
       setIsUploading(true);
-      
-      // Get current user ID
-      const userData = await AsyncStorage.getItem('user_data');
-      if (!userData) {
-        Alert.alert('Error', 'User not found. Please log in again.');
-        return;
-      }
-      
-      const user = JSON.parse(userData);
-      const driverId = user.id;
 
-      // Upload all vehicle documents
+      // Upload only SUPPORTED vehicle documents (match backend DocumentTypeEnum)
       const uploadPromises = [];
 
-      // Upload vehicle photos
-      if (documents.frontView) {
-        uploadPromises.push(uploadDocument(driverId, documents.frontView, 'VEHICLE_FRONT_VIEW'));
-      }
-      if (documents.backView) {
-        uploadPromises.push(uploadDocument(driverId, documents.backView, 'VEHICLE_BACK_VIEW'));
-      }
-      if (documents.insideView) {
-        uploadPromises.push(uploadDocument(driverId, documents.insideView, 'VEHICLE_INSIDE_VIEW'));
-      }
-
-      // Upload vehicle documents
-      if (documents.vehicleLicense) {
-        uploadPromises.push(uploadDocument(driverId, documents.vehicleLicense, 'VEHICLE_LICENSE'));
+      // Only upload document types that exist in backend enum
+      if (documents.vehicleRegistration) {
+        uploadPromises.push(uploadDocument(userId, documents.vehicleRegistration, 'VEHICLE_REGISTRATION'));
       }
       if (documents.vehicleInsurance) {
-        uploadPromises.push(uploadDocument(driverId, documents.vehicleInsurance, 'VEHICLE_INSURANCE'));
-      }
-      if (documents.vehicleRegistration) {
-        uploadPromises.push(uploadDocument(driverId, documents.vehicleRegistration, 'VEHICLE_REGISTRATION'));
+        uploadPromises.push(uploadDocument(userId, documents.vehicleInsurance, 'INSURANCE'));
       }
 
-      // Upload owner NIC if not the owner
-      if (!isOwner) {
-        if (documents.ownerNicFront) {
-          uploadPromises.push(uploadDocument(driverId, documents.ownerNicFront, 'OWNER_NIC_FRONT'));
-        }
-        if (documents.ownerNicBack) {
-          uploadPromises.push(uploadDocument(driverId, documents.ownerNicBack, 'OWNER_NIC_BACK'));
-        }
-      }
+      // Note: Vehicle photos and owner NIC are not supported by current backend enum
+      // Backend only supports: DRIVERS_LICENSE, NATIONAL_ID, VEHICLE_REGISTRATION, INSURANCE, FACE_PHOTO
+      console.log('📋 Uploading only supported document types: VEHICLE_REGISTRATION, INSURANCE');
 
       // Wait for all uploads to complete
       await Promise.all(uploadPromises);
 
+      // Save vehicle data to backend (retrieved from AsyncStorage)
+      try {
+        const vehicleDataString = await AsyncStorage.getItem('vehicleData');
+        if (vehicleDataString) {
+          const vehicleData = JSON.parse(vehicleDataString);
+          
+          // Prepare vehicle data for backend API
+          const vehiclePayload = {
+            driverId: userId,
+            color: vehicleData.color,
+            make: vehicleData.manufacturer,
+            model: vehicleData.model,
+            yearOfManufacture: parseInt(vehicleData.year),
+            plateNumber: vehicleData.licensePlate,
+            maxWeightKg: vehicleData.maxWeightKg || 0,
+            maxVolumeM3: vehicleData.maxVolumeM3 || 0,
+          };
+
+          // Use the same approach as VerificationApiService (simple fetch with auth)
+          const { data: { session } } = await supabase.auth.getSession();
+          const token = session?.access_token;
+          
+          const response = await fetch(`${Config.API_BASE}/vehicles`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token && { Authorization: `Bearer ${token}` }),
+            },
+            body: JSON.stringify(vehiclePayload),
+          });
+
+          if (response.ok) {
+            console.log('✅ Vehicle data saved successfully');
+            // Clear stored vehicle data
+            await AsyncStorage.removeItem('vehicleData');
+          } else {
+            console.log('⚠️ Vehicle data save failed, but continuing with verification');
+          }
+        }
+      } catch (vehicleError) {
+        console.error('Error saving vehicle data:', vehicleError);
+        console.log('⚠️ Vehicle data save failed, but continuing with verification');
+      }
+
       // Submit for verification
-      await VerificationApiService.submitForVerification(driverId);
+      await VerificationApiService.submitForVerification(userId);
 
       Alert.alert(
-        'Submission Successful',
-        'Your documents have been submitted for review. You will be notified once the review is complete.',
+        'Verification Submitted Successfully!',
+        'Your documents have been submitted for review. Your verification status is now PENDING. You will be notified once the review is complete.',
         [
-          { text: 'OK', onPress: () => router.replace('/pages/driver/Profile') }
+          { text: 'View Status', onPress: () => router.replace('/pages/driver/Profile?verificationSubmitted=true') }
         ]
       );
       
     } catch (error) {
       console.error('Error submitting documents:', error);
-      Alert.alert('Submission Failed', 'Failed to submit documents. Please try again.');
+      Alert.alert('Submission Failed', error instanceof Error ? error.message : 'Failed to submit documents. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -246,7 +282,8 @@ const UploadVehicleDocs = () => {
           </TouchableOpacity>
         </View>
 
-        <Text className="text-lg font-bold mb-4">Vehicle Pictures</Text>
+        <Text className="text-lg font-bold mb-2">Vehicle Pictures</Text>
+        <Text className="text-gray-600 text-sm mb-4">(Optional - for reference only)</Text>
 
         {/* Front View of the Vehicle */}
         <View className="bg-white rounded-lg p-4 shadow-md mb-4">
@@ -355,6 +392,20 @@ const UploadVehicleDocs = () => {
 
         <Text className="text-lg font-bold mb-4">Vehicle Documents</Text>
 
+        {/* Important Notice */}
+        <View className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <View className="flex-row items-center mb-2">
+            <Ionicons name="information-circle" size={20} color="#3B82F6" />
+            <Text className="ml-2 text-sm font-bold text-blue-800">Required Documents</Text>
+          </View>
+          <Text className="text-blue-700 text-sm">
+            Only <Text className="font-bold">Vehicle Registration</Text> and <Text className="font-bold">Vehicle Insurance</Text> are required for verification.
+          </Text>
+          <Text className="text-blue-600 text-xs mt-1">
+            Other documents can be uploaded but are optional.
+          </Text>
+        </View>
+
         {/* Vehicle Licence */}
         <View className="bg-white rounded-lg p-4 shadow-md mb-4">
           <View className="flex-row items-center justify-between mb-2">
@@ -396,6 +447,7 @@ const UploadVehicleDocs = () => {
             <View className="flex-row items-center">
               <MaterialCommunityIcons name="file-document-outline" size={24} color="black" />
               <Text className="ml-2 text-lg font-bold">Vehicle Insurance</Text>
+              <Text className="ml-2 text-xs text-red-600 font-bold">(REQUIRED)</Text>
             </View>
             <Ionicons 
               name="checkmark-circle" 
@@ -431,6 +483,7 @@ const UploadVehicleDocs = () => {
             <View className="flex-row items-center">
               <MaterialCommunityIcons name="file-document-outline" size={24} color="black" />
               <Text className="ml-2 text-lg font-bold">Vehicle Registration</Text>
+              <Text className="ml-2 text-xs text-red-600 font-bold">(REQUIRED)</Text>
             </View>
             <Ionicons 
               name="checkmark-circle" 
