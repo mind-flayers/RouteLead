@@ -4,6 +4,12 @@ export enum UserRole {
   CUSTOMER = 'CUSTOMER'
 }
 
+export enum VerificationStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED'
+}
+
 export interface User {
   id: string;
   email: string;
@@ -11,6 +17,7 @@ export interface User {
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
+  verificationStatus?: VerificationStatus;
 }
 
 export interface AuthState {

@@ -10,6 +10,7 @@ import DeleteButton from '@/components/ui/DeleteButton';
 import PrimaryCard from '@/components/ui/PrimaryCard';
 import IndigoButton from '@/components/ui/IndigoButton';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
+import { VerificationGuard } from '@/components/guards/VerificationGuard';
 import { useMyRoutes } from '@/hooks/useMyRoutes';
 import { useDriverInfo } from '@/hooks/useEarningsData';
 import { formatCurrency, formatDate } from '@/services/apiService';
@@ -246,22 +247,26 @@ const MyRoutes = () => {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      {/* Top Bar */}
-      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
-        <Link href="/pages/driver/Notifications" className="items-center">
-          <Ionicons name="notifications-outline" size={24} color="black" />
-        </Link>
-        <Text className="text-xl font-bold">My Routes</Text>
-        <Link href="/pages/driver/Profile" className="items-center">
-          <View className="flex-row items-center">
-            <Image
-              source={require('../../../assets/images/profile_placeholder.jpeg')}
-              className="w-8 h-8 rounded-full mr-2"
-            />
-          </View>
-        </Link>
-      </View>
+    <VerificationGuard 
+      featureName="My Routes"
+      description="Create and manage your return routes, view bids, and track route status"
+    >
+      <SafeAreaView className="flex-1 bg-white">
+        {/* Top Bar */}
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
+          <Link href="/pages/driver/Notifications" className="items-center">
+            <Ionicons name="notifications-outline" size={24} color="black" />
+          </Link>
+          <Text className="text-xl font-bold">My Routes</Text>
+          <Link href="/pages/driver/Profile" className="items-center">
+            <View className="flex-row items-center">
+              <Image
+                source={require('../../../assets/images/profile_placeholder.jpeg')}
+                className="w-8 h-8 rounded-full mr-2"
+              />
+            </View>
+          </Link>
+        </View>
 
       {/* Filter Buttons Section */}
       <View className="flex-row justify-around p-4 bg-white border-b border-gray-200">
@@ -338,6 +343,7 @@ const MyRoutes = () => {
       {/* Bottom Navigation Bar */}
       <DriverBottomNavigation />
     </SafeAreaView>
+    </VerificationGuard>
   );
 };
 

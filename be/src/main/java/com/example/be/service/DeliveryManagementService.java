@@ -9,7 +9,9 @@ import com.example.be.exception.DeliveryNotFoundException;
 import com.example.be.model.*;
 import com.example.be.repository.BidRepository;
 import com.example.be.repository.DeliveryTrackingRepository;
+import com.example.be.repository.PaymentRepository;
 import com.example.be.types.DeliveryStatusEnum;
+import com.example.be.types.PaymentStatusEnum;
 import com.example.be.types.NotificationType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +31,7 @@ public class DeliveryManagementService {
     
     private final DeliveryTrackingRepository deliveryTrackingRepository;
     private final BidRepository bidRepository;
+    private final PaymentRepository paymentRepository;
     private final DriverLocationUpdateService locationUpdateService;
     private final GeocodingService geocodingService;
     private final NotificationService notificationService;
@@ -209,10 +212,39 @@ public class DeliveryManagementService {
             dto.setLastLocationUpdate(location.getRecordedAt());
         }
         
-        // Additional metadata
-        dto.setPaymentCompleted(true); // Assuming payment is completed for accepted bids
+        // Check payment completion status
+        dto.setPaymentCompleted(isPaymentCompleted(bid.getId()));
         
         return dto;
+    }
+    
+    /**
+     * Check if payment is completed for a given bid
+     */
+    private boolean isPaymentCompleted(UUID bidId) {
+        try {
+            log.debug("Checking payment completion status for bid: {}", bidId);
+            
+            Optional<Payment> payment = paymentRepository.findByBidId(bidId);
+            
+            if (payment.isPresent()) {
+                PaymentStatusEnum status = payment.get().getPaymentStatus();
+                boolean isCompleted = PaymentStatusEnum.completed.equals(status);
+                
+                log.debug("Payment found for bid {}: status = {}, completed = {}", 
+                         bidId, status, isCompleted);
+                
+                return isCompleted;
+            } else {
+                log.debug("No payment found for bid: {}", bidId);
+                return false;
+            }
+            
+        } catch (Exception e) {
+            log.error("Error checking payment completion for bid {}: ", bidId, e);
+            // Return false in case of error to be safe
+            return false;
+        }
     }
     
     /**

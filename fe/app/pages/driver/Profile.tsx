@@ -8,6 +8,7 @@ import PrimaryCard from '../../../components/ui/PrimaryCard';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
 import { VerificationApiService, VerificationStatus, VerificationRequirements } from '../../../services/verificationApiService';
 import { ProfilePictureService } from '../../../services/profilePictureService';
@@ -16,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const Profile = () => {
   const navigation = useNavigation();
   const params = useLocalSearchParams();
+  const { refreshUserProfile } = useAuth();
   const [userName, setUserName] = useState('Loading...');
   const [userEmail, setUserEmail] = useState('Loading...');
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null);
@@ -88,6 +90,38 @@ const Profile = () => {
     fetchUserProfile();
   }, []);
 
+  // Function to refresh verification status and auth context
+  const refreshVerificationStatus = async () => {
+    if (!userId) return;
+    
+    try {
+      // Refresh profile data including verification status
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, email, profile_photo_url, verification_status, is_verified')
+        .eq('id', userId)
+        .single();
+
+      if (!error && data) {
+        setVerificationStatus({
+          isVerified: data.is_verified || false,
+          personalInfoComplete: true,
+          verificationStatus: data.verification_status
+        });
+        
+        console.log('🔄 Refreshed verification status:', {
+          verification_status: data.verification_status,
+          is_verified: data.is_verified
+        });
+      }
+
+      // Also refresh the auth context so navigation updates
+      await refreshUserProfile();
+    } catch (error) {
+      console.error('Error refreshing verification status:', error);
+    }
+  };
+
   // Check for success parameter and show alert
   useEffect(() => {
     if (params.profileUpdated === 'true') {
@@ -134,44 +168,10 @@ const Profile = () => {
 
   // Refresh verification status when userId becomes available and refresh is needed
   useEffect(() => {
-    const refreshVerificationStatus = async () => {
-      if (userId && needsVerificationRefresh) {
-        try {
-          console.log('🔄 Refreshing verification status after submission...');
-          
-          // Fetch verification status directly from profiles table
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('verification_status, is_verified')
-            .eq('id', userId)
-            .single();
-          
-          if (!error && data) {
-            const verificationData = {
-              isVerified: data.is_verified || false,
-              personalInfoComplete: true,
-              verificationStatus: data.verification_status
-            };
-            setVerificationStatus(verificationData);
-            
-            console.log('✅ Verification status refreshed from database:', {
-              verification_status: data.verification_status,
-              is_verified: data.is_verified
-            });
-          }
-          
-          // Also fetch verification requirements from API
-          const requirementsData = await VerificationApiService.getVerificationRequirements(userId);
-          setVerificationRequirements(requirementsData);
-          
-          setNeedsVerificationRefresh(false); // Reset flag
-        } catch (error) {
-          console.error('Error refreshing verification data:', error);
-        }
-      }
-    };
-
-    refreshVerificationStatus();
+    if (userId && needsVerificationRefresh) {
+      refreshVerificationStatus();
+      setNeedsVerificationRefresh(false); // Reset flag
+    }
   }, [userId, needsVerificationRefresh]);
 
   const handleBackPress = () => {
@@ -238,16 +238,17 @@ const Profile = () => {
       return { text: 'Loading...', color: 'text-gray-500' };
     }
 
-    // Check verification status first, then personal info completeness
-    if (verificationStatus.isVerified) {
-      return { text: 'Verified', color: 'text-green-500' };
-    } else if (verificationStatus.verificationStatus === 'PENDING') {
-      return { text: 'Pending', color: 'text-yellow-500' };
-    } else if (verificationRequirements?.personalInfoComplete === false) {
-      return { text: 'Not Verified', color: 'text-red-500' };
-    } else {
-      // NULL or any other status means "Not Verified"
-      return { text: 'Not Verified', color: 'text-red-500' };
+    // Use the verification_status field (enum) instead of is_verified (boolean)
+    switch (verificationStatus.verificationStatus) {
+      case 'APPROVED':
+        return { text: 'Verified', color: 'text-green-500' };
+      case 'PENDING':
+        return { text: 'Pending', color: 'text-yellow-500' };
+      case 'REJECTED':
+        return { text: 'Rejected', color: 'text-red-500' };
+      default:
+        // NULL or any other status means "Not Verified"
+        return { text: 'Not Verified', color: 'text-red-500' };
     }
   };
 
@@ -258,7 +259,7 @@ const Profile = () => {
     }
 
     // Check if already verified (cannot edit)
-    if (verificationStatus?.verificationStatus === 'APPROVED' || verificationStatus?.isVerified) {
+    if (verificationStatus?.verificationStatus === 'APPROVED') {
       Alert.alert('Already Verified', 'Your account is already verified!');
       return;
     }

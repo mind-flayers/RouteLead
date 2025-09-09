@@ -7,13 +7,14 @@ import SecondaryButton from '../../../components/ui/SecondaryButton';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
 import IndigoButton from '../../../components/ui/IndigoButton';
 import { useNavigation } from '@react-navigation/native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useViewBids } from '@/hooks/useViewBids';
 import { formatCurrency, formatDate } from '@/services/apiService';
 import { calculateCountdown, isBiddingActive } from '@/utils/routeUtils';
 
 const ViewBids = () => {
   const navigation = useNavigation();
+  const router = useRouter();
   const { routeId } = useLocalSearchParams();
   const actualRouteId = Array.isArray(routeId) ? routeId[0] : routeId || '1cc88146-8e0b-41fa-a81a-17168a1407ec'; // Fallback for testing
   
@@ -47,7 +48,7 @@ const ViewBids = () => {
 
   const handleViewDetails = () => {
     // Navigate to DeliveryManagement screen
-    (navigation as any).navigate('pages/driver/DeliveryManagement');
+    router.push('/pages/driver/DeliveryManagement');
   };
 
   const handleAcceptBid = useCallback(async (bidId: string) => {
@@ -71,7 +72,10 @@ const ViewBids = () => {
                     text: 'Manage Delivery', 
                     onPress: () => {
                       // Navigate to DeliveryManagement with the bidId
-                      (navigation as any).navigate('pages/driver/DeliveryManagement', { bidId });
+                      router.push({ 
+                        pathname: '/pages/driver/DeliveryManagement', 
+                        params: { bidId } 
+                      });
                     }
                   }
                 ]

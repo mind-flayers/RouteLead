@@ -7,9 +7,11 @@ import { HapticTab } from '@/components/HapticTab';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useVerificationGuard } from '@/hooks/useVerificationGuard';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { canAccessRestrictedFeatures, isDriver } = useVerificationGuard();
 
   return (
     <Tabs
@@ -41,21 +43,54 @@ export default function TabLayout() {
         name="pages/driver/MyRoutes"
         options={{
           title: 'Routes',
-          tabBarIcon: ({ color }) => <MaterialCommunityIcons name="truck-delivery" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons 
+              name="truck-delivery" 
+              size={24} 
+              color={!isDriver || canAccessRestrictedFeatures ? color : '#C4C4C4'} 
+            />
+          ),
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: '600',
+            color: !isDriver || canAccessRestrictedFeatures ? undefined : '#C4C4C4',
+          },
         }}
       />
       <Tabs.Screen
         name="pages/driver/MyEarnings"
         options={{
           title: 'Earnings',
-          tabBarIcon: ({ color }) => <FontAwesome5 name="dollar-sign" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <FontAwesome5 
+              name="dollar-sign" 
+              size={24} 
+              color={!isDriver || canAccessRestrictedFeatures ? color : '#C4C4C4'} 
+            />
+          ),
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: '600',
+            color: !isDriver || canAccessRestrictedFeatures ? undefined : '#C4C4C4',
+          },
         }}
       />
       <Tabs.Screen
         name="pages/driver/ChatList"
         options={{
           title: 'Chat',
-          tabBarIcon: ({ color }) => <Ionicons name="chatbubbles" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Ionicons 
+              name="chatbubbles" 
+              size={24} 
+              color={!isDriver || canAccessRestrictedFeatures ? color : '#C4C4C4'} 
+            />
+          ),
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontWeight: '600',
+            color: !isDriver || canAccessRestrictedFeatures ? undefined : '#C4C4C4',
+          },
         }}
       />
       <Tabs.Screen

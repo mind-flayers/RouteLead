@@ -8,6 +8,7 @@ import PrimaryCard from '../../../components/ui/PrimaryCard';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
 import SecondaryButton from '../../../components/ui/SecondaryButton';
 import { deliveryService, DeliveryDetails, DeliveryStatusUpdate } from '../../../services/deliveryService';
+import { ApiService } from '../../../services/apiService';
 
 const DeliveryManagement = () => {
   const navigation = useNavigation();
@@ -155,20 +156,82 @@ const DeliveryManagement = () => {
     }
   };
 
-  const handleChatCustomer = () => {
+  const handleChatCustomer = async () => {
     // Navigate to chat screen with customer details
-    if (deliveryDetails?.customerName) {
-      // Use Alert instead of navigation for now, since chat might not be implemented
+    if (!deliveryDetails?.bidId) {
+      Alert.alert('Error', 'Bid information not available');
+      return;
+    }
+
+    try {
+      // Look up conversation by bid ID with access validation
+      const result = await ApiService.getConversationByBid(deliveryDetails.bidId);
+      
+      if (result.accessDenied) {
+        // Chat access is denied due to conditions not being met
+        let alertTitle = 'Chat Not Available';
+        let alertMessage = result.message || 'Chat access is currently restricted.';
+        
+        // Provide specific user-friendly messages based on the reason
+        switch (result.reason) {
+          case 'BID_NOT_ACCEPTED':
+            alertTitle = 'Bid Not Accepted';
+            alertMessage = 'Chat is only available after your bid has been accepted by the customer.';
+            break;
+          case 'PARCEL_NOT_MATCHED':
+            alertTitle = 'Parcel Not Matched';
+            alertMessage = 'Chat is only available when the parcel request has been matched with your route.';
+            break;
+          case 'PAYMENT_NOT_COMPLETED':
+            alertTitle = 'Payment Pending';
+            alertMessage = 'Chat will be available once the customer completes payment for this delivery.';
+            break;
+        }
+        
+        Alert.alert(
+          alertTitle,
+          `${alertMessage}\n\nWould you like to call ${deliveryDetails.customerName} instead?`,
+          [
+            { text: 'Call Customer', onPress: handleCallCustomer },
+            { text: 'OK', style: 'cancel' }
+          ]
+        );
+        return;
+      }
+      
+      if (result.conversation) {
+        // Navigate to existing conversation with customer phone for call functionality
+        router.push({ 
+          pathname: '/pages/driver/ChatScreen', 
+          params: { 
+            conversationId: result.conversation.conversationId,
+            customerName: result.conversation.customerName,
+            customerId: result.conversation.customerId,
+            customerPhone: deliveryDetails.customerPhone,
+            profileImage: result.conversation.customerProfileImage || 'profile_placeholder'
+          } as any 
+        });
+      } else {
+        // No conversation found - show options
+        Alert.alert(
+          'No Chat Available',
+          `No chat conversation found for this delivery. Would you like to call ${deliveryDetails.customerName} instead?`,
+          [
+            { text: 'Call Customer', onPress: handleCallCustomer },
+            { text: 'Cancel', style: 'cancel' }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Error accessing chat:', error);
       Alert.alert(
-        'Chat Customer',
-        `Contact ${deliveryDetails.customerName}`,
+        'Chat Unavailable',
+        `Unable to access chat. Would you like to call ${deliveryDetails.customerName} instead?`,
         [
-          { text: 'Call Instead', onPress: handleCallCustomer },
+          { text: 'Call Customer', onPress: handleCallCustomer },
           { text: 'Cancel', style: 'cancel' }
         ]
       );
-    } else {
-      Alert.alert('Error', 'Customer information not available');
     }
   };
 

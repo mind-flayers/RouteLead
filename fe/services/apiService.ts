@@ -105,6 +105,7 @@ export interface DriverConversation {
   customerId: string;
   customerName: string;
   customerProfileImage?: string;
+  customerPhone?: string;
   lastMessage: string;
   lastMessageTime: string;
   unreadCount: number;
@@ -117,6 +118,7 @@ export interface AvailableCustomer {
   customerId: string;
   customerName: string;
   customerProfileImage?: string;
+  customerPhone?: string;
   bidId: string;
   routeDescription: string;
   amount: number;
@@ -646,9 +648,75 @@ export class ApiService {
         throw new Error(`Failed to get driver conversations: ${response.status}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      
+      // Extract conversations array from response and map to interface format
+      if (data.success && data.conversations) {
+        return data.conversations.map((conv: any) => ({
+          conversationId: conv.id,
+          customerId: conv.customerId,
+          customerName: conv.customerName,
+          customerProfileImage: conv.customerPhoto,
+          customerPhone: conv.customerPhone,
+          lastMessage: conv.lastMessage || 'No messages yet',
+          lastMessageTime: conv.lastMessageTime || conv.createdAt,
+          unreadCount: conv.unreadCount || 0,
+          bidId: conv.bidId,
+          routeDescription: conv.requestDescription,
+          deliveryStatus: 'active'
+        }));
+      }
+      
+      return [];
     } catch (error) {
       console.error('Error fetching driver conversations:', error);
+      throw error;
+    }
+  }
+
+  // Get Conversation by Bid ID API with access validation
+  static async getConversationByBid(bidId: string): Promise<{
+    conversation?: DriverConversation;
+    accessDenied: boolean;
+    reason?: string;
+    message?: string;
+    validationDetails?: {
+      bidStatus: string;
+      parcelStatus: string;
+      paymentStatus: string;
+    };
+  }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/conversation/by-bid/${bidId}`,
+        {
+          method: 'GET',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to get conversation by bid: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        return {
+          accessDenied: data.accessDenied || false,
+          reason: data.reason,
+          message: data.message,
+          validationDetails: data.validationDetails
+        };
+      }
+
+      return {
+        conversation: data.conversation,
+        accessDenied: false,
+        validationDetails: data.validationDetails
+      };
+    } catch (error) {
+      console.error('Error fetching conversation by bid:', error);
       throw error;
     }
   }
@@ -668,7 +736,25 @@ export class ApiService {
         throw new Error(`Failed to get available customers: ${response.status}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      
+      // Extract customers array from response and map to interface format
+      if (data.success && data.customers) {
+        return data.customers.map((customer: any) => ({
+          customerId: customer.customerId,
+          customerName: customer.customerName,
+          customerProfileImage: customer.customerPhoto,
+          customerPhone: customer.customerPhone,
+          bidId: customer.bidId,
+          routeDescription: customer.requestDescription,
+          amount: customer.offeredPrice || 0,
+          createdAt: customer.createdAt,
+          pickupLocation: customer.pickupLocation || 'N/A',
+          deliveryLocation: customer.deliveryLocation || 'N/A'
+        }));
+      }
+      
+      return [];
     } catch (error) {
       console.error('Error fetching available customers:', error);
       throw error;
@@ -779,6 +865,62 @@ export class ApiService {
       return await response.json();
     } catch (error) {
       console.error('Error creating conversation:', error);
+      throw error;
+    }
+  }
+
+  // Mark Messages as Read API
+  static async markMessagesAsRead(
+    conversationId: string,
+    userId: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/conversation/${conversationId}/mark-read`,
+        {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({
+            userId
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to mark messages as read: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+      throw error;
+    }
+  }
+
+  // Mark Conversation as Read API
+  static async markConversationAsRead(
+    conversationId: string,
+    userId: string
+  ): Promise<{ success: boolean; unreadCount: number }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/conversation/${conversationId}/mark-conversation-read`,
+        {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({
+            userId
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to mark conversation as read: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error marking conversation as read:', error);
       throw error;
     }
   }

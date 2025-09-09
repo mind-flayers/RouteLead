@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from './supabase';
-import { User, UserRole, AuthState } from './types';
+import { User, UserRole, AuthState, VerificationStatus } from './types';
 
 interface SignUpData {
   firstName: string;
@@ -15,6 +15,8 @@ interface AuthContextType extends AuthState {
   isAdmin: () => boolean;
   isDriver: () => boolean;
   isCustomer: () => boolean;
+  isDriverVerified: () => boolean;
+  refreshUserProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -68,6 +70,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq('id', userId)
       .single();
 
+    console.log('🔍 Raw database response:', { data, error });
+
     if (error) {
       console.error('❌ Error fetching user profile:', error);
       return;
@@ -77,8 +81,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userId, 
       email: data.email, 
       role: data.role, 
-      firstName: data.first_name 
+      firstName: data.first_name,
+      verificationStatus: data.verification_status,
+      rawVerificationStatus: data.verification_status
     });
+
+    // Map verification status string to enum
+    let verificationStatus: VerificationStatus | undefined;
+    if (data.verification_status) {
+      console.log('🔍 Mapping verification status:', data.verification_status);
+      switch (data.verification_status) {
+        case 'PENDING':
+          verificationStatus = VerificationStatus.PENDING;
+          break;
+        case 'APPROVED':
+          verificationStatus = VerificationStatus.APPROVED;
+          break;
+        case 'REJECTED':
+          verificationStatus = VerificationStatus.REJECTED;
+          break;
+        default:
+          console.log('⚠️ Unknown verification status:', data.verification_status);
+          verificationStatus = undefined;
+      }
+    } else {
+      console.log('⚠️ No verification status found in database');
+    }
+
+    console.log('🎯 Final mapped verification status:', verificationStatus);
 
     setState(prev => ({
       ...prev,
@@ -89,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         firstName: data.first_name,
         lastName: data.last_name,
         phoneNumber: data.phone_number,
+        verificationStatus: verificationStatus,
       },
     }));
   };
@@ -161,6 +192,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAdmin = () => state.user?.role === UserRole.ADMIN;
   const isDriver = () => state.user?.role === UserRole.DRIVER;
   const isCustomer = () => state.user?.role === UserRole.CUSTOMER;
+  const isDriverVerified = () => state.user?.role === UserRole.DRIVER && state.user?.verificationStatus === VerificationStatus.APPROVED;
+
+  const refreshUserProfile = async () => {
+    if (state.session?.user?.id) {
+      await fetchUserProfile(state.session.user.id);
+    }
+  };
 
   const value = {
     ...state,
@@ -170,6 +208,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin,
     isDriver,
     isCustomer,
+    isDriverVerified,
+    refreshUserProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
