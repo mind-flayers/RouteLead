@@ -5,7 +5,7 @@
 // 3. Use Constants.expoConfig.extra.API_BASE
 
 export const Config = {
-  API_BASE: 'https://b31f4e2fd769.ngrok-free.app/api',
+  API_BASE: 'https://routelead.bigpythondaddy.com/api',
   // Add other configuration constants here as needed
   
   // Example of how to use environment variables:

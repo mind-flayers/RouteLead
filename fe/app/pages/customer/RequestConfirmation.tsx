@@ -548,7 +548,7 @@ export default function RequestConfirmation() {
 
     } catch (error) {
       console.error('Error auto-matching winning bid:', error);
-      Alert.alert('Error', 'Failed to automatically match the winning bid. Please try again.');
+      // Alert.alert('Error', 'Failed to automatically match the winning bid. Please try again.');
     }
   };
 
@@ -730,23 +730,7 @@ export default function RequestConfirmation() {
         {/* Bids Section */}
         <Text className="font-semibold mb-2 text-[#0D47A1] text-lg">Bids</Text>
         
-                 {/* Debug Information */}
-         {__DEV__ && (
-           <View className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-             <Text className="text-yellow-800 font-semibold mb-2">🐛 Debug Info (Development Only)</Text>
-             <Text className="text-yellow-700 text-xs mb-1">Regular Bids: {bids.length}</Text>
-             <Text className="text-yellow-700 text-xs mb-1">Ranked Bids: {rankedBids.length}</Text>
-             <Text className="text-yellow-700 text-xs mb-1">Route ID: {selectedRouteId}</Text>
-             <Text className="text-yellow-700 text-xs mb-1">Request ID: {requestId}</Text>
-             <Text className="text-yellow-700 text-xs mb-1">Route Data: {routeData ? 'Loaded' : 'Not loaded'}</Text>
-             <Text className="text-yellow-700 text-xs mb-1">Departure Time: {routeData?.departureTime || 'Not available'}</Text>
-             <Text className="text-yellow-700 text-xs mb-1">Departure Time Type: {typeof routeData?.departureTime}</Text>
-             <Text className="text-yellow-700 text-xs mb-1">Countdown: {countdown || 'Not set'}</Text>
-                           <Text className="text-yellow-700 text-xs mb-1">Winning Bid: {winningBid ? 'Set' : 'Not set'}</Text>
-              <Text className="text-yellow-700 text-xs mb-1">Request Status: {requestStatus || 'Not loaded'}</Text>
-              <Text className="text-yellow-700 text-xs">Bidding Closed: {isBiddingClosed ? 'Yes' : 'No'}</Text>
-           </View>
-         )}
+         
          
          {/* Bid Statistics Summary */}
          {rankedBids.length > 0 && (
