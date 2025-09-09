@@ -1,5 +1,6 @@
 package com.example.be.controller;
 
+import com.example.be.dto.DriverDocumentDTO;
 import com.example.be.model.DriverDocument;
 import com.example.be.service.DriverDocumentService;
 import com.example.be.service.FileUploadService;
@@ -325,14 +326,14 @@ public class DocumentController {
                 return ResponseEntity.badRequest().body(response);
             }
             
-            // Save document record with Supabase URL
-            DriverDocument document = driverDocumentService.saveDocumentFromSupabase(
+            // Save document record with Supabase URL and get DTO directly
+            DriverDocumentDTO documentDTO = driverDocumentService.saveDocumentFromSupabaseAsDTO(
                 driverId, docType, documentUrl, filePath, expiryDate
             );
             
             Map<String, Object> response = new HashMap<>();
             response.put("status", "success");
-            response.put("data", document);
+            response.put("data", documentDTO);
             response.put("message", "Document URL saved successfully");
             
             return ResponseEntity.ok(response);
@@ -372,5 +373,22 @@ public class DocumentController {
             
             return ResponseEntity.badRequest().body(response);
         }
+    }
+
+    /**
+     * Convert DriverDocument entity to DTO to avoid circular reference issues
+     */
+    private DriverDocumentDTO convertToDTO(DriverDocument document) {
+        DriverDocumentDTO dto = new DriverDocumentDTO();
+        dto.setId(document.getId());
+        dto.setDriverId(document.getDriver() != null ? document.getDriver().getId() : null);
+        dto.setDocumentType(document.getDocumentType() != null ? document.getDocumentType().name() : null);
+        dto.setDocumentUrl(document.getDocumentUrl());
+        dto.setVerificationStatus(document.getVerificationStatus() != null ? document.getVerificationStatus().name() : null);
+        dto.setVerifiedBy(document.getVerifiedBy() != null ? document.getVerifiedBy().getId() : null);
+        dto.setVerifiedAt(document.getVerifiedAt());
+        dto.setExpiryDate(document.getExpiryDate());
+        dto.setCreatedAt(document.getCreatedAt());
+        return dto;
     }
 }

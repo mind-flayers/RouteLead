@@ -3,12 +3,14 @@ import { View, Text, ScrollView, TouchableOpacity, Image, Alert, Animated } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Link, router, useLocalSearchParams } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import PrimaryCard from '../../../components/ui/PrimaryCard';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
 import { VerificationApiService, VerificationStatus, VerificationRequirements } from '../../../services/verificationApiService';
+import { ProfilePictureService } from '../../../services/profilePictureService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Profile = () => {
@@ -20,6 +22,9 @@ const Profile = () => {
   const [verificationRequirements, setVerificationRequirements] = useState<VerificationRequirements | null>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [needsVerificationRefresh, setNeedsVerificationRefresh] = useState(false);
   
   // Success alert state
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
@@ -33,10 +38,10 @@ const Profile = () => {
         if (user) {
           setUserId(user.id);
           
-          // Fetch basic profile data
+          // Fetch basic profile data including profile photo and verification status
           const { data, error } = await supabase
             .from('profiles')
-            .select('first_name, last_name, email')
+            .select('first_name, last_name, email, profile_photo_url, verification_status, is_verified')
             .eq('id', user.id)
             .single();
 
@@ -47,17 +52,27 @@ const Profile = () => {
           } else if (data) {
             setUserName(`${data.first_name || ''} ${data.last_name || ''}`.trim());
             setUserEmail(data.email || '');
+            setProfilePhotoUrl(data.profile_photo_url || null);
+            
+            // Set verification status directly from database
+            setVerificationStatus({
+              isVerified: data.is_verified || false,
+              personalInfoComplete: true, // We'll check this separately if needed
+              verificationStatus: data.verification_status
+            });
+            
+            console.log('📊 Verification status from database:', {
+              verification_status: data.verification_status,
+              is_verified: data.is_verified
+            });
           }
 
-          // Fetch verification status
+          // Fetch verification requirements separately
           try {
-            const verificationData = await VerificationApiService.getVerificationStatus(user.id);
-            setVerificationStatus(verificationData);
-            
             const requirementsData = await VerificationApiService.getVerificationRequirements(user.id);
             setVerificationRequirements(requirementsData);
           } catch (error) {
-            console.error('Error fetching verification data:', error);
+            console.error('Error fetching verification requirements:', error);
           }
         } else {
           setUserName('Guest');
@@ -96,6 +111,7 @@ const Profile = () => {
       });
     } else if (params.verificationSubmitted === 'true') {
       setShowSuccessAlert(true);
+      setNeedsVerificationRefresh(true); // Set flag to refresh when userId is available
       
       // Animate slide down for verification success
       Animated.sequence([
@@ -114,15 +130,103 @@ const Profile = () => {
         setShowSuccessAlert(false);
       });
     }
-  }, [params.profileUpdated, params.verificationSubmitted]);
+  }, [params.profileUpdated, params.verificationSubmitted, userId]);
+
+  // Refresh verification status when userId becomes available and refresh is needed
+  useEffect(() => {
+    const refreshVerificationStatus = async () => {
+      if (userId && needsVerificationRefresh) {
+        try {
+          console.log('🔄 Refreshing verification status after submission...');
+          
+          // Fetch verification status directly from profiles table
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('verification_status, is_verified')
+            .eq('id', userId)
+            .single();
+          
+          if (!error && data) {
+            const verificationData = {
+              isVerified: data.is_verified || false,
+              personalInfoComplete: true,
+              verificationStatus: data.verification_status
+            };
+            setVerificationStatus(verificationData);
+            
+            console.log('✅ Verification status refreshed from database:', {
+              verification_status: data.verification_status,
+              is_verified: data.is_verified
+            });
+          }
+          
+          // Also fetch verification requirements from API
+          const requirementsData = await VerificationApiService.getVerificationRequirements(userId);
+          setVerificationRequirements(requirementsData);
+          
+          setNeedsVerificationRefresh(false); // Reset flag
+        } catch (error) {
+          console.error('Error refreshing verification data:', error);
+        }
+      }
+    };
+
+    refreshVerificationStatus();
+  }, [userId, needsVerificationRefresh]);
 
   const handleBackPress = () => {
     navigation.goBack();
   };
 
-  const handleEditProfilePicture = () => {
-    // Logic to open gallery
-    console.log('Open gallery to change profile picture');
+  const handleEditProfilePicture = async () => {
+    if (!userId) {
+      Alert.alert('Error', 'User not authenticated. Please log in again.');
+      return;
+    }
+
+    try {
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Camera roll permissions are required to upload profile picture.');
+        return;
+      }
+
+      // Launch image picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'images',
+        allowsEditing: true,
+        aspect: [1, 1], // Square aspect ratio for profile picture
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setIsUploadingPhoto(true);
+        
+        const imageUri = result.assets[0].uri;
+        const fileName = `profile_${userId}_${Date.now()}.jpg`;
+        
+        // Create file object
+        const fileData = {
+          uri: imageUri,
+          type: 'image/jpeg',
+          name: fileName,
+        };
+        
+        // Upload using ProfilePictureService (follows UploadFacePhoto pattern)
+        const publicUrl = await ProfilePictureService.uploadProfilePicture(userId, fileData);
+
+        // Update local state
+        setProfilePhotoUrl(publicUrl);
+        
+        Alert.alert('Success', 'Profile picture updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error updating profile picture:', error);
+      Alert.alert('Upload Failed', 'Failed to update profile picture. Please try again.');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
   };
 
   const navigateTo = (screen: string) => {
@@ -134,12 +238,13 @@ const Profile = () => {
       return { text: 'Loading...', color: 'text-gray-500' };
     }
 
+    // Check verification status first, then personal info completeness
     if (verificationStatus.isVerified) {
       return { text: 'Verified', color: 'text-green-500' };
-    } else if (verificationRequirements?.personalInfoComplete === false) {
-      return { text: 'Not Verified', color: 'text-red-500' };
     } else if (verificationStatus.verificationStatus === 'PENDING') {
       return { text: 'Pending', color: 'text-yellow-500' };
+    } else if (verificationRequirements?.personalInfoComplete === false) {
+      return { text: 'Not Verified', color: 'text-red-500' };
     } else {
       // NULL or any other status means "Not Verified"
       return { text: 'Not Verified', color: 'text-red-500' };
@@ -278,14 +383,32 @@ const Profile = () => {
       <ScrollView className="flex-1 p-4">
         {/* Profile Card */}
         <PrimaryCard className="mb-4 p-4 items-center relative">
-          <TouchableOpacity onPress={handleEditProfilePicture} className="absolute top-4 right-4 p-2">
-            <FontAwesome5 name="edit" size={20} color="#f97316" />
+          <TouchableOpacity 
+            onPress={handleEditProfilePicture} 
+            className="absolute top-4 right-4 p-2"
+            disabled={isUploadingPhoto}
+          >
+            <FontAwesome5 
+              name="edit" 
+              size={20} 
+              color={isUploadingPhoto ? "#9CA3AF" : "#f97316"} 
+            />
           </TouchableOpacity>
           <View className="relative mb-3">
             <Image
-              source={require('../../../assets/images/profile_placeholder.jpeg')}
+              source={
+                profilePhotoUrl 
+                  ? { uri: profilePhotoUrl }
+                  : require('../../../assets/images/profile_placeholder.jpeg')
+              }
               className="w-24 h-24 rounded-full"
             />
+            {/* Upload indicator */}
+            {isUploadingPhoto && (
+              <View className="absolute inset-0 w-24 h-24 rounded-full bg-black bg-opacity-50 flex items-center justify-center">
+                <Text className="text-white text-xs">Uploading...</Text>
+              </View>
+            )}
             {/* Verification Icon - conditionally rendered */}
             <View className="absolute bottom-0 right-0 bg-blue-600 rounded-full p-1 border-2 border-white">
               <Ionicons name="checkmark-sharp" size={16} color="white" />

@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import TopBar from '../../../components/ui/TopBar';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
+import ProgressBar from '../../../components/ui/ProgressBar';
 import { VerificationFlowService, DOCUMENT_TYPE_NAMES, DOCUMENT_TYPE_DESCRIPTIONS } from '../../../services/verificationFlowService';
 import { supabase } from '@/lib/supabase';
 
