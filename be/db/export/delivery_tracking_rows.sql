@@ -1,0 +1,1 @@
+INSERT INTO "public"."delivery_tracking" ("id", "bid_id", "status", "estimated_arrival", "actual_pickup_time", "actual_delivery_time", "created_at") VALUES ('c0d9068f-5e26-441d-abf0-0f273d64c166', '935c8e17-ec90-4058-b9e4-f0529f500f91', 'open', '2025-09-10 00:54:47.628031+00', null, null, '2025-09-09 22:54:47.628031+00');

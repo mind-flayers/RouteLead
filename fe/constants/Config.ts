@@ -5,7 +5,7 @@
 // 3. Use Constants.expoConfig.extra.API_BASE
 
 export const Config = {
-  API_BASE: 'https://b45ad41bf453.ngrok-free.app/api',
+  API_BASE: 'https://08f7c78e32d5.ngrok-free.app/api',
   // API_BASE: 'https://cfff68828281.ngrok-free.app/api',
 
   // Add other configuration constants here as needed

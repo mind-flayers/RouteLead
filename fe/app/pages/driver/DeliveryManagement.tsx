@@ -8,7 +8,18 @@ import PrimaryCard from '../../../components/ui/PrimaryCard';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
 import SecondaryButton from '../../../components/ui/SecondaryButton';
 import { deliveryService, DeliveryDetails, DeliveryStatusUpdate } from '../../../services/deliveryService';
-import { ApiService } from '../../../services/apiService';
+import { ApiService, formatLocation } from '../../../services/apiService';
+import { 
+  mapBackendToFrontend, 
+  mapFrontendToBackend, 
+  getNavigationDestination, 
+  getNavigationButtonText, 
+  isValidStatusTransition,
+  getNextStatus,
+  getStatusDisplayText,
+  FrontendDeliveryStatus,
+  BackendDeliveryStatus 
+} from '../../../utils/statusMapping';
 
 const DeliveryManagement = () => {
   const navigation = useNavigation();
@@ -22,6 +33,10 @@ const DeliveryManagement = () => {
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+  
+  // Formatted location names
+  const [pickupLocationName, setPickupLocationName] = useState<string>('');
+  const [dropoffLocationName, setDropoffLocationName] = useState<string>('');
 
   // Location tracking
   const [locationInterval, setLocationInterval] = useState<ReturnType<typeof setInterval> | null>(null);
@@ -130,16 +145,71 @@ const DeliveryManagement = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('Loading delivery details for bidId:', bidId);
+      console.log('📦 Loading delivery details for bidId:', bidId);
+      console.log('🔗 API Base URL:', deliveryService);
+      
+      // Test API connectivity first
+      try {
+        console.log('🔍 Testing API connectivity...');
+        const testResponse = await fetch('https://0be128b6c545.ngrok-free.app/api/health', {
+          method: 'GET',
+          headers: {
+            'ngrok-skip-browser-warning': 'true',
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('🏥 Health check response:', testResponse.status);
+      } catch (healthError) {
+        console.warn('⚠️ Health check failed:', healthError);
+      }
+      
       const details = await deliveryService.getDeliveryDetails(bidId);
-      console.log('Delivery details loaded:', details);
+      console.log('✅ Delivery details loaded successfully:', details);
       setDeliveryDetails(details);
+      
+      // Format location names
+      await formatLocationNames(details);
     } catch (error) {
-      console.error('Error loading delivery details:', error);
-      console.error('BidId was:', bidId);
-      setError('Failed to load delivery details. Please try again.');
+      console.error('❌ Error loading delivery details:', error);
+      console.error('🆔 BidId was:', bidId);
+      
+      // Enhanced error handling with more specific messages
+      let errorMessage = 'Failed to load delivery details. Please try again.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('500')) {
+          errorMessage = 'Server error occurred. The backend service may be experiencing issues. Please try again in a moment.';
+        } else if (error.message.includes('404')) {
+          errorMessage = 'Delivery details not found. This delivery may have been cancelled or completed.';
+        } else if (error.message.includes('403')) {
+          errorMessage = 'Access denied. You may not have permission to view this delivery.';
+        } else if (error.message.includes('Network')) {
+          errorMessage = 'Network connection error. Please check your internet connection and try again.';
+        } else {
+          errorMessage = `Error: ${error.message}`;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const formatLocationNames = async (details: DeliveryDetails) => {
+    try {
+      // Format pickup location
+      const pickupFormatted = await formatLocation(`${details.pickupLat}, ${details.pickupLng}`);
+      setPickupLocationName(pickupFormatted);
+      
+      // Format dropoff location
+      const dropoffFormatted = await formatLocation(`${details.dropoffLat}, ${details.dropoffLng}`);
+      setDropoffLocationName(dropoffFormatted);
+    } catch (error) {
+      console.error('Error formatting location names:', error);
+      // Fallback to addresses
+      setPickupLocationName(details.pickupAddress);
+      setDropoffLocationName(details.dropoffAddress);
     }
   };
 
@@ -200,13 +270,14 @@ const DeliveryManagement = () => {
       }
       
       if (result.conversation) {
-        // Navigate to existing conversation with customer phone for call functionality
+        // Navigate to existing conversation with all necessary data
         router.push({ 
           pathname: '/pages/driver/ChatScreen', 
           params: { 
             conversationId: result.conversation.conversationId,
-            customerName: result.conversation.customerName,
-            customerId: result.conversation.customerId,
+            customerName: result.conversation.customerName || deliveryDetails.customerName,
+            customerId: result.conversation.customerId || deliveryDetails.customerId,
+            bidId: deliveryDetails.bidId,
             customerPhone: deliveryDetails.customerPhone,
             profileImage: result.conversation.customerProfileImage || 'profile_placeholder'
           } as any 
@@ -238,35 +309,30 @@ const DeliveryManagement = () => {
   const handleStartNavigation = () => {
     if (!deliveryDetails) return;
 
-    let destination: string;
+    // Convert backend status to frontend status for navigation logic
+    const frontendStatus = mapBackendToFrontend(deliveryDetails.status as BackendDeliveryStatus);
+    const destination = getNavigationDestination(frontendStatus);
+    
+    if (!destination) {
+      Alert.alert('Navigation Complete', 'Navigation is not needed for the current delivery status.');
+      return;
+    }
+
+    let coordinates: string;
     let locationName: string;
     
-    // Determine navigation destination based on current status
-    if (deliveryDetails.status === 'ACCEPTED' || deliveryDetails.status === 'EN_ROUTE_PICKUP') {
+    if (destination === 'pickup') {
       // Navigate to pickup location
-      destination = `${deliveryDetails.pickupLat},${deliveryDetails.pickupLng}`;
-      locationName = deliveryDetails.pickupAddress;
-      
-      // Update status to EN_ROUTE_PICKUP if not already
-      if (deliveryDetails.status === 'ACCEPTED') {
-        updateDeliveryStatus('EN_ROUTE_PICKUP');
-      }
-    } else if (deliveryDetails.status === 'PICKED_UP' || deliveryDetails.status === 'EN_ROUTE_DELIVERY') {
-      // Navigate to delivery location
-      destination = `${deliveryDetails.dropoffLat},${deliveryDetails.dropoffLng}`;
-      locationName = deliveryDetails.dropoffAddress;
-      
-      // Update status to EN_ROUTE_DELIVERY if not already
-      if (deliveryDetails.status === 'PICKED_UP') {
-        updateDeliveryStatus('EN_ROUTE_DELIVERY');
-      }
+      coordinates = `${deliveryDetails.pickupLat},${deliveryDetails.pickupLng}`;
+      locationName = pickupLocationName || deliveryDetails.pickupAddress;
     } else {
-      Alert.alert('Navigation Error', 'Navigation is not available for the current delivery status.');
-      return;
+      // Navigate to delivery location
+      coordinates = `${deliveryDetails.dropoffLat},${deliveryDetails.dropoffLng}`;
+      locationName = dropoffLocationName || deliveryDetails.dropoffAddress;
     }
     
     // Open Google Maps with navigation to destination
-    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
+    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${coordinates}&travelmode=driving`;
     
     Alert.alert(
       'Open Navigation',
@@ -286,33 +352,30 @@ const DeliveryManagement = () => {
     );
   };
 
-  const updateDeliveryStatus = async (newStatus: 'ACCEPTED' | 'EN_ROUTE_PICKUP' | 'PICKED_UP' | 'EN_ROUTE_DELIVERY' | 'DELIVERED') => {
+  const updateDeliveryStatus = async (newStatus: FrontendDeliveryStatus) => {
     if (!deliveryDetails || !bidId) {
       Alert.alert('Error', 'Delivery information not available');
       return;
     }
 
-    // Validate status transitions
-    const currentStatus = deliveryDetails.status;
-    const validTransitions: Record<string, string[]> = {
-      'ACCEPTED': ['EN_ROUTE_PICKUP'],
-      'EN_ROUTE_PICKUP': ['PICKED_UP'],
-      'PICKED_UP': ['EN_ROUTE_DELIVERY'],
-      'EN_ROUTE_DELIVERY': ['DELIVERED'],
-      'DELIVERED': [] // Final status
-    };
-
-    if (!validTransitions[currentStatus]?.includes(newStatus) && currentStatus !== newStatus) {
+    // Convert backend status to frontend for validation
+    const currentFrontendStatus = mapBackendToFrontend(deliveryDetails.status as BackendDeliveryStatus);
+    
+    // Validate status transitions using the improved validation logic
+    if (currentFrontendStatus !== newStatus && !isValidStatusTransition(currentFrontendStatus, newStatus)) {
       Alert.alert('Invalid Status Change', 
-        `Cannot change status from ${currentStatus} to ${newStatus}. Please follow the proper delivery sequence.`);
+        `Cannot change status from ${currentFrontendStatus} to ${newStatus}. Please follow the proper delivery sequence.`);
       return;
     }
 
     try {
       setUpdating(true);
       
+      // Convert frontend status to backend status for API call
+      const backendStatus = mapFrontendToBackend(newStatus);
+      
       const update: DeliveryStatusUpdate = {
-        status: newStatus,
+        status: backendStatus, // Use backend status directly
         currentLat: currentLocation?.lat,
         currentLng: currentLocation?.lng,
         notes: `Status updated to ${newStatus}`,
@@ -342,10 +405,12 @@ const DeliveryManagement = () => {
         setDeliveryDetails(updatedDetails);
         
         // Show appropriate message for status
-        const statusMessages: Record<string, string> = {
-          'EN_ROUTE_PICKUP': 'En route to pickup location',
+        const statusMessages: Record<FrontendDeliveryStatus, string> = {
+          'PENDING_PICKUP': 'Delivery confirmed, ready for pickup',
           'PICKED_UP': 'Parcel picked up successfully!',
-          'EN_ROUTE_DELIVERY': 'En route to delivery location'
+          'IN_TRANSIT': 'En route to delivery location',
+          'DELIVERED': 'Delivery completed!',
+          'CANCELLED': 'Delivery cancelled'
         };
         
         Alert.alert('Status Updated', statusMessages[newStatus] || `Status updated to ${newStatus}`);
@@ -358,31 +423,41 @@ const DeliveryManagement = () => {
     }
   };
 
-  const getNavigationButtonText = () => {
+  const getNavigationButtonTextDisplay = () => {
     if (!deliveryDetails) return 'Start Navigation';
     
-    switch (deliveryDetails.status) {
-      case 'ACCEPTED':
-        return '🚗 Navigate to Pickup';
-      case 'EN_ROUTE_PICKUP':
-        return '📍 Continue to Pickup';
-      case 'PICKED_UP':
-        return '🎯 Navigate to Delivery';
-      case 'EN_ROUTE_DELIVERY':
-        return '📍 Continue to Delivery';
-      case 'DELIVERED':
-        return '✅ Delivery Complete';
-      default:
-        return 'Start Navigation';
+    // Convert backend status to frontend status for proper button text
+    const frontendStatus = mapBackendToFrontend(deliveryDetails.status as BackendDeliveryStatus);
+    return getNavigationButtonText(frontendStatus);
+  };
+
+  const getStatusButtonClass = (status: FrontendDeliveryStatus) => {
+    if (!deliveryDetails) return 'bg-white border-2 border-gray-300';
+    
+    // Convert backend status to frontend for comparison
+    const currentFrontendStatus = mapBackendToFrontend(deliveryDetails.status as BackendDeliveryStatus);
+    
+    if (currentFrontendStatus === status) {
+      switch (status) {
+        case 'PICKED_UP':
+          return 'bg-green-500 border-green-500';
+        case 'IN_TRANSIT':
+          return 'bg-yellow-500 border-yellow-500';
+        case 'DELIVERED':
+          return 'bg-red-500 border-red-500';
+        default:
+          return 'bg-orange-500 border-orange-500';
+      }
     }
+    return 'bg-white border-2 border-gray-300';
   };
 
-  const getStatusButtonClass = (status: string) => {
-    return deliveryDetails?.status === status ? 'bg-orange-500' : 'bg-white border border-gray-300';
-  };
-
-  const getStatusTextClass = (status: string) => {
-    return deliveryDetails?.status === status ? 'text-white' : 'text-gray-700';
+  const getStatusTextClass = (status: FrontendDeliveryStatus) => {
+    if (!deliveryDetails) return 'text-gray-600';
+    
+    // Convert backend status to frontend for comparison
+    const currentFrontendStatus = mapBackendToFrontend(deliveryDetails.status as BackendDeliveryStatus);
+    return currentFrontendStatus === status ? 'text-white' : 'text-gray-600';
   };
 
   const formatCurrency = (amount: number) => {
@@ -451,136 +526,228 @@ const DeliveryManagement = () => {
 
       <ScrollView className="flex-1 p-4" contentContainerStyle={{ flexGrow: 1 }}>
         {/* Navigation Card */}
-        <PrimaryCard className="mb-4 p-4">
-          <View className="flex-row items-center mb-3">
-            <MaterialCommunityIcons name="navigation" size={20} color="#FF8C00" />
-            <Text className="ml-2 text-lg font-bold">Navigation</Text>
+        <PrimaryCard className="mb-4 p-4 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200">
+          <View className="flex-row items-center mb-4">
+            <View className="bg-orange-500 p-2 rounded-full mr-3">
+              <MaterialCommunityIcons name="navigation" size={18} color="white" />
+            </View>
+            <Text className="text-lg font-bold text-gray-800">Navigation</Text>
           </View>
           
-          <View className="mb-3">
-            <Text className="text-sm text-gray-600 mb-1">From (Pickup):</Text>
-            <Text className="text-gray-800">{deliveryDetails.pickupAddress}</Text>
-          </View>
-          
-          <View className="mb-4">
-            <Text className="text-sm text-gray-600 mb-1">To (Dropoff):</Text>
-            <Text className="text-gray-800">{deliveryDetails.dropoffAddress}</Text>
+          <View className="space-y-3 mb-4">
+            <View className="bg-white p-3 rounded-lg border border-blue-200">
+              <View className="flex-row items-center mb-1">
+                <Ionicons name="arrow-up-circle" size={16} color="#3B82F6" />
+                <Text className="text-sm text-blue-600 font-medium ml-2">From (Pickup):</Text>
+              </View>
+              <Text className="text-gray-800 font-medium">
+                {pickupLocationName || 'Loading location...'}
+              </Text>
+              {pickupLocationName !== deliveryDetails.pickupAddress && (
+                <Text className="text-xs text-gray-500 mt-1">
+                  {deliveryDetails.pickupAddress}
+                </Text>
+              )}
+            </View>
+            
+            <View className="bg-white p-3 rounded-lg border border-purple-200">
+              <View className="flex-row items-center mb-1">
+                <Ionicons name="arrow-down-circle" size={16} color="#8B5CF6" />
+                <Text className="text-sm text-purple-600 font-medium ml-2">To (Dropoff):</Text>
+              </View>
+              <Text className="text-gray-800 font-medium">
+                {dropoffLocationName || 'Loading location...'}
+              </Text>
+              {dropoffLocationName !== deliveryDetails.dropoffAddress && (
+                <Text className="text-xs text-gray-500 mt-1">
+                  {deliveryDetails.dropoffAddress}
+                </Text>
+              )}
+            </View>
           </View>
           
           <PrimaryButton
-            title={getNavigationButtonText()}
+            title={getNavigationButtonTextDisplay()}
             onPress={handleStartNavigation}
             icon={<MaterialCommunityIcons name="navigation" size={20} color="white" />}
+            disabled={deliveryDetails.status === 'DELIVERED'}
           />
         </PrimaryCard>
 
         {/* Customer and Bid Details Card */}
-        <PrimaryCard className="mb-4 p-4">
+        <PrimaryCard className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
           <View className="flex-row items-center mb-3">
-            <FontAwesome name="user-circle-o" size={20} color="#6B7280" />
-            <Text className="ml-2 text-lg font-bold">{deliveryDetails.customerName}</Text>
-            <View className="ml-auto bg-green-100 px-3 py-1 rounded-full">
-              <Text className="text-green-700 text-xs font-semibold">
-                {deliveryDetails.paymentCompleted ? 'Payment Completed' : 'Payment Pending'}
-              </Text>
+            <View className="bg-blue-500 p-2 rounded-full mr-3">
+              <FontAwesome name="user" size={18} color="white" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-lg font-bold text-gray-800">{deliveryDetails.customerName}</Text>
+              <View className="flex-row items-center mt-1">
+                <View className={`px-3 py-1 rounded-full ${deliveryDetails.paymentCompleted ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                  <Text className={`text-xs font-semibold ${deliveryDetails.paymentCompleted ? 'text-green-700' : 'text-yellow-700'}`}>
+                    {deliveryDetails.paymentCompleted ? '✓ Payment Completed' : '⏳ Payment Pending'}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
           
-          <View className="flex-row items-center mb-2">
-            <Text className="ml-2 text-orange-500 text-2xl font-bold">
+          <View className="flex-row items-center justify-between mb-3 bg-white p-3 rounded-lg border border-orange-200">
+            <View className="flex-row items-center">
+              <MaterialCommunityIcons name="currency-usd" size={20} color="#FF8C00" />
+              <Text className="ml-2 text-gray-600">Earning:</Text>
+            </View>
+            <Text className="text-orange-500 text-2xl font-bold">
               {formatCurrency(deliveryDetails.bidAmount)}
             </Text>
           </View>
           
-          <View className="flex-row items-center mb-2">
-            <Ionicons name="call" size={18} color="#6B7280" />
-            <Text className="ml-2 text-gray-700">{deliveryDetails.deliveryContactPhone}</Text>
-          </View>
-          
-          {deliveryDetails.specialInstructions && (
-            <View className="flex-row items-start">
-              <FontAwesome name="info-circle" size={18} color="#6B7280" />
-              <Text className="ml-2 text-gray-700 flex-1 italic">
-                "{deliveryDetails.specialInstructions}"
-              </Text>
+          <View className="space-y-2">
+            <View className="flex-row items-center">
+              <Ionicons name="call" size={18} color="#6B7280" />
+              <Text className="ml-2 text-gray-700">{deliveryDetails.deliveryContactPhone}</Text>
             </View>
-          )}
+            
+            {deliveryDetails.customerEmail && (
+              <View className="flex-row items-center">
+                <Ionicons name="mail" size={18} color="#6B7280" />
+                <Text className="ml-2 text-gray-700">{deliveryDetails.customerEmail}</Text>
+              </View>
+            )}
+            
+            {deliveryDetails.specialInstructions && (
+              <View className="flex-row items-start mt-2 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                <FontAwesome name="info-circle" size={18} color="#F59E0B" />
+                <View className="flex-1 ml-2">
+                  <Text className="text-amber-800 font-medium text-sm">Special Instructions:</Text>
+                  <Text className="text-amber-700 italic mt-1">
+                    "{deliveryDetails.specialInstructions}"
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
         </PrimaryCard>
 
         {/* Delivery Status Buttons */}
-        <View className="flex-row justify-around mb-4 bg-white rounded-lg p-2 shadow-sm border border-gray-200">
-          <TouchableOpacity
-            className={`flex-1 items-center py-2 rounded-md mx-1 ${getStatusButtonClass('PICKED_UP')}`}
-            onPress={() => updateDeliveryStatus('PICKED_UP')}
-            disabled={updating}
-          >
-            <Text className={`font-semibold ${getStatusTextClass('PICKED_UP')}`}>Picked Up</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className={`flex-1 items-center py-2 rounded-md mx-1 ${getStatusButtonClass('EN_ROUTE_DELIVERY')}`}
-            onPress={() => updateDeliveryStatus('EN_ROUTE_DELIVERY')}
-            disabled={updating}
-          >
-            <Text className={`font-semibold ${getStatusTextClass('EN_ROUTE_DELIVERY')}`}>En Route</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            className={`flex-1 items-center py-2 rounded-md mx-1 ${getStatusButtonClass('DELIVERED')}`}
-            onPress={() => updateDeliveryStatus('DELIVERED')}
-            disabled={updating}
-          >
-            <Text className={`font-semibold ${getStatusTextClass('DELIVERED')}`}>Delivered</Text>
-          </TouchableOpacity>
+        <View className="mb-4">
+          <Text className="text-sm text-gray-600 mb-2 font-medium">Update Delivery Status:</Text>
+          <View className="flex-row justify-around bg-white rounded-xl p-3 shadow-lg border border-gray-200">
+            <TouchableOpacity
+              className={`flex-1 items-center py-3 px-2 rounded-lg mx-1 ${getStatusButtonClass('PICKED_UP')}`}
+              onPress={() => updateDeliveryStatus('PICKED_UP')}
+              disabled={updating}
+            >
+              <Ionicons 
+                name="checkmark-circle" 
+                size={20} 
+                color={getStatusTextClass('PICKED_UP') === 'text-white' ? 'white' : '#10B981'} 
+              />
+              <Text className={`font-semibold text-xs mt-1 ${getStatusTextClass('PICKED_UP')}`}>
+                Picked Up
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              className={`flex-1 items-center py-3 px-2 rounded-lg mx-1 ${getStatusButtonClass('IN_TRANSIT')}`}
+              onPress={() => updateDeliveryStatus('IN_TRANSIT')}
+              disabled={updating}
+            >
+              <MaterialCommunityIcons 
+                name="truck-fast" 
+                size={20} 
+                color={getStatusTextClass('IN_TRANSIT') === 'text-white' ? 'white' : '#F59E0B'} 
+              />
+              <Text className={`font-semibold text-xs mt-1 ${getStatusTextClass('IN_TRANSIT')}`}>
+                In Transit
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              className={`flex-1 items-center py-3 px-2 rounded-lg mx-1 ${getStatusButtonClass('DELIVERED')}`}
+              onPress={() => updateDeliveryStatus('DELIVERED')}
+              disabled={updating}
+            >
+              <Ionicons 
+                name="trophy" 
+                size={20} 
+                color={getStatusTextClass('DELIVERED') === 'text-white' ? 'white' : '#EF4444'} 
+              />
+              <Text className={`font-semibold text-xs mt-1 ${getStatusTextClass('DELIVERED')}`}>
+                Delivered
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Parcel Details Card */}
-        <PrimaryCard className="mb-4 p-4">
+        <PrimaryCard className="mb-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
           <View className="flex-row items-center mb-3">
-            <MaterialCommunityIcons name="package-variant" size={20} color="#6B7280" />
-            <Text className="ml-2 text-lg font-bold">Parcel Details</Text>
+            <View className="bg-green-500 p-2 rounded-full mr-3">
+              <MaterialCommunityIcons name="package-variant" size={18} color="white" />
+            </View>
+            <Text className="text-lg font-bold text-gray-800">Parcel Details</Text>
           </View>
           
-          <View className="flex-row justify-between mb-1">
-            <Text className="text-gray-700">Description:</Text>
-            <Text className="text-gray-500 flex-1 text-right">{deliveryDetails.description}</Text>
-          </View>
-          
-          <View className="flex-row justify-between mb-1">
-            <Text className="text-gray-700">Weight:</Text>
-            <Text className="text-gray-500">{deliveryDetails.weightKg} kg</Text>
-          </View>
-          
-          <View className="flex-row justify-between mb-3">
-            <Text className="text-gray-700">Volume:</Text>
-            <Text className="text-gray-500">{deliveryDetails.volumeM3} m³</Text>
+          <View className="bg-white p-3 rounded-lg border border-green-200 mb-3">
+            <View className="flex-row justify-between items-center mb-2">
+              <Text className="text-gray-600 font-medium">Description:</Text>
+              <Text className="text-gray-800 flex-1 text-right font-medium">{deliveryDetails.description}</Text>
+            </View>
+            
+            <View className="flex-row justify-between items-center mb-2">
+              <Text className="text-gray-600 font-medium">Weight:</Text>
+              <Text className="text-green-600 font-bold">{deliveryDetails.weightKg} kg</Text>
+            </View>
+            
+            <View className="flex-row justify-between items-center">
+              <Text className="text-gray-600 font-medium">Volume:</Text>
+              <Text className="text-green-600 font-bold">{deliveryDetails.volumeM3} m³</Text>
+            </View>
           </View>
 
-          <View className="border-t border-gray-200 pt-3">
-            <Text className="text-sm text-gray-600 mb-1">Pickup Contact:</Text>
-            <Text className="text-gray-800">{deliveryDetails.pickupContactName}</Text>
-            <Text className="text-gray-600">{deliveryDetails.pickupContactPhone}</Text>
+          <View className="space-y-3">
+            <View className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <View className="flex-row items-center mb-2">
+                <Ionicons name="arrow-up-circle" size={18} color="#3B82F6" />
+                <Text className="ml-2 text-blue-800 font-semibold">Pickup Contact</Text>
+              </View>
+              <Text className="text-blue-700 font-medium">{deliveryDetails.pickupContactName}</Text>
+              <Text className="text-blue-600">{deliveryDetails.pickupContactPhone}</Text>
+            </View>
             
-            <Text className="text-sm text-gray-600 mb-1 mt-2">Delivery Contact:</Text>
-            <Text className="text-gray-800">{deliveryDetails.deliveryContactName}</Text>
-            <Text className="text-gray-600">{deliveryDetails.deliveryContactPhone}</Text>
+            <View className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+              <View className="flex-row items-center mb-2">
+                <Ionicons name="arrow-down-circle" size={18} color="#8B5CF6" />
+                <Text className="ml-2 text-purple-800 font-semibold">Delivery Contact</Text>
+              </View>
+              <Text className="text-purple-700 font-medium">{deliveryDetails.deliveryContactName}</Text>
+              <Text className="text-purple-600">{deliveryDetails.deliveryContactPhone}</Text>
+            </View>
           </View>
         </PrimaryCard>
 
         {/* Action Buttons */}
-        <View className="flex-col mb-8">
-          <View className="flex-row justify-between mb-4">
+        <View className="flex-col mb-8 space-y-4">
+          <View className="flex-row justify-between">
             <TouchableOpacity
               onPress={handleCallCustomer}
-              className="flex-1 mr-2 bg-white border-2 border-orange-500 py-3 px-6 rounded-lg items-center justify-center flex-row"
+              className="flex-1 mr-2 bg-white border-2 border-orange-500 py-4 px-6 rounded-xl items-center justify-center flex-row shadow-lg"
             >
-              <Ionicons name="call" size={20} color="#FF8C00" />
-              <Text className="text-orange-500 text-base font-bold ml-2">Call Customer</Text>
+              <View className="bg-orange-100 p-2 rounded-full mr-3">
+                <Ionicons name="call" size={18} color="#FF8C00" />
+              </View>
+              <Text className="text-orange-500 text-base font-bold">Call Customer</Text>
             </TouchableOpacity>
+            
             <TouchableOpacity
               onPress={handleChatCustomer}
-              className="flex-1 ml-2 bg-orange-500 py-3 px-6 rounded-lg items-center justify-center flex-row"
+              className="flex-1 mr-2 bg-white border-2 border-orange-500 py-4 px-6 rounded-xl items-center justify-center flex-row shadow-lg"
             >
-              <Ionicons name="chatbox" size={20} color="white" />
-              <Text className="text-white text-base font-bold ml-2">Chat Customer</Text>
+              <View className="bg-orange-100 p-2 rounded-full mr-3">
+                <Ionicons name="chatbox" size={18} color="#FF8C00" />
+              </View>
+              <Text className="text-orange-500 text-base font-bold">Chat Customer</Text>
             </TouchableOpacity>
           </View>
           
@@ -588,16 +755,18 @@ const DeliveryManagement = () => {
           <TouchableOpacity
             onPress={() => Alert.alert(
               'Cancel Trip',
-              'Are you sure you want to cancel this delivery? This action cannot be undone.',
+              'Are you sure you want to cancel this delivery? This action cannot be undone and may affect your driver rating.',
               [
                 { text: 'No', style: 'cancel' },
                 { text: 'Yes, Cancel', style: 'destructive', onPress: () => navigation.goBack() },
               ]
             )}
-            className="w-full bg-white border-2 border-red-500 py-3 px-6 rounded-lg items-center justify-center flex-row mb-4"
+            className="w-full bg-white border-2 border-red-500 py-4 px-6 rounded-xl items-center justify-center flex-row shadow-lg"
           >
-            <Ionicons name="close-circle-outline" size={20} color="red" />
-            <Text className="text-red-500 text-base font-bold ml-2">Cancel Trip</Text>
+            <View className="bg-red-100 p-2 rounded-full mr-3">
+              <Ionicons name="close-circle-outline" size={18} color="red" />
+            </View>
+            <Text className="text-red-500 text-base font-bold">Cancel Trip</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
