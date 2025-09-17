@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import PrimaryCard from '../../../components/ui/PrimaryCard';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
 import PaymentPreferencesModal from '../../../components/ui/PaymentPreferencesModal';
+import ChangePasswordModal from '../../../components/ui/ChangePasswordModal';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
@@ -35,6 +36,9 @@ const Profile = () => {
   // Payment Preferences state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
+  
+  // Change Password state
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   
   // Success alert state
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
@@ -150,6 +154,24 @@ const Profile = () => {
 
   const handleBankDetailsUpdated = (updatedDetails: BankDetails) => {
     setBankDetails(updatedDetails);
+  };
+
+  const handlePasswordChanged = () => {
+    Alert.alert(
+      'Password Changed',
+      'Your password has been changed successfully. For security reasons, please log in again.',
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Sign out the user to force re-authentication
+            supabase.auth.signOut();
+            router.replace('/pages/login');
+          },
+        },
+      ],
+      { cancelable: false }
+    );
   };
 
   // Check for success parameter and show alert
@@ -516,7 +538,7 @@ const Profile = () => {
         {/* Support & Security Section */}
         <Text className="text-lg font-bold text-gray-800 mb-3 mt-2">Support & Security</Text>
         <PrimaryCard className="mb-4 p-0">
-          <TouchableOpacity onPress={() => console.log('Change Password')} className="flex-row items-center justify-between p-4 border-b border-gray-200">
+          <TouchableOpacity onPress={() => setShowChangePasswordModal(true)} className="flex-row items-center justify-between p-4 border-b border-gray-200">
             <View className="flex-row items-center">
               <FontAwesome5 name="lock" size={20} color="#f97316" />
               <Text className="ml-3 text-base text-gray-700">Change Password</Text>
@@ -552,6 +574,13 @@ const Profile = () => {
         onClose={() => setShowPaymentModal(false)}
         driverId={driverId}
         onBankDetailsUpdated={handleBankDetailsUpdated}
+      />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        visible={showChangePasswordModal}
+        onClose={() => setShowChangePasswordModal(false)}
+        onPasswordChanged={handlePasswordChanged}
       />
     </SafeAreaView>
   );
