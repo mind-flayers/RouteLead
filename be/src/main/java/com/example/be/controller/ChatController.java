@@ -145,9 +145,9 @@ public class ChatController {
                 msgData.put("text", row[1]);
                 msgData.put("senderId", row[2].toString());
                 msgData.put("receiverId", row[3] != null ? row[3].toString() : null);
-                msgData.put("senderName", (row[5] != null ? row[5] : "") + " " + (row[6] != null ? row[6] : ""));
                 msgData.put("isRead", row[4]);
                 msgData.put("createdAt", row[5]);
+                msgData.put("senderName", (row[6] != null ? row[6] : "") + " " + (row[7] != null ? row[7] : ""));
                 return msgData;
             }).toList();
             

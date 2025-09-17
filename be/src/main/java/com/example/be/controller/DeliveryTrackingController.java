@@ -208,6 +208,21 @@ public class DeliveryTrackingController {
             @RequestBody DeliveryStatusUpdateDto updateDto) {
         log.info("Updating delivery status for bid {} to {}", bidId, updateDto.getStatus());
         try {
+            // First try to cleanup any duplicates using native SQL
+            try {
+                // More aggressive cleanup - keep only the latest record
+                int deletedCount = jdbcTemplate.update(
+                    "DELETE FROM delivery_tracking WHERE bid_id = ? AND id NOT IN (" +
+                    "SELECT id FROM (SELECT id FROM delivery_tracking " +
+                    "WHERE bid_id = ? ORDER BY created_at DESC LIMIT 1) as latest)",
+                    bidId, bidId
+                );
+                log.info("Cleaned up {} duplicate records for bid: {}", deletedCount, bidId);
+            } catch (Exception cleanupError) {
+                log.warn("Cleanup failed but continuing: {}", cleanupError.getMessage());
+            }
+            
+            // Now try the regular update
             DeliveryDetailsDto updatedDetails = deliveryManagementService.updateDeliveryStatus(bidId, updateDto);
             
             log.info("Successfully updated delivery status for bid: {}", bidId);
@@ -221,6 +236,31 @@ public class DeliveryTrackingController {
             
         } catch (Exception e) {
             log.error("Error updating delivery status for bid {}: ", bidId, e);
+            
+            // If we still get duplicate error, try direct SQL update as fallback
+            if (e.getMessage().contains("Query did not return a unique result")) {
+                try {
+                    log.info("Attempting direct SQL status update for bid: {}", bidId);
+                    
+                    // Update status directly using SQL
+                    String statusString = updateDto.getStatus() != null ? updateDto.getStatus().name() : null;
+                    jdbcTemplate.update(
+                        "UPDATE delivery_tracking SET status = CAST(? AS delivery_status_enum) " +
+                        "WHERE bid_id = ? AND id = (SELECT id FROM delivery_tracking WHERE bid_id = ? ORDER BY created_at DESC LIMIT 1)",
+                        statusString, bidId, bidId
+                    );
+                    
+                    log.info("Direct SQL update successful for bid: {}", bidId);
+                    
+                    // Return updated details
+                    DeliveryDetailsDto updatedDetails = deliveryManagementService.getDeliveryDetails(bidId);
+                    return ResponseEntity.ok(updatedDetails);
+                    
+                } catch (Exception sqlError) {
+                    log.error("Direct SQL update also failed: ", sqlError);
+                }
+            }
+            
             Map<String, Object> errorResponse = createErrorResponse("Internal server error", 
                 "Failed to update delivery status: " + e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);

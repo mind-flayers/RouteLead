@@ -712,7 +712,19 @@ export class ApiService {
       }
 
       return {
-        conversation: data.conversation,
+        conversation: data.conversation ? {
+          conversationId: data.conversation.id,
+          customerId: data.conversation.customerId,
+          customerName: data.conversation.customerName,
+          customerProfileImage: data.conversation.customerPhoto,
+          customerPhone: data.conversation.customerPhone || '',
+          lastMessage: '',
+          lastMessageTime: data.conversation.lastMessageAt || data.conversation.createdAt,
+          unreadCount: 0,
+          bidId: data.conversation.bidId,
+          routeDescription: '',
+          deliveryStatus: 'active'
+        } : undefined,
         accessDenied: false,
         validationDetails: data.validationDetails
       };

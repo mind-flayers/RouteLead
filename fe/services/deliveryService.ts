@@ -174,10 +174,49 @@ class DeliveryService {
    */
   async updateDeliveryStatus(bidId: string, update: DeliveryStatusUpdate): Promise<DeliveryDetails> {
     try {
-      // Status is already in backend format, no conversion needed
+      // Map frontend status to backend status if needed
+      let backendStatus = update.status;
+      if (typeof update.status === 'string') {
+        // Handle case where frontend passes string status
+        switch (update.status.toLowerCase()) {
+          case 'pending_pickup':
+            backendStatus = 'open';
+            break;
+          case 'picked_up':
+            backendStatus = 'picked_up';
+            break;
+          case 'in_transit':
+            backendStatus = 'in_transit';
+            break;
+          case 'delivered':
+            backendStatus = 'delivered';
+            break;
+          case 'cancelled':
+            backendStatus = 'cancelled';
+            break;
+          default:
+            backendStatus = update.status;
+        }
+      }
+
+      // Create the API payload with backend status
+      const apiPayload = {
+        status: backendStatus,
+        currentLat: update.currentLat,
+        currentLng: update.currentLng,
+        notes: update.notes
+      };
+
+      console.log('🔄 Updating delivery status:', {
+        bidId,
+        frontendStatus: update.status,
+        backendStatus,
+        payload: apiPayload
+      });
+
       const data = await makeApiCall(`/delivery/${bidId}/status`, {
         method: 'PUT',
-        body: JSON.stringify(update),
+        body: JSON.stringify(apiPayload),
       });
       
       // Map backend status back to frontend status with robust handling

@@ -105,7 +105,7 @@ const DeliveryManagement = () => {
           });
 
           // Update location on server if delivery is active
-          if (deliveryDetails && deliveryDetails.status !== 'DELIVERED' && bidId) {
+          if (deliveryDetails && deliveryDetails.status !== 'delivered' && bidId) {
             updateLocationOnServer(newLocation.coords.latitude, newLocation.coords.longitude);
           }
         } catch (error) {
@@ -309,9 +309,9 @@ const DeliveryManagement = () => {
   const handleStartNavigation = () => {
     if (!deliveryDetails) return;
 
-    // Convert backend status to frontend status for navigation logic
-    const frontendStatus = mapBackendToFrontend(deliveryDetails.status as BackendDeliveryStatus);
-    const destination = getNavigationDestination(frontendStatus);
+    // Use status directly (now matches frontend)
+    const currentStatus = deliveryDetails.status as FrontendDeliveryStatus;
+    const destination = getNavigationDestination(currentStatus);
     
     if (!destination) {
       Alert.alert('Navigation Complete', 'Navigation is not needed for the current delivery status.');
@@ -358,30 +358,28 @@ const DeliveryManagement = () => {
       return;
     }
 
-    // Convert backend status to frontend for validation
-    const currentFrontendStatus = mapBackendToFrontend(deliveryDetails.status as BackendDeliveryStatus);
+    // Use status directly (now matches backend)
+    const currentStatus = deliveryDetails.status as FrontendDeliveryStatus;
     
-    // Validate status transitions using the improved validation logic
-    if (currentFrontendStatus !== newStatus && !isValidStatusTransition(currentFrontendStatus, newStatus)) {
+    // Validate status transitions using the simplified validation logic
+    if (currentStatus !== newStatus && !isValidStatusTransition(currentStatus, newStatus)) {
       Alert.alert('Invalid Status Change', 
-        `Cannot change status from ${currentFrontendStatus} to ${newStatus}. Please follow the proper delivery sequence.`);
+        `Cannot change status from ${currentStatus} to ${newStatus}. Please follow the proper delivery sequence.`);
       return;
     }
 
     try {
       setUpdating(true);
       
-      // Convert frontend status to backend status for API call
-      const backendStatus = mapFrontendToBackend(newStatus);
-      
+      // Use status directly (no conversion needed now)
       const update: DeliveryStatusUpdate = {
-        status: backendStatus, // Use backend status directly
+        status: newStatus, // Use status directly
         currentLat: currentLocation?.lat,
         currentLng: currentLocation?.lng,
         notes: `Status updated to ${newStatus}`,
       };
 
-      if (newStatus === 'DELIVERED') {
+      if (newStatus === 'delivered') {
         // Complete delivery
         const summary = await deliveryService.completeDelivery(bidId, update);
         
@@ -406,11 +404,11 @@ const DeliveryManagement = () => {
         
         // Show appropriate message for status
         const statusMessages: Record<FrontendDeliveryStatus, string> = {
-          'PENDING_PICKUP': 'Delivery confirmed, ready for pickup',
-          'PICKED_UP': 'Parcel picked up successfully!',
-          'IN_TRANSIT': 'En route to delivery location',
-          'DELIVERED': 'Delivery completed!',
-          'CANCELLED': 'Delivery cancelled'
+          'open': 'Delivery confirmed, ready for pickup',
+          'picked_up': 'Parcel picked up successfully!',
+          'in_transit': 'En route to delivery location',
+          'delivered': 'Delivery completed!',
+          'cancelled': 'Delivery cancelled'
         };
         
         Alert.alert('Status Updated', statusMessages[newStatus] || `Status updated to ${newStatus}`);
@@ -426,38 +424,84 @@ const DeliveryManagement = () => {
   const getNavigationButtonTextDisplay = () => {
     if (!deliveryDetails) return 'Start Navigation';
     
-    // Convert backend status to frontend status for proper button text
-    const frontendStatus = mapBackendToFrontend(deliveryDetails.status as BackendDeliveryStatus);
-    return getNavigationButtonText(frontendStatus);
+    // Use status directly (now matches frontend)
+    const currentStatus = deliveryDetails.status as FrontendDeliveryStatus;
+    return getNavigationButtonText(currentStatus);
   };
 
   const getStatusButtonClass = (status: FrontendDeliveryStatus) => {
     if (!deliveryDetails) return 'bg-white border-2 border-gray-300';
     
-    // Convert backend status to frontend for comparison
-    const currentFrontendStatus = mapBackendToFrontend(deliveryDetails.status as BackendDeliveryStatus);
+    // Get current status directly from backend (now matches frontend)
+    const currentStatus = deliveryDetails.status as FrontendDeliveryStatus;
     
-    if (currentFrontendStatus === status) {
+    // Define status progression order for buttons
+    const statusOrder: FrontendDeliveryStatus[] = ['picked_up', 'in_transit', 'delivered'];
+    const currentIndex = statusOrder.indexOf(currentStatus);
+    const buttonIndex = statusOrder.indexOf(status);
+    
+    // Handle 'open' status separately since it's not a button
+    if (currentStatus === 'open') {
+      // All buttons should be inactive when status is open
+      return 'bg-white border-2 border-gray-300';
+    }
+    
+    // Determine button state for actual status buttons
+    if (buttonIndex < currentIndex) {
+      // Completed status - always green to show progression
+      return 'bg-green-500 border-green-500';
+    } else if (buttonIndex === currentIndex) {
+      // Current status - highlighted with appropriate color
       switch (status) {
-        case 'PICKED_UP':
+        case 'picked_up':
           return 'bg-green-500 border-green-500';
-        case 'IN_TRANSIT':
+        case 'in_transit':
           return 'bg-yellow-500 border-yellow-500';
-        case 'DELIVERED':
+        case 'delivered':
           return 'bg-red-500 border-red-500';
         default:
-          return 'bg-orange-500 border-orange-500';
+          return 'bg-blue-500 border-blue-500';
       }
+    } else if (buttonIndex === currentIndex + 1) {
+      // Next status - slightly highlighted to show it's next
+      return 'bg-gray-100 border-2 border-gray-400';
+    } else {
+      // Future status - inactive
+      return 'bg-white border-2 border-gray-300';
     }
-    return 'bg-white border-2 border-gray-300';
   };
 
   const getStatusTextClass = (status: FrontendDeliveryStatus) => {
     if (!deliveryDetails) return 'text-gray-600';
     
-    // Convert backend status to frontend for comparison
-    const currentFrontendStatus = mapBackendToFrontend(deliveryDetails.status as BackendDeliveryStatus);
-    return currentFrontendStatus === status ? 'text-white' : 'text-gray-600';
+    // Get current status directly from backend (now matches frontend)
+    const currentStatus = deliveryDetails.status as FrontendDeliveryStatus;
+    
+    // Define status progression order for buttons
+    const statusOrder: FrontendDeliveryStatus[] = ['picked_up', 'in_transit', 'delivered'];
+    const currentIndex = statusOrder.indexOf(currentStatus);
+    const buttonIndex = statusOrder.indexOf(status);
+    
+    // Handle 'open' status separately since it's not a button
+    if (currentStatus === 'open') {
+      // All buttons should have gray text when status is open
+      return 'text-gray-600';
+    }
+    
+    // Determine text color based on button state
+    if (buttonIndex < currentIndex) {
+      // Completed status - white text on green background
+      return 'text-white';
+    } else if (buttonIndex === currentIndex) {
+      // Current status - white text on colored background
+      return 'text-white';
+    } else if (buttonIndex === currentIndex + 1) {
+      // Next status - darker text for better contrast
+      return 'text-gray-700';
+    } else {
+      // Future status - gray text
+      return 'text-gray-600';
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -570,7 +614,7 @@ const DeliveryManagement = () => {
             title={getNavigationButtonTextDisplay()}
             onPress={handleStartNavigation}
             icon={<MaterialCommunityIcons name="navigation" size={20} color="white" />}
-            disabled={deliveryDetails.status === 'DELIVERED'}
+            disabled={deliveryDetails.status === 'delivered'}
           />
         </PrimaryCard>
 
@@ -634,46 +678,46 @@ const DeliveryManagement = () => {
           <Text className="text-sm text-gray-600 mb-2 font-medium">Update Delivery Status:</Text>
           <View className="flex-row justify-around bg-white rounded-xl p-3 shadow-lg border border-gray-200">
             <TouchableOpacity
-              className={`flex-1 items-center py-3 px-2 rounded-lg mx-1 ${getStatusButtonClass('PICKED_UP')}`}
-              onPress={() => updateDeliveryStatus('PICKED_UP')}
+              className={`flex-1 items-center py-3 px-2 rounded-lg mx-1 ${getStatusButtonClass('picked_up')}`}
+              onPress={() => updateDeliveryStatus('picked_up')}
               disabled={updating}
             >
               <Ionicons 
                 name="checkmark-circle" 
                 size={20} 
-                color={getStatusTextClass('PICKED_UP') === 'text-white' ? 'white' : '#10B981'} 
+                color={getStatusTextClass('picked_up') === 'text-white' ? 'white' : (getStatusTextClass('picked_up') === 'text-gray-700' ? '#374151' : '#10B981')} 
               />
-              <Text className={`font-semibold text-xs mt-1 ${getStatusTextClass('PICKED_UP')}`}>
+              <Text className={`font-semibold text-xs mt-1 ${getStatusTextClass('picked_up')}`}>
                 Picked Up
               </Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              className={`flex-1 items-center py-3 px-2 rounded-lg mx-1 ${getStatusButtonClass('IN_TRANSIT')}`}
-              onPress={() => updateDeliveryStatus('IN_TRANSIT')}
+              className={`flex-1 items-center py-3 px-2 rounded-lg mx-1 ${getStatusButtonClass('in_transit')}`}
+              onPress={() => updateDeliveryStatus('in_transit')}
               disabled={updating}
             >
               <MaterialCommunityIcons 
                 name="truck-fast" 
                 size={20} 
-                color={getStatusTextClass('IN_TRANSIT') === 'text-white' ? 'white' : '#F59E0B'} 
+                color={getStatusTextClass('in_transit') === 'text-white' ? 'white' : (getStatusTextClass('in_transit') === 'text-gray-700' ? '#374151' : '#F59E0B')} 
               />
-              <Text className={`font-semibold text-xs mt-1 ${getStatusTextClass('IN_TRANSIT')}`}>
+              <Text className={`font-semibold text-xs mt-1 ${getStatusTextClass('in_transit')}`}>
                 In Transit
               </Text>
             </TouchableOpacity>
             
             <TouchableOpacity
-              className={`flex-1 items-center py-3 px-2 rounded-lg mx-1 ${getStatusButtonClass('DELIVERED')}`}
-              onPress={() => updateDeliveryStatus('DELIVERED')}
+              className={`flex-1 items-center py-3 px-2 rounded-lg mx-1 ${getStatusButtonClass('delivered')}`}
+              onPress={() => updateDeliveryStatus('delivered')}
               disabled={updating}
             >
               <Ionicons 
                 name="trophy" 
                 size={20} 
-                color={getStatusTextClass('DELIVERED') === 'text-white' ? 'white' : '#EF4444'} 
+                color={getStatusTextClass('delivered') === 'text-white' ? 'white' : (getStatusTextClass('delivered') === 'text-gray-700' ? '#374151' : '#EF4444')} 
               />
-              <Text className={`font-semibold text-xs mt-1 ${getStatusTextClass('DELIVERED')}`}>
+              <Text className={`font-semibold text-xs mt-1 ${getStatusTextClass('delivered')}`}>
                 Delivered
               </Text>
             </TouchableOpacity>

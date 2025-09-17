@@ -17,10 +17,16 @@ import java.util.UUID;
 public interface DeliveryTrackingRepository extends JpaRepository<DeliveryTracking, UUID> {
     
     /**
-     * Find delivery tracking by bid ID using native SQL
+     * Find delivery tracking by bid ID using native SQL (gets latest if duplicates exist)
      */
-    @Query(value = "SELECT * FROM delivery_tracking WHERE bid_id = :bidId", nativeQuery = true)
+    @Query(value = "SELECT * FROM delivery_tracking WHERE bid_id = :bidId ORDER BY created_at DESC LIMIT 1", nativeQuery = true)
     Optional<DeliveryTracking> findByBidId(@Param("bidId") UUID bidId);
+    
+    /**
+     * Find latest delivery tracking by bid ID (handles duplicates by getting the most recent)
+     */
+    @Query(value = "SELECT * FROM delivery_tracking WHERE bid_id = :bidId ORDER BY created_at DESC LIMIT 1", nativeQuery = true)
+    Optional<DeliveryTracking> findLatestByBidId(@Param("bidId") UUID bidId);
     
     /**
      * Count delivery tracking records by bid ID
@@ -95,4 +101,23 @@ public interface DeliveryTrackingRepository extends JpaRepository<DeliveryTracki
         @Param("status") String status,
         @Param("currentTime") ZonedDateTime currentTime
     );
+    
+    /**
+     * Delete old duplicate delivery tracking records, keeping only the latest one
+     */
+    @Modifying
+    @Transactional
+    @Query(value = """
+        DELETE FROM delivery_tracking 
+        WHERE bid_id = :bidId 
+        AND id NOT IN (
+            SELECT id FROM (
+                SELECT id FROM delivery_tracking 
+                WHERE bid_id = :bidId 
+                ORDER BY created_at DESC 
+                LIMIT 1
+            ) as latest
+        )
+        """, nativeQuery = true)
+    void cleanupDuplicatesByBidId(@Param("bidId") UUID bidId);
 }

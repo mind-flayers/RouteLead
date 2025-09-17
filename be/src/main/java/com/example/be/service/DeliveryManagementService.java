@@ -51,9 +51,11 @@ public class DeliveryManagementService {
         Bid bid = bidRepository.findById(bidId)
             .orElseThrow(() -> new BidNotFoundException(bidId.toString()));
             
-        // Get or create delivery tracking
-        DeliveryTracking tracking = deliveryTrackingRepository.findByBidId(bidId)
-            .orElseGet(() -> createDeliveryTracking(bid));
+        // Get or create delivery tracking using native SQL that handles duplicates
+        DeliveryTracking tracking = getDeliveryTrackingByBidIdSafe(bidId);
+        if (tracking == null) {
+            tracking = createDeliveryTracking(bid);
+        }
         
         // Get latest location update
         Optional<DriverLocationUpdate> latestLocation = 
@@ -70,7 +72,19 @@ public class DeliveryManagementService {
     public DeliveryDetailsDto updateDeliveryStatus(UUID bidId, DeliveryStatusUpdateDto updateDto) {
         log.info("Updating delivery status for bid {} to {}", bidId, updateDto.getStatus());
         
-        DeliveryTracking tracking = getDeliveryTrackingByBidId(bidId);
+        // Clean up any duplicate tracking records first
+        try {
+            deliveryTrackingRepository.cleanupDuplicatesByBidId(bidId);
+            log.debug("Cleaned up duplicate tracking records for bid {}", bidId);
+        } catch (Exception e) {
+            log.warn("Failed to cleanup duplicates for bid {}: {}", bidId, e.getMessage());
+        }
+        
+        DeliveryTracking tracking = getDeliveryTrackingByBidIdSafe(bidId);
+        if (tracking == null) {
+            throw new DeliveryNotFoundException("Delivery tracking not found for bid: " + bidId);
+        }
+        
         String previousStatus = tracking.getStatus();
         
         // Convert enum to string for native SQL, handling NULL case
@@ -245,6 +259,25 @@ public class DeliveryManagementService {
     private DeliveryTracking getDeliveryTrackingByBidId(UUID bidId) {
         return deliveryTrackingRepository.findByBidId(bidId)
             .orElseThrow(() -> new BidNotFoundException("Delivery tracking not found for bid: " + bidId));
+    }
+    
+    /**
+     * Get delivery tracking by bid ID safely (handles duplicates by getting latest)
+     */
+    private DeliveryTracking getDeliveryTrackingByBidIdSafe(UUID bidId) {
+        try {
+            // First try to get latest record (handles duplicates)
+            Optional<DeliveryTracking> latest = deliveryTrackingRepository.findLatestByBidId(bidId);
+            if (latest.isPresent()) {
+                return latest.get();
+            }
+            
+            // Fallback to original method
+            return deliveryTrackingRepository.findByBidId(bidId).orElse(null);
+        } catch (Exception e) {
+            log.error("Error getting delivery tracking for bid {}: {}", bidId, e.getMessage());
+            return null;
+        }
     }
     
     /**
