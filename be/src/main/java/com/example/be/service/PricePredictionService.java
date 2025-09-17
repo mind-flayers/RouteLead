@@ -191,7 +191,7 @@ public class PricePredictionService {
                 
                 // Apply scaling factor to make prices more reasonable for Sri Lankan market
                 // The training data appears to have inflated prices, so we scale down by 70%
-                double scalingFactor = 0.3;
+                double scalingFactor = 0.1;
                 double predictedPrice = rawPrediction * scalingFactor;
                 
                 log.info("ML service returned raw prediction: {}, scaled prediction: {}", rawPrediction, predictedPrice);

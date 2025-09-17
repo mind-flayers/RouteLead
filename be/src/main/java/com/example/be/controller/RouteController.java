@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.Map;
 import java.util.HashMap;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import com.example.be.model.Profile;
 import com.example.be.repository.ProfileRepository;
 import com.example.be.service.BidSelectionService;
@@ -605,6 +607,57 @@ public class RouteController {
                 log.error("Error fetching price suggestion for route {}: {}", routeId, e.getMessage());
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
             }
+        }
+    }
+
+    @PostMapping("/predict-price")
+    public ResponseEntity<Map<String, Object>> predictPrice(@RequestBody Map<String, Object> features) {
+        log.info("POST /api/routes/predict-price - Generating standalone price prediction with features: {}", features);
+        
+        try {
+            Double distance = Double.valueOf(features.get("distance").toString());
+            Double weight = Double.valueOf(features.get("weight").toString());
+            Double volume = Double.valueOf(features.get("volume").toString());
+            
+            // Validate inputs
+            if (distance <= 0 || weight <= 0 || volume <= 0) {
+                return ResponseEntity.badRequest().body(Map.of("error", "All features must be positive values"));
+            }
+            
+            // Call ML service directly for standalone prediction
+            Map<String, Object> mlFeatures = Map.of(
+                "distance", distance,
+                "weight", weight,
+                "volume", volume
+            );
+            
+            // Use the PricePredictionService's ML calling functionality
+            BigDecimal predictedPrice = pricePredictionService.callMLServiceStandalone(mlFeatures);
+            
+            // Calculate price range (±20% of predicted price)
+            BigDecimal minPrice = predictedPrice.multiply(new BigDecimal("0.8"))
+                .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal maxPrice = predictedPrice.multiply(new BigDecimal("1.2"))
+                .setScale(2, RoundingMode.HALF_UP);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("minPrice", minPrice);
+            response.put("maxPrice", maxPrice);
+            response.put("predictedPrice", predictedPrice);
+            response.put("modelVersion", "1.0");
+            response.put("confidence", 0.90);
+            response.put("features", mlFeatures);
+            response.put("generatedAt", java.time.ZonedDateTime.now());
+            
+            log.info("Standalone price prediction generated: {} - {}", minPrice, maxPrice);
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Error generating standalone price prediction: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to generate price prediction");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
 

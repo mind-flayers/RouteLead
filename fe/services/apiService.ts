@@ -508,6 +508,30 @@ export class ApiService {
     }
   }
 
+  static async predictPrice(features: { distance: number; weight: number; volume: number }): Promise<any> {
+    console.log('Calling standalone price prediction API with features:', features);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/routes/predict-price`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(features),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to predict price: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Price prediction response:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('Error predicting price:', error);
+      throw error;
+    }
+  }
+
   static async validateRouteCoordinates(
     originLat: number, 
     originLng: number, 

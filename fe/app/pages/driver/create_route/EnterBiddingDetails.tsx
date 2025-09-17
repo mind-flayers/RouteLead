@@ -143,69 +143,91 @@ const EnterBiddingDetails = () => {
         throw new Error('Invalid route distance');
       }
 
-      // Call the actual ML service directly with user's weight and volume inputs
+      // Call the actual ML service through the backend API
       const features = {
         distance: distance,
         weight: weightNum,
         volume: volumeNum
       };
 
-      console.log('Calling ML service with features:', features);
+      console.log('Calling backend ML prediction API with features:', features);
 
       try {
-        // Call ML service directly
-        const response = await fetch('http://localhost:8000/predict', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(features),
-        });
-
-        if (!response.ok) {
-          throw new Error(`ML service error: ${response.status}`);
-        }
-
-        const mlResult = await response.json();
-        const predictedPrice = mlResult.price;
-
-        // Calculate price range (±20% of predicted price)
-        const minPrice = Math.round(predictedPrice * 0.8);
-        const maxPrice = Math.round(predictedPrice * 1.2);
+        // Call the standalone prediction API
+        const result = await ApiService.predictPrice(features);
         
-        const suggestion = {
-          minPrice: minPrice,
-          maxPrice: maxPrice,
-          modelVersion: "1.0",
-          generatedAt: new Date().toISOString(),
-          confidence: 0.90,
+        console.log('ML prediction received from backend:', result);
+        setPriceSuggestion({
+          minPrice: result.minPrice,
+          maxPrice: result.maxPrice,
+          modelVersion: result.modelVersion || "1.0",
+          generatedAt: result.generatedAt || new Date().toISOString(),
+          confidence: result.confidence || 0.90,
           features: features
-        };
-        
-        console.log('ML prediction received:', suggestion);
-        setPriceSuggestion(suggestion);
+        });
         return;
 
-      } catch (mlError) {
-        console.warn('ML service failed, using fallback calculation:', mlError);
+      } catch (backendError) {
+        console.warn('Backend ML prediction API failed, trying fallback methods:', backendError);
         
-        // Fallback calculation if ML service is unavailable
-        // Using reasonable Sri Lankan market rates: LKR 45 per km base rate
-        const basePrice = distance * 15 + (weightNum * 2) + (volumeNum * 20);
-        const minPrice = Math.round(basePrice * 0.8);
-        const maxPrice = Math.round(basePrice * 1.7);
-        
-        const fallbackSuggestion = {
-          minPrice: minPrice,
-          maxPrice: maxPrice,
-          modelVersion: "1.0-fallback",
-          generatedAt: new Date().toISOString(),
-          confidence: 0.60,
-          features: features
-        };
-        
-        console.log('Using fallback prediction:', fallbackSuggestion);
-        setPriceSuggestion(fallbackSuggestion);
+        // Fallback: Call ML service directly
+        try {
+          const response = await fetch('http://localhost:8000/predict', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(features),
+          });
+
+          if (!response.ok) {
+            throw new Error(`ML service error: ${response.status}`);
+          }
+
+          const mlResult = await response.json();
+          const predictedPrice = mlResult.price;
+
+          // Apply same scaling factor as backend (reduce by 70%)
+          const scaledPrice = predictedPrice * 0.3;
+
+          // Calculate price range (±20% of predicted price)
+          const minPrice = Math.round(scaledPrice * 0.3);
+          const maxPrice = Math.round(scaledPrice * 1.2);
+          
+          const suggestion = {
+            minPrice: minPrice,
+            maxPrice: maxPrice,
+            modelVersion: "1.0-direct",
+            generatedAt: new Date().toISOString(),
+            confidence: 0.80,
+            features: features
+          };
+          
+          console.log('Direct ML prediction received:', suggestion);
+          setPriceSuggestion(suggestion);
+          return;
+
+        } catch (mlError) {
+          console.warn('Direct ML service also failed, using final fallback:', mlError);
+          
+          // Final fallback calculation if all ML services are unavailable
+          // Using reasonable Sri Lankan market rates: LKR 50 per km base rate + weight/volume factors
+          const basePrice = distance * 15 + (weightNum * 2) + (volumeNum * 20);
+          const minPrice = Math.round(basePrice * 0.8);
+          const maxPrice = Math.round(basePrice * 1.2);
+          
+          const fallbackSuggestion = {
+            minPrice: minPrice,
+            maxPrice: maxPrice,
+            modelVersion: "1.0-fallback",
+            generatedAt: new Date().toISOString(),
+            confidence: 0.60,
+            features: features
+          };
+          
+          console.log('Using final fallback prediction:', fallbackSuggestion);
+          setPriceSuggestion(fallbackSuggestion);
+        }
       }
       
     } catch (error) {
