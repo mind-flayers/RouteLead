@@ -128,6 +128,21 @@ export interface AvailableCustomer {
   deliveryLocation: string;
 }
 
+export interface PastCustomer {
+  customerId: string;
+  customerName: string;
+  customerProfileImage?: string;
+  customerPhone?: string;
+  bidId: string;
+  routeDescription: string;
+  amount: number;
+  completedAt: string;
+  deliveryStatus: 'COMPLETED' | 'CANCELLED' | 'DELIVERED';
+  pickupLocation: string;
+  deliveryLocation: string;
+  conversationId?: string;
+}
+
 export interface ChatMessage {
   id: string;
   text: string;
@@ -955,6 +970,117 @@ export class ApiService {
       console.error('Error fetching available customers:', error);
       throw error;
     }
+  }
+
+  // Get Past Customers API
+  static async getPastCustomers(driverId: string): Promise<PastCustomer[]> {
+    try {
+      // Use earnings history to derive past customers from completed deliveries
+      console.log('Fetching past customers from earnings history for driver:', driverId);
+      
+      // Get all earnings history for completed deliveries (AVAILABLE or WITHDRAWN status)
+      const earningsHistory = await this.getEarningsHistory(driverId);
+      
+      if (!earningsHistory || earningsHistory.length === 0) {
+        console.log('No earnings history found, returning mock past customers');
+        return this.getMockPastCustomers();
+      }
+
+      // Filter for completed earnings (AVAILABLE or WITHDRAWN) and group by customer
+      const completedEarnings = earningsHistory.filter(earning => 
+        earning.status === 'AVAILABLE' || earning.status === 'WITHDRAWN'
+      );
+
+      // Group by customer name and bidId to avoid duplicates
+      const customerMap = new Map<string, PastCustomer>();
+      
+      completedEarnings.forEach(earning => {
+        const customerId = earning.bidId + '_customer'; // Generate customer ID from bid
+        const customerKey = `${earning.customerName}_${earning.bidId}`;
+        
+        if (!customerMap.has(customerKey) && earning.customerName) {
+          const pastCustomer: PastCustomer = {
+            customerId: customerId,
+            customerName: earning.customerName,
+            customerProfileImage: undefined, // Not available in earnings
+            customerPhone: earning.customerPhone || '',
+            bidId: earning.bidId,
+            routeDescription: earning.routeDescription || earning.parcelDescription || 'Package delivery',
+            amount: earning.netAmount || earning.grossAmount,
+            completedAt: earning.earnedAt,
+            deliveryStatus: earning.status === 'WITHDRAWN' ? 'COMPLETED' : 'DELIVERED',
+            pickupLocation: earning.fromLocation || earning.originLocation || 'Pickup location',
+            deliveryLocation: earning.toLocation || earning.destinationLocation || 'Delivery location',
+            conversationId: undefined // Not available in earnings
+          };
+          
+          customerMap.set(customerKey, pastCustomer);
+        }
+      });
+
+      const pastCustomers = Array.from(customerMap.values());
+      
+      // Sort by completion date (most recent first)
+      pastCustomers.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+      
+      console.log(`Found ${pastCustomers.length} past customers from earnings history`);
+      return pastCustomers;
+      
+    } catch (error) {
+      console.error('Error fetching past customers from earnings:', error);
+      
+      // Fallback to mock data if earnings API fails
+      console.log('Falling back to mock past customers data');
+      return this.getMockPastCustomers();
+    }
+  }
+
+  // Mock past customers for development/demo purposes
+  private static getMockPastCustomers(): PastCustomer[] {
+    return [
+      {
+        customerId: 'past_customer_1',
+        customerName: 'Sarah Williams',
+        customerProfileImage: undefined,
+        customerPhone: '+94771234567',
+        bidId: 'bid_completed_001',
+        routeDescription: 'Colombo Fort → Mount Lavinia',
+        amount: 850.00,
+        completedAt: '2025-09-15T14:30:00Z',
+        deliveryStatus: 'COMPLETED',
+        pickupLocation: 'Colombo Fort Railway Station',
+        deliveryLocation: 'Mount Lavinia Beach Hotel',
+        conversationId: 'conv_001'
+      },
+      {
+        customerId: 'past_customer_2',
+        customerName: 'Rajesh Kumar',
+        customerProfileImage: undefined,
+        customerPhone: '+94779876543',
+        bidId: 'bid_completed_002',
+        routeDescription: 'Kandy → Nuwara Eliya',
+        amount: 1200.00,
+        completedAt: '2025-09-14T09:15:00Z',
+        deliveryStatus: 'DELIVERED',
+        pickupLocation: 'Kandy Bus Station',
+        deliveryLocation: 'Nuwara Eliya Grand Hotel',
+        conversationId: 'conv_002'
+      },
+      {
+        customerId: 'past_customer_3',
+        customerName: 'Priya Mendis',
+        customerProfileImage: undefined,
+        customerPhone: '+94776543210',
+        bidId: 'bid_completed_003',
+        routeDescription: 'Galle → Mirissa',
+        amount: 650.00,
+        completedAt: '2025-09-13T16:45:00Z',
+        deliveryStatus: 'COMPLETED',
+        pickupLocation: 'Galle Fort',
+        deliveryLocation: 'Mirissa Beach Resort',
+        conversationId: 'conv_003'
+      }
+    ];
   }
 
   // End Chat Session API
