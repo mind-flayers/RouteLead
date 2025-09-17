@@ -6,6 +6,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import CustomerFooter from '../../../components/navigation/CustomerFooter';
 import { Config } from '@/constants/Config';
 import { supabase } from '@/lib/supabase';
+import { PhoneService } from '@/services/phoneService';
 
 // Interface for message data
 interface Message {
@@ -32,8 +33,16 @@ const Chat = () => {
   const driverName = params.driverName as string;
   const driverPhoto = params.driverPhoto as string;
   const driverId = params.driverId as string;
+  const driverPhone = params.driverPhone as string;
 
   useEffect(() => {
+    console.log('Chat params debug:', {
+      conversationId,
+      driverName,
+      driverPhone,
+      driverId,
+      allParams: params
+    });
     loadMessages();
     getCurrentUser();
   }, [conversationId]);
@@ -67,6 +76,37 @@ const Chat = () => {
       
       if (data.success) {
         setMessages(data.messages || []);
+        
+        // Mark messages as read when loading the conversation (optional - backend may not support yet)
+        if (customerId) {
+          try {
+            // Check if the endpoints exist before calling them
+            const response = await fetch(`${Config.API_BASE}/chat/conversation/${conversationId}/mark-read`, {
+              method: 'HEAD', // Just check if endpoint exists
+            });
+            
+            if (response.status !== 404) {
+              await fetch(`${Config.API_BASE}/chat/conversation/${conversationId}/mark-read`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: customerId }),
+              });
+              
+              await fetch(`${Config.API_BASE}/chat/conversation/${conversationId}/mark-conversation-read`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: customerId }),
+              });
+              
+              console.log('Messages marked as read for conversation:', conversationId);
+            } else {
+              console.log('Message read marking endpoints not available yet');
+            }
+          } catch (error) {
+            // Silently fail - this is not critical functionality
+            console.log('Message read marking not available or failed:', error);
+          }
+        }
       } else {
         throw new Error(data.message || 'Failed to load messages');
       }
@@ -136,6 +176,19 @@ const Chat = () => {
     return driverName.split(' ').map(name => name.charAt(0)).join('').toUpperCase();
   };
 
+  const handleMakeCall = () => {
+    console.log('Making call with driverPhone:', driverPhone);
+    console.log('driverName:', driverName);
+    
+    if (!driverPhone || driverPhone.trim() === '') {
+      console.log('No phone number available. driverPhone value:', driverPhone);
+      alert('No phone number available for this driver');
+      return;
+    }
+    
+    PhoneService.makeCall(driverPhone, driverName);
+  };
+
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-white">
@@ -169,7 +222,7 @@ const Chat = () => {
           </View>
           <Text className="text-lg font-bold">{driverName}</Text>
         </View>
-        <TouchableOpacity className="p-2">
+        <TouchableOpacity className="p-2" onPress={handleMakeCall}>
           <Ionicons name="call-outline" size={24} color="black" />
         </TouchableOpacity>
         <TouchableOpacity className="p-2 ml-2">
@@ -206,8 +259,8 @@ const Chat = () => {
           ) : (
             <>
               <Text className="text-center text-gray-500 text-sm mb-4">Today</Text>
-              {messages.map((msg) => (
-                <View key={msg.id} className={`flex-row items-end mb-3 ${isMyMessage(msg.senderId) ? 'justify-end' : 'justify-start'}`}>
+              {messages.map((msg, index) => (
+                <View key={`${msg.id}-${index}`} className={`flex-row items-end mb-3 ${isMyMessage(msg.senderId) ? 'justify-end' : 'justify-start'}`}>
                   {!isMyMessage(msg.senderId) && (
                     <View className="w-8 h-8 rounded-full mr-2 bg-orange-100 items-center justify-center">
                       {driverPhoto ? (

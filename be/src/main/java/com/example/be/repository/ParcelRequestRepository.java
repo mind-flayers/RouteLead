@@ -108,4 +108,14 @@ public interface ParcelRequestRepository extends JpaRepository<ParcelRequest, UU
     @Modifying
     @Query(value = "DELETE FROM bids WHERE request_id = :requestId", nativeQuery = true)
     void deleteRelatedBids(@org.springframework.data.repository.query.Param("requestId") UUID requestId);
+
+    // Update parcel request status using native SQL with proper enum casting
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE parcel_requests SET status = CAST(:status AS parcel_status), updated_at = :updatedAt WHERE id = :requestId", nativeQuery = true)
+    void updateParcelRequestStatus(
+        @org.springframework.data.repository.query.Param("requestId") UUID requestId,
+        @org.springframework.data.repository.query.Param("status") String status,
+        @org.springframework.data.repository.query.Param("updatedAt") java.time.ZonedDateTime updatedAt
+    );
 }

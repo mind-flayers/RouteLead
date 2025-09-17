@@ -390,7 +390,7 @@ public class PayHereService {
             
             NotificationCreateDto notification = new NotificationCreateDto();
             notification.setUserId(driverId);
-            notification.setType(NotificationType.BOOKING_CONFIRMED); // Using existing type
+            notification.setType(NotificationType.PAYMENT_COMPLETED); // Using new type
             notification.setPayload(notificationPayload);
             
             notificationService.createNotification(notification);

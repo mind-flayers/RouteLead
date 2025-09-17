@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
@@ -9,15 +9,19 @@ import EditButton from '@/components/ui/EditButton';
 import DeleteButton from '@/components/ui/DeleteButton';
 import PrimaryCard from '@/components/ui/PrimaryCard';
 import IndigoButton from '@/components/ui/IndigoButton';
+import { ProfileAvatar } from '@/components/ui/ProfileImage';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
+import { VerificationGuard } from '@/components/guards/VerificationGuard';
 import { useMyRoutes } from '@/hooks/useMyRoutes';
 import { useDriverInfo } from '@/hooks/useEarningsData';
-import { formatCurrency, formatDate } from '@/services/apiService';
+import { formatCurrency, formatDate, ApiService } from '@/services/apiService';
 import { calculateCountdown, formatRouteStatus, isBiddingActive } from '@/utils/routeUtils';
 
 const MyRoutes = () => {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<'active' | 'past'>('active');
+  const [deletingRoute, setDeletingRoute] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
   
   // Get authenticated driver ID
   const { driverId } = useDriverInfo();
@@ -25,41 +29,154 @@ const MyRoutes = () => {
   // Fetch all routes and filter on frontend
   const { routes: allRoutes, loading, error, refreshing, refresh } = useMyRoutes(driverId);
   
-  // Filter routes based on active filter
-  const routes = allRoutes.filter(route => {
-    if (activeFilter === 'active') {
-      return ['INITIATED', 'OPEN'].includes(route.status);
-    } else {
-      return ['BOOKED', 'COMPLETED', 'CANCELLED'].includes(route.status);
-    }
-  });
+  // Update current time every second for real-time countdown
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, []);
+  
+  // Filter routes based on active filter and sort by date (newest first)
+  const routes = allRoutes
+    .filter(route => {
+      if (activeFilter === 'active') {
+        return ['INITIATED', 'OPEN'].includes(route.status);
+      } else {
+        return ['BOOKED', 'COMPLETED', 'CANCELLED'].includes(route.status);
+      }
+    })
+    .sort((a, b) => {
+      // Sort by departureTime with newest first
+      const dateA = new Date(a.departureTime);
+      const dateB = new Date(b.departureTime);
+      return dateB.getTime() - dateA.getTime();
+    });
 
   const handleFilterChange = (filter: 'active' | 'past') => {
     setActiveFilter(filter);
   };
 
-  const handleDeleteRoute = (routeId: string) => {
+  const handleEditRoute = (route: any) => {
+    try {
+      // Clean the route data to avoid circular references
+      const cleanRouteData = {
+        id: route.id,
+        originLat: route.originLat,
+        originLng: route.originLng,
+        destinationLat: route.destinationLat,
+        destinationLng: route.destinationLng,
+        originLocationName: route.originLocationName,
+        destinationLocationName: route.destinationLocationName,
+        departureTime: route.departureTime,
+        biddingStart: route.biddingStart,
+        status: route.status,
+        detourToleranceKm: route.detourToleranceKm,
+        suggestedPriceMin: route.suggestedPriceMin,
+        suggestedPriceMax: route.suggestedPriceMax,
+        totalDistanceKm: route.totalDistanceKm,
+        estimatedDurationMinutes: route.estimatedDurationMinutes,
+        routePolyline: route.routePolyline,
+        bidCount: route.bidCount,
+        highestBidAmount: route.highestBidAmount,
+        createdAt: route.createdAt
+      };
+      
+      // Navigate to EditRoute page with cleaned route data
+      router.push({
+        pathname: '/pages/driver/EditRoute',
+        params: {
+          routeData: JSON.stringify(cleanRouteData)
+        }
+      });
+    } catch (error) {
+      console.error('Error navigating to edit route:', error);
+      Alert.alert('Error', 'Failed to open edit page. Please try again.');
+    }
+  };
+
+  const handleDeleteRoute = async (routeId: string) => {
     Alert.alert(
       'Delete Route',
-      'Are you sure you want to delete this route?',
+      'Are you sure you want to delete this route? This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Delete', 
           style: 'destructive',
-          onPress: () => {
-            // TODO: Implement delete route API call
-            console.log('Delete route:', routeId);
+          onPress: async () => {
+            try {
+              setDeletingRoute(routeId);
+              await ApiService.deleteRoute(routeId, driverId);
+              
+              // Show success message
+              Alert.alert('Success', 'Route deleted successfully');
+              
+              // Refresh the routes list
+              await refresh();
+            } catch (error) {
+              console.error('Error deleting route:', error);
+              Alert.alert(
+                'Delete Failed', 
+                error instanceof Error ? error.message : 'Failed to delete route. Please try again.'
+              );
+            } finally {
+              setDeletingRoute(null);
+            }
           }
         }
       ]
     );
   };
 
+  // Enhanced real-time countdown function
+  const calculateRealTimeCountdown = (biddingEndTime: string) => {
+    const endTime = new Date(biddingEndTime);
+    const now = currentTime;
+    const timeLeft = endTime.getTime() - now.getTime();
+    
+    if (timeLeft <= 0) {
+      return { text: 'Ended', isExpired: true };
+    }
+    
+    const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+    
+    if (days > 0) {
+      return { text: `${days}d ${hours}h ${minutes}m`, isExpired: false };
+    } else if (hours > 0) {
+      return { text: `${hours}h ${minutes}m ${seconds}s`, isExpired: false };
+    } else if (minutes > 0) {
+      return { text: `${minutes}m ${seconds}s`, isExpired: false };
+    } else {
+      return { text: `${seconds}s`, isExpired: false };
+    }
+  };
+
+  // Enhanced status formatting function
+  const getEnhancedRouteStatus = (route: any) => {
+    const countdown = calculateRealTimeCountdown(route.biddingEndTime);
+    
+    // If bidding has ended, override status
+    if (countdown.isExpired && (route.status === 'INITIATED' || route.status === 'OPEN')) {
+      return {
+        label: 'Ended',
+        color: 'text-red-600',
+        bgColor: 'bg-red-100'
+      };
+    }
+    
+    // Use original status formatting
+    return formatRouteStatus(route.status);
+  };
+
   const renderRouteCard = useCallback((route: any) => {
-    const statusFormat = formatRouteStatus(route.status);
-    const countdown = calculateCountdown(route.biddingEndTime);
-    const isActive = isBiddingActive(route.biddingEndTime);
+    const statusFormat = getEnhancedRouteStatus(route);
+    const countdown = calculateRealTimeCountdown(route.biddingEndTime);
+    const isActive = !countdown.isExpired;
     
     // Use location names from API response (already geocoded by the API)
     const originDisplay = route.originLocationName || `${route.originLat}, ${route.originLng}`;
@@ -130,12 +247,20 @@ const MyRoutes = () => {
           </Text>
         </View>
         
-        {/* Bidding Information */}
-        {isActive && countdown !== 'Ended' && (
+        {/* Real-time Bidding Information */}
+        {(route.status === 'INITIATED' || route.status === 'OPEN') && (
           <View className="flex-row items-center mb-2">
-            <Ionicons name="time-outline" size={18} color="#ff6b35" />
-            <Text className="text-orange-600 ml-2 font-medium">
-              Bidding ends: {countdown}
+            <Ionicons 
+              name="time-outline" 
+              size={18} 
+              color={countdown.isExpired ? "#dc2626" : "#ea580c"} 
+            />
+            <Text 
+              className={`ml-2 font-medium ${
+                countdown.isExpired ? 'text-red-600' : 'text-orange-600'
+              }`}
+            >
+              {countdown.isExpired ? 'Bidding ended' : `Bidding ends: ${countdown.text}`}
             </Text>
           </View>
         )}
@@ -178,15 +303,20 @@ const MyRoutes = () => {
               />
               <EditButton
                 title="Edit"
-                onPress={() => router.push('/pages/driver/create_route/CreateRoute')}
+                onPress={() => handleEditRoute(route)}
                 style={{ flex: 1, marginHorizontal: 4 }}
                 textStyle={{ fontSize: 12 }}
               />
               <DeleteButton
-                title="Delete"
+                title={deletingRoute === route.id ? "Deleting..." : "Delete"}
                 onPress={() => handleDeleteRoute(route.id)}
-                style={{ flex: 1, marginLeft: 4 }}
+                style={{ 
+                  flex: 1, 
+                  marginLeft: 4,
+                  opacity: deletingRoute === route.id ? 0.6 : 1
+                }}
                 textStyle={{ fontSize: 12 }}
+                disabled={deletingRoute === route.id}
               />
             </>
           ) : route.status === 'BOOKED' ? (
@@ -218,21 +348,22 @@ const MyRoutes = () => {
         </View>
       </PrimaryCard>
     );
-  }, [router]);
+  }, [router, currentTime, deletingRoute, driverId]); // Added currentTime to dependencies for real-time updates
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView className="flex-1 bg-white">
-        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
           <Link href="/pages/driver/Notifications" className="items-center">
             <Ionicons name="notifications-outline" size={24} color="black" />
           </Link>
-          <Text className="text-xl font-bold">My Routes</Text>
+          <Text className="text-xl font-bold text-gray-900">My Routes</Text>
           <Link href="/pages/driver/Profile" className="items-center">
             <View className="flex-row items-center">
-              <Image
-                source={require('../../../assets/images/profile_placeholder.jpeg')}
-                className="w-8 h-8 rounded-full mr-2"
+              <ProfileAvatar 
+                useCurrentUser={true}
+                size={32}
+                className="mr-2"
               />
             </View>
           </Link>
@@ -241,27 +372,35 @@ const MyRoutes = () => {
           <ActivityIndicator size="large" color="#f97316" />
           <Text className="text-gray-600 mt-2">Loading routes...</Text>
         </View>
+        
+        {/* Bottom Navigation Bar */}
+        <DriverBottomNavigation />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      {/* Top Bar */}
-      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
-        <Link href="/pages/driver/Notifications" className="items-center">
-          <Ionicons name="notifications-outline" size={24} color="black" />
-        </Link>
-        <Text className="text-xl font-bold">My Routes</Text>
-        <Link href="/pages/driver/Profile" className="items-center">
-          <View className="flex-row items-center">
-            <Image
-              source={require('../../../assets/images/profile_placeholder.jpeg')}
-              className="w-8 h-8 rounded-full mr-2"
-            />
-          </View>
-        </Link>
-      </View>
+    <VerificationGuard 
+      featureName="My Routes"
+      description="Create and manage your return routes, view bids, and track route status"
+    >
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+        {/* Top Bar */}
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
+          <Link href="/pages/driver/Notifications" className="items-center">
+            <Ionicons name="notifications-outline" size={24} color="black" />
+          </Link>
+          <Text className="text-xl font-bold text-gray-900">My Routes</Text>
+          <Link href="/pages/driver/Profile" className="items-center">
+            <View className="flex-row items-center">
+              <ProfileAvatar 
+                useCurrentUser={true}
+                size={32}
+                className="mr-2"
+              />
+            </View>
+          </Link>
+        </View>
 
       {/* Filter Buttons Section */}
       <View className="flex-row justify-around p-4 bg-white border-b border-gray-200">
@@ -300,10 +439,11 @@ const MyRoutes = () => {
       {/* Scrollable Content Section */}
       <ScrollView 
         className="flex-1" 
-        contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 100 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={refresh} colors={['#f97316']} />
         }
+        showsVerticalScrollIndicator={false}
       >
         {error ? (
           <View className="flex-1 justify-center items-center py-10">
@@ -338,6 +478,7 @@ const MyRoutes = () => {
       {/* Bottom Navigation Bar */}
       <DriverBottomNavigation />
     </SafeAreaView>
+    </VerificationGuard>
   );
 };
 

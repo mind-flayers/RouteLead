@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
-import { OptimizedImage } from '@/components/ui/OptimizedImage';
+import { ProfileAvatar } from '@/components/ui/ProfileImage';
 import { useEarningsData, useDriverInfo } from '@/hooks/useEarningsData';
 import { useMultipleLocationDescriptions } from '@/hooks/useLocationDescription';
 import { formatCurrency, formatDateTime, getRouteDescription, EarningsHistory, testApiConnection } from '@/services/apiService';
@@ -186,19 +187,20 @@ const Dashboard = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <StatusBar style="dark" backgroundColor="#ffffff" translucent={false} />
       {/* Top Bar */}
-      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
+      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
         <Link href="/pages/driver/Notifications" className="items-center">
           <Ionicons name="notifications-outline" size={24} color="black" />
         </Link>
-        <Text className="text-xl font-bold">Dashboard</Text>
+        <Text className="text-xl font-bold text-gray-900">Dashboard</Text>
         <Link href="/pages/driver/Profile" className="items-center">
           <View className="flex-row items-center">
-            <OptimizedImage
-              source={require('../../../assets/images/profile_placeholder.jpeg')}
-              className="w-8 h-8 rounded-full mr-2"
-              fallbackSource={require('../../../assets/images/profile_placeholder.jpeg')}
+            <ProfileAvatar 
+              useCurrentUser={true}
+              size={32}
+              className="mr-2"
             />
           </View>
         </Link>
@@ -206,10 +208,11 @@ const Dashboard = () => {
 
       <ScrollView 
         className="flex-1" 
-        contentContainerStyle={{ padding: 16, paddingBottom: 90 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 100 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
         {/* Welcome Section */}
         <View className="mb-4 items-center">

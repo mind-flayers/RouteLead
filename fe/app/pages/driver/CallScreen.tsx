@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, SafeAreaView, TouchableOpacity, Animated, Easing, Image } from 'react-native';
+import { View, Text, SafeAreaView, TouchableOpacity, Animated, Easing } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { ProfileImage } from '@/components/ui/ProfileImage';
 
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
@@ -84,9 +85,10 @@ const CallScreen = () => {
 
           <View className="flex-1 justify-start items-center">
             <View className="bg-purple-200 p-1 rounded-full mb-8">
-              <Image
-                source={require('../../../assets/images/profile_placeholder.jpeg')} // Replace with actual customer image if available
-                className="w-32 h-32 rounded-full"
+              <ProfileImage 
+                useCurrentUser={false}
+                size={128}
+                borderRadius={64}
               />
             </View>
             <Text className="text-3xl font-bold text-white mb-2">{displayName || 'Customer'}</Text>

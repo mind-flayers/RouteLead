@@ -1,114 +1,305 @@
-import React from 'react';
-import { View, Text, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, SafeAreaView, TouchableOpacity, ScrollView, Animated, Dimensions } from 'react-native';
+import { Ionicons, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import PrimaryCard from '../../../components/ui/PrimaryCard';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
-import BannerCard from '../../../components/ui/BannerCard'; // Assuming BannerCard exists or needs to be created
+import { DeliverySummary } from '../../../services/deliveryService';
 
-const DeliverySummary = () => {
-  const navigation = useNavigation();
+const { width, height } = Dimensions.get('window');
 
-  const handleBackPress = () => {
-    navigation.goBack();
+const DeliverySummaryScreen = () => {
+  const router = useRouter();
+  const { summaryData } = useLocalSearchParams();
+  const [summary, setSummary] = useState<DeliverySummary | null>(null);
+  
+  // Animation values
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [scaleAnim] = useState(new Animated.Value(0));
+  const [slideAnim] = useState(new Animated.Value(50));
+  const [confettiAnims] = useState(
+    Array.from({ length: 10 }, () => ({
+      x: new Animated.Value(Math.random() * width),
+      y: new Animated.Value(-100),
+      rotation: new Animated.Value(0),
+    }))
+  );
+
+  useEffect(() => {
+    // Parse summary data
+    if (summaryData && typeof summaryData === 'string') {
+      try {
+        const parsedSummary = JSON.parse(summaryData);
+        setSummary(parsedSummary);
+      } catch (error) {
+        console.error('Error parsing summary data:', error);
+      }
+    }
+
+    // Start celebration animation
+    startCelebrationAnimation();
+  }, [summaryData]);
+
+  const startCelebrationAnimation = () => {
+    // Main content animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Confetti animation
+    const confettiAnimations = confettiAnims.map((confetti, index) => {
+      return Animated.parallel([
+        Animated.timing(confetti.y, {
+          toValue: height + 100,
+          duration: 3000 + Math.random() * 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(confetti.rotation, {
+          toValue: 360 * (2 + Math.random() * 3),
+          duration: 3000 + Math.random() * 2000,
+          useNativeDriver: true,
+        }),
+      ]);
+    });
+
+    Animated.stagger(200, confettiAnimations).start();
+  };
+
+  const formatDuration = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0) {
+      return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
+  };
+
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   const handleDonePress = () => {
-    // Navigate to Dashboard screen
-    (navigation as any).navigate('pages/driver/Dashboard');
+    // Navigate back to dashboard
+    router.push('/pages/driver/Dashboard');
+  };
+
+  if (!summary) {
+    return (
+      <SafeAreaView className="flex-1 bg-gray-50 justify-center items-center">
+        <Text className="text-lg text-gray-600">Loading delivery summary...</Text>
+      </SafeAreaView>
+    );
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
-      {/* Top Bar */}
-      <View className="flex-row items-center p-4 bg-white border-b border-gray-200">
-        <TouchableOpacity onPress={handleBackPress} className="p-2">
-          <Ionicons name="arrow-back" size={24} color="black" />
-        </TouchableOpacity>
-        <Text className="flex-1 text-center text-xl font-bold">Delivery Complete</Text>
-        <View className="w-10" />{/* Placeholder for alignment */}
-      </View>
+    <SafeAreaView className="flex-1 bg-gradient-to-b from-green-50 to-blue-50">
+      {/* Confetti Animation */}
+      {confettiAnims.map((confetti, index) => (
+        <Animated.View
+          key={index}
+          className="absolute w-3 h-3 bg-yellow-400 rounded-full"
+          style={[
+            {
+              transform: [
+                { translateX: confetti.x },
+                { translateY: confetti.y },
+                { 
+                  rotate: confetti.rotation.interpolate({
+                    inputRange: [0, 360],
+                    outputRange: ['0deg', '360deg'],
+                  }),
+                },
+              ],
+            },
+          ]}
+        />
+      ))}
 
-      <ScrollView className="flex-1 p-4">
-        {/* Earnings Banner Card */}
-        <BannerCard className="mb-5 bg-orange-500 p-5 rounded-lg flex-row items-center justify-between">
-          <View>
-            <Text className="text-white text-base font-semibold">You have Earned:</Text>
-            <Text className="text-white text-4xl font-bold text-center">LKR 450.00</Text>
-          </View>
-          <MaterialCommunityIcons name="trophy" size={60} color="rgba(255,255,255,0.3)" />
-        </BannerCard>
+      <Animated.View
+        className="flex-1"
+        style={{
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        }}
+      >
+        <ScrollView className="flex-1 px-4 py-6">
+          {/* Success Header */}
+          <Animated.View
+            className="items-center mb-8"
+            style={{
+              transform: [{ scale: scaleAnim }],
+            }}
+          >
+            <View className="w-24 h-24 bg-green-500 rounded-full items-center justify-center mb-4 shadow-lg">
+              <Ionicons name="checkmark" size={50} color="white" />
+            </View>
+            <Text className="text-3xl font-bold text-green-600 text-center mb-2">
+              🎉 Delivery Completed!
+            </Text>
+            <Text className="text-lg text-gray-600 text-center">
+              Great job! You've successfully completed this delivery.
+            </Text>
+          </Animated.View>
 
-        {/* Route Details Card */}
-        <PrimaryCard className="mb-4 p-4">
-          <Text className="text-lg font-bold mb-4">Route Details</Text>
+          {/* Summary Cards */}
+          <PrimaryCard className="mb-4 p-6">
+            <View className="flex-row items-center mb-4">
+              <MaterialCommunityIcons name="truck-delivery" size={24} color="#10B981" />
+              <Text className="ml-3 text-xl font-bold text-gray-800">Delivery Summary</Text>
+            </View>
 
-          <View className="flex-row items-center mb-2">
-            <MaterialCommunityIcons name="map-marker-outline" size={20} color="#6B7280" />
-            <Text className="ml-2 text-gray-700 w-24">Trip ID:</Text>
-            <Text className="text-gray-900 font-semibold">RTL-890123</Text>
-          </View>
-
-          <View className="flex-row items-center mb-2">
-            <FontAwesome name="user-o" size={20} color="#6B7280" />
-            <Text className="ml-2 text-gray-700 w-24">Customer Name:</Text>
-            <Text className="text-gray-900 font-semibold">Chris C</Text>
-          </View>
-
-          <View className="flex-row items-center mb-2">
-            <MaterialCommunityIcons name="card-account-details-outline" size={20} color="#6B7280" />
-            <Text className="ml-2 text-gray-700 w-24">Customer ID:</Text>
-            <Text className="text-gray-900 font-semibold">CUST-4567</Text>
-          </View>
-
-          <View className="flex-row items-center mb-2">
-            <FontAwesome name="calendar" size={20} color="#6B7280" />
-            <Text className="ml-2 text-gray-700 w-24">Trip Started:</Text>
-            <Text className="text-gray-900 font-semibold">7/20/2025</Text>
-          </View>
-
-          <View className="border-t border-gray-200 my-4" />
-
-          <View className="flex-row items-center mb-2">
-            <Ionicons name="location-sharp" size={20} color="#6B7280" />
-            <Text className="ml-2 text-gray-700 w-24">Pickup Location:</Text>
-            <View className="flex-col">
-              <Text className="text-gray-900 font-semibold">123 Elm Street, Apartment 4B, Badulla</Text>
-              <View className="flex-row items-center mt-1">
-                <FontAwesome name="clock-o" size={14} color="#6B7280" />
-                <Text className="ml-1 text-gray-600 text-sm">09:15 AM</Text>
+            <View className="space-y-3">
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600">Customer:</Text>
+                <Text className="font-semibold text-gray-800">{summary.customerName}</Text>
+              </View>
+              
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600">Delivery ID:</Text>
+                <Text className="font-mono text-sm text-gray-800">
+                  {summary.bidId.slice(0, 8)}...
+                </Text>
+              </View>
+              
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600">Earnings:</Text>
+                <Text className="font-bold text-green-600 text-lg">
+                  LKR {summary.bidAmount.toFixed(2)}
+                </Text>
               </View>
             </View>
-          </View>
+          </PrimaryCard>
 
-          <View className="border-t border-gray-200 my-4" />
+          {/* Timing Information */}
+          <PrimaryCard className="mb-4 p-6">
+            <View className="flex-row items-center mb-4">
+              <Ionicons name="time-outline" size={24} color="#3B82F6" />
+              <Text className="ml-3 text-xl font-bold text-gray-800">Timing Details</Text>
+            </View>
 
-          <View className="flex-row items-center mb-2">
-            <MaterialCommunityIcons name="flag-checkered" size={20} color="#6B7280" />
-            <Text className="ml-2 text-gray-700 w-24">Delivery Location:</Text>
-            <View className="flex-col">
-              <Text className="text-gray-900 font-semibold">21/A, Colombo</Text>
-              <View className="flex-row items-center mt-1">
-                <FontAwesome name="clock-o" size={14} color="#6B7280" />
-                <Text className="ml-1 text-gray-600 text-sm">09:40 PM</Text>
+            <View className="space-y-3">
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600">Started At:</Text>
+                <Text className="font-semibold text-gray-800">
+                  {formatDateTime(summary.deliveryStartedAt)}
+                </Text>
+              </View>
+              
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600">Completed At:</Text>
+                <Text className="font-semibold text-gray-800">
+                  {formatDateTime(summary.deliveryCompletedAt)}
+                </Text>
+              </View>
+              
+              <View className="flex-row justify-between border-t border-gray-200 pt-3">
+                <Text className="text-gray-600">Total Time:</Text>
+                <Text className="font-bold text-blue-600 text-lg">
+                  {formatDuration(summary.totalDeliveryTimeMinutes)}
+                </Text>
               </View>
             </View>
-          </View>
+          </PrimaryCard>
 
-          <View className="border-t border-gray-200 my-4" />
+          {/* Location Information */}
+          <PrimaryCard className="mb-4 p-6">
+            <View className="flex-row items-center mb-4">
+              <Ionicons name="location-outline" size={24} color="#8B5CF6" />
+              <Text className="ml-3 text-xl font-bold text-gray-800">Route Details</Text>
+            </View>
 
-          <View className="flex-row items-center">
-            <MaterialCommunityIcons name="timer-outline" size={20} color="#6B7280" />
-            <Text className="ml-2 text-gray-700 w-24">Time Taken:</Text>
-            <Text className="text-gray-900 font-semibold">25 minutes</Text>
-          </View>
-        </PrimaryCard>
+            <View className="space-y-4">
+              <View>
+                <View className="flex-row items-center mb-2">
+                  <View className="w-3 h-3 bg-blue-500 rounded-full mr-2" />
+                  <Text className="font-semibold text-gray-700">Pickup Location</Text>
+                </View>
+                <Text className="text-gray-600 ml-5">{summary.pickupAddress}</Text>
+              </View>
+              
+              <View>
+                <View className="flex-row items-center mb-2">
+                  <View className="w-3 h-3 bg-green-500 rounded-full mr-2" />
+                  <Text className="font-semibold text-gray-700">Delivery Location</Text>
+                </View>
+                <Text className="text-gray-600 ml-5">{summary.dropoffAddress}</Text>
+              </View>
+            </View>
+          </PrimaryCard>
 
-        {/* Done Button */}
-        <PrimaryButton title="Done" onPress={handleDonePress} className="w-full mb-8" />
-      </ScrollView>
+          {/* Parcel Information */}
+          <PrimaryCard className="mb-4 p-6">
+            <View className="flex-row items-center mb-4">
+              <MaterialCommunityIcons name="package-variant" size={24} color="#F59E0B" />
+              <Text className="ml-3 text-xl font-bold text-gray-800">Parcel Information</Text>
+            </View>
+
+            <View className="space-y-3">
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600">Description:</Text>
+                <Text className="font-semibold text-gray-800 flex-1 text-right">
+                  {summary.parcelDescription}
+                </Text>
+              </View>
+              
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600">Weight:</Text>
+                <Text className="font-semibold text-gray-800">{summary.weightKg} kg</Text>
+              </View>
+              
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600">Volume:</Text>
+                <Text className="font-semibold text-gray-800">{summary.volumeM3} m³</Text>
+              </View>
+            </View>
+          </PrimaryCard>
+
+          {/* Statistics */}
+          {summary.totalLocationUpdates && (
+            <PrimaryCard className="mb-6 p-6">
+              <View className="flex-row items-center mb-4">
+                <Ionicons name="analytics-outline" size={24} color="#6366F1" />
+                <Text className="ml-3 text-xl font-bold text-gray-800">Delivery Statistics</Text>
+              </View>
+
+              <View className="flex-row justify-between">
+                <Text className="text-gray-600">Location Updates:</Text>
+                <Text className="font-semibold text-gray-800">{summary.totalLocationUpdates}</Text>
+              </View>
+            </PrimaryCard>
+          )}
+
+          {/* Action Button */}
+          <PrimaryButton
+            title="🏠 Back to Dashboard"
+            onPress={handleDonePress}
+            className="mb-6"
+          />
+        </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   );
 };
 
-export default DeliverySummary;
+export default DeliverySummaryScreen;
