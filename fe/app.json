@@ -8,8 +8,15 @@
     "scheme": "fe",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "statusBarHidden": false,
+    "statusBar": {
+      "style": "dark",
+      "backgroundColor": "#ffffff",
+      "translucent": false
+    },
     "ios": {
       "supportsTablet": true,
+      "statusBarStyle": "dark",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to show you on the map and help you select pickup/drop-off locations."
       }
@@ -21,6 +28,10 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.fe",
+      "statusBar": {
+        "barStyle": "dark-content",
+        "backgroundColor": "#ffffff"
+      },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"

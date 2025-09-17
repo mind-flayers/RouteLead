@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import EditButton from '@/components/ui/EditButton';
 import DeleteButton from '@/components/ui/DeleteButton';
 import PrimaryCard from '@/components/ui/PrimaryCard';
 import IndigoButton from '@/components/ui/IndigoButton';
+import { ProfileAvatar } from '@/components/ui/ProfileImage';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
 import { VerificationGuard } from '@/components/guards/VerificationGuard';
 import { useMyRoutes } from '@/hooks/useMyRoutes';
@@ -351,17 +352,18 @@ const MyRoutes = () => {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView className="flex-1 bg-white">
-        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
           <Link href="/pages/driver/Notifications" className="items-center">
             <Ionicons name="notifications-outline" size={24} color="black" />
           </Link>
-          <Text className="text-xl font-bold">My Routes</Text>
+          <Text className="text-xl font-bold text-gray-900">My Routes</Text>
           <Link href="/pages/driver/Profile" className="items-center">
             <View className="flex-row items-center">
-              <Image
-                source={require('../../../assets/images/profile_placeholder.jpeg')}
-                className="w-8 h-8 rounded-full mr-2"
+              <ProfileAvatar 
+                useCurrentUser={true}
+                size={32}
+                className="mr-2"
               />
             </View>
           </Link>
@@ -370,6 +372,9 @@ const MyRoutes = () => {
           <ActivityIndicator size="large" color="#f97316" />
           <Text className="text-gray-600 mt-2">Loading routes...</Text>
         </View>
+        
+        {/* Bottom Navigation Bar */}
+        <DriverBottomNavigation />
       </SafeAreaView>
     );
   }
@@ -379,18 +384,19 @@ const MyRoutes = () => {
       featureName="My Routes"
       description="Create and manage your return routes, view bids, and track route status"
     >
-      <SafeAreaView className="flex-1 bg-white">
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         {/* Top Bar */}
-        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
           <Link href="/pages/driver/Notifications" className="items-center">
             <Ionicons name="notifications-outline" size={24} color="black" />
           </Link>
-          <Text className="text-xl font-bold">My Routes</Text>
+          <Text className="text-xl font-bold text-gray-900">My Routes</Text>
           <Link href="/pages/driver/Profile" className="items-center">
             <View className="flex-row items-center">
-              <Image
-                source={require('../../../assets/images/profile_placeholder.jpeg')}
-                className="w-8 h-8 rounded-full mr-2"
+              <ProfileAvatar 
+                useCurrentUser={true}
+                size={32}
+                className="mr-2"
               />
             </View>
           </Link>
@@ -433,10 +439,11 @@ const MyRoutes = () => {
       {/* Scrollable Content Section */}
       <ScrollView 
         className="flex-1" 
-        contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 100 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={refresh} colors={['#f97316']} />
         }
+        showsVerticalScrollIndicator={false}
       >
         {error ? (
           <View className="flex-1 justify-center items-center py-10">

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, Alert, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import { Link, useRouter, useFocusEffect } from 'expo-router';
+import { ProfileAvatar } from '@/components/ui/ProfileImage';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
 import { VerificationGuard } from '@/components/guards/VerificationGuard';
 import { ApiService, DriverConversation, AvailableCustomer } from '@/services/apiService';
@@ -125,12 +126,10 @@ const ChatList = () => {
           } as any 
         })}
       >
-        <Image
-          source={conversation.customerProfileImage ? 
-            { uri: conversation.customerProfileImage } : 
-            require('../../../assets/images/profile_placeholder.jpeg')
-          }
-          className="w-12 h-12 rounded-full mr-3"
+        <ProfileAvatar 
+          userId={conversation.customerId || null}
+          size={48}
+          className="mr-3"
         />
         <View className="flex-1">
           <Text className="font-bold text-base">{conversation.customerName}</Text>
@@ -188,12 +187,10 @@ const ChatList = () => {
         } as any 
       })}
     >
-      <Image
-        source={customer.customerProfileImage ? 
-          { uri: customer.customerProfileImage } : 
-          require('../../../assets/images/profile_placeholder.jpeg')
-        }
-        className="w-12 h-12 rounded-full mr-3"
+      <ProfileAvatar 
+        userId={customer.customerId || null}
+        size={48}
+        className="mr-3"
       />
       <View className="flex-1">
         <Text className="font-bold text-base">{customer.customerName}</Text>
@@ -223,18 +220,19 @@ const ChatList = () => {
       featureName="Chat"
       description="Communicate with customers about deliveries and routes"
     >
-      <SafeAreaView className="flex-1 bg-white">
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         {/* Top Bar */}
-        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
           <Link href="/pages/driver/Notifications" className="items-center">
             <Ionicons name="notifications-outline" size={24} color="black" />
           </Link>
-          <Text className="text-xl font-bold">Chat</Text>
+          <Text className="text-xl font-bold text-gray-900">Chat</Text>
           <Link href="/pages/driver/Profile" className="items-center">
             <View className="flex-row items-center">
-              <Image
-                source={require('../../../assets/images/profile_placeholder.jpeg')}
-                className="w-8 h-8 rounded-full mr-2"
+              <ProfileAvatar 
+                useCurrentUser={true}
+                size={32}
+                className="mr-2"
               />
             </View>
           </Link>
@@ -242,7 +240,7 @@ const ChatList = () => {
 
       <ScrollView 
         className="flex-1" 
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 100 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

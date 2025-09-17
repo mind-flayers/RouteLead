@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
@@ -7,6 +7,7 @@ import PrimaryButton from '@/components/ui/PrimaryButton';
 import PrimaryCard from '@/components/ui/PrimaryCard';
 import WithdrawalHistoryCard from '@/components/ui/WithdrawalHistoryCard';
 import PaymentPreferencesModal from '@/components/ui/PaymentPreferencesModal';
+import { ProfileAvatar } from '@/components/ui/ProfileImage';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
 import { VerificationGuard } from '@/components/guards/VerificationGuard';
 import { useEarningsData, useDriverInfo } from '@/hooks/useEarningsData';
@@ -218,18 +219,19 @@ const MyEarnings = () => {
       featureName="My Earnings"
       description="View your earnings, withdrawal history, and manage payments"
     >
-      <SafeAreaView className="flex-1 bg-white">
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         {/* Top Bar */}
-        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
           <Link href="/pages/driver/Notifications" className="items-center">
             <Ionicons name="notifications-outline" size={24} color="black" />
           </Link>
-          <Text className="text-xl font-bold">My Earnings</Text>
+          <Text className="text-xl font-bold text-gray-900">My Earnings</Text>
           <Link href="/pages/driver/Profile" className="items-center">
             <View className="flex-row items-center">
-              <Image
-                source={require('../../../assets/images/profile_placeholder.jpeg')}
-                className="w-8 h-8 rounded-full mr-2"
+              <ProfileAvatar 
+                useCurrentUser={true}
+                size={32}
+                className="mr-2"
               />
             </View>
           </Link>
@@ -261,6 +263,7 @@ const MyEarnings = () => {
         refreshControl={
           <RefreshControl refreshing={refreshing || withdrawalLoading} onRefresh={refreshAllData} />
         }
+        showsVerticalScrollIndicator={false}
       >
         {/* Summary Cards */}
         <View className="p-4 space-y-4">
@@ -293,9 +296,9 @@ const MyEarnings = () => {
               </PrimaryCard>
               
               <PrimaryCard style={{ flex: 1, marginBottom: 0 }}>
-                <Text className="text-gray-600 text-sm">This Month</Text>
+                <Text className="text-gray-600 text-sm">This Week</Text>
                 <Text className="text-xl font-bold text-gray-800">
-                  {formatCurrency(summary.monthlyEarnings)}
+                  {formatCurrency(summary.weeklyEarnings)}
                 </Text>
               </PrimaryCard>
             </View>
@@ -357,7 +360,8 @@ const MyEarnings = () => {
                 </View>
               ) : (
                 filteredEarnings.map((earning, index) => {
-                  const description = locationDescriptions[earning.id] || getRouteDescription(earning);
+                  const locationResult = locationDescriptions[index];
+                  const description = locationResult?.description || getRouteDescription(earning);
                   const statusStyle = getStatusBadgeStyle(earning.status);
                   
                   return (

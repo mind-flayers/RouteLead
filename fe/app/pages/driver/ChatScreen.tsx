@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { ProfileAvatar } from '@/components/ui/ProfileImage';
 import { ApiService, ChatMessage } from '@/services/apiService';
 import { useDriverInfo } from '@/hooks/useEarningsData';
 import { deliveryService, DeliveryDetails } from '@/services/deliveryService';
@@ -204,12 +205,10 @@ const ChatScreen = () => {
     return (
       <View key={msg.id} className={`flex-row items-end mb-3 ${isMyMessage ? 'justify-end' : 'justify-start'}`}>
         {!isMyMessage && (
-          <Image
-            source={profileImage && profileImage !== 'profile_placeholder' ? 
-              { uri: profileImage as string } : 
-              require('../../../assets/images/profile_placeholder.jpeg')
-            }
-            className="w-8 h-8 rounded-full mr-2"
+          <ProfileAvatar 
+            userId={customerId as string}
+            size={32}
+            className="mr-2"
           />
         )}
         <View className={`max-w-[70%] p-3 rounded-lg ${
@@ -229,19 +228,17 @@ const ChatScreen = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       {/* Top Bar */}
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
         <TouchableOpacity onPress={() => router.back()} className="p-2">
           <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
         <View className="flex-row items-center flex-1 ml-3">
-          <Image
-            source={profileImage && profileImage !== 'profile_placeholder' ? 
-              { uri: profileImage as string } : 
-              require('../../../assets/images/profile_placeholder.jpeg')
-            }
-            className="w-10 h-10 rounded-full mr-3"
+          <ProfileAvatar 
+            userId={customerId as string}
+            size={40}
+            className="mr-3"
           />
           <Text className="text-lg font-bold">{customerName || 'Chat'}</Text>
         </View>
