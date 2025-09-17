@@ -33,6 +33,11 @@ const EnterBiddingDetails = () => {
   const [showDepartureTimePicker, setShowDepartureTimePicker] = useState(false);
   const [isCreatingRoute, setIsCreatingRoute] = useState(false);
   
+  // Price suggestion state
+  const [priceSuggestion, setPriceSuggestion] = useState<any>(null);
+  const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
+  const [suggestionError, setSuggestionError] = useState<string | null>(null);
+  
   // Location names state
   const [originLocationName, setOriginLocationName] = useState('');
   const [destinationLocationName, setDestinationLocationName] = useState('');
@@ -101,6 +106,121 @@ const EnterBiddingDetails = () => {
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
+  const generatePriceSuggestion = async () => {
+    if (!isLocationDataComplete()) {
+      setSuggestionError('Please select route locations first.');
+      return;
+    }
+
+    // Validate that weight and volume are provided
+    if (!maxWeight || !maxVolume) {
+      setSuggestionError('Please enter maximum weight and volume capacity first to get accurate price suggestions.');
+      return;
+    }
+
+    const weightNum = parseFloat(maxWeight);
+    const volumeNum = parseFloat(maxVolume);
+
+    if (isNaN(weightNum) || weightNum <= 0) {
+      setSuggestionError('Please enter a valid weight (greater than 0).');
+      return;
+    }
+
+    if (isNaN(volumeNum) || volumeNum <= 0) {
+      setSuggestionError('Please enter a valid volume (greater than 0).');
+      return;
+    }
+
+    setIsLoadingSuggestion(true);
+    setSuggestionError(null);
+
+    try {
+      const distance = routeData.selectedRoute?.distance || 0;
+      
+      if (distance <= 0) {
+        throw new Error('Invalid route distance');
+      }
+
+      // Call the actual ML service directly with user's weight and volume inputs
+      const features = {
+        distance: distance,
+        weight: weightNum,
+        volume: volumeNum
+      };
+
+      console.log('Calling ML service with features:', features);
+
+      try {
+        // Call ML service directly
+        const response = await fetch('http://localhost:8000/predict', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(features),
+        });
+
+        if (!response.ok) {
+          throw new Error(`ML service error: ${response.status}`);
+        }
+
+        const mlResult = await response.json();
+        const predictedPrice = mlResult.price;
+
+        // Calculate price range (±20% of predicted price)
+        const minPrice = Math.round(predictedPrice * 0.8);
+        const maxPrice = Math.round(predictedPrice * 1.2);
+        
+        const suggestion = {
+          minPrice: minPrice,
+          maxPrice: maxPrice,
+          modelVersion: "1.0",
+          generatedAt: new Date().toISOString(),
+          confidence: 0.90,
+          features: features
+        };
+        
+        console.log('ML prediction received:', suggestion);
+        setPriceSuggestion(suggestion);
+        return;
+
+      } catch (mlError) {
+        console.warn('ML service failed, using fallback calculation:', mlError);
+        
+        // Fallback calculation if ML service is unavailable
+        // Using reasonable Sri Lankan market rates: LKR 45 per km base rate
+        const basePrice = distance * 15 + (weightNum * 2) + (volumeNum * 20);
+        const minPrice = Math.round(basePrice * 0.8);
+        const maxPrice = Math.round(basePrice * 1.7);
+        
+        const fallbackSuggestion = {
+          minPrice: minPrice,
+          maxPrice: maxPrice,
+          modelVersion: "1.0-fallback",
+          generatedAt: new Date().toISOString(),
+          confidence: 0.60,
+          features: features
+        };
+        
+        console.log('Using fallback prediction:', fallbackSuggestion);
+        setPriceSuggestion(fallbackSuggestion);
+      }
+      
+    } catch (error) {
+      console.error('Error generating price suggestion:', error);
+      setSuggestionError(`Failed to generate price suggestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsLoadingSuggestion(false);
+    }
+  };
+
+  const applySuggestion = () => {
+    if (priceSuggestion) {
+      setMinPrice(priceSuggestion.minPrice?.toString() || '');
+      setMaxPrice(priceSuggestion.maxPrice?.toString() || '');
+    }
   };
 
   const validateForm = () => {
@@ -205,6 +325,11 @@ const EnterBiddingDetails = () => {
       const result = await ApiService.createRoute(routePayload);
 
       console.log('Route created successfully:', result);
+
+      // If price suggestion was returned, store it
+      if (result.priceSuggestion && !priceSuggestion) {
+        setPriceSuggestion(result.priceSuggestion);
+      }
 
       // Update route data in context for consistency (optional, since we're navigating away)
       updateRouteData({
@@ -408,6 +533,62 @@ const EnterBiddingDetails = () => {
 
         {/* Pricing Section */}
         <Text style={styles.sectionTitle}>Pricing Range</Text>
+        
+        {/* Price Suggestion Card */}
+        <PrimaryCard>
+          <View style={styles.suggestionHeader}>
+            <Text style={styles.cardLabel}>💡 Smart Price Suggestion</Text>
+            <TouchableOpacity 
+              style={[styles.suggestionButton, (isLoadingSuggestion || !maxWeight || !maxVolume) && styles.suggestionButtonDisabled]}
+              onPress={generatePriceSuggestion}
+              disabled={isLoadingSuggestion || !isLocationDataComplete() || !maxWeight || !maxVolume}
+            >
+              <Ionicons 
+                name={isLoadingSuggestion ? "refresh" : "bulb-outline"} 
+                size={16} 
+                color={(isLoadingSuggestion || !maxWeight || !maxVolume) ? "#ccc" : "#FF8C00"} 
+                style={isLoadingSuggestion ? styles.rotatingIcon : undefined}
+              />
+              <Text style={[styles.suggestionButtonText, (isLoadingSuggestion || !maxWeight || !maxVolume) && styles.suggestionButtonTextDisabled]}>
+                {isLoadingSuggestion ? 'Generating...' : 'Get AI Suggestion'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          {(!maxWeight || !maxVolume) && (
+            <View style={styles.warningContainer}>
+              <Ionicons name="information-circle" size={16} color="#FF8C00" />
+              <Text style={styles.warningText}>Please enter weight and volume capacity below to get accurate price suggestions.</Text>
+            </View>
+          )}
+          
+          {suggestionError && (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={16} color="#f44336" />
+              <Text style={styles.suggestionErrorText}>{suggestionError}</Text>
+            </View>
+          )}
+          
+          {priceSuggestion && (
+            <View style={styles.suggestionContainer}>
+              <View style={styles.suggestionContent}>
+                <Text style={styles.suggestionTitle}>Recommended Price Range</Text>
+                <Text style={styles.suggestionRange}>
+                  LKR {Number(priceSuggestion.minPrice).toLocaleString()} - LKR {Number(priceSuggestion.maxPrice).toLocaleString()}
+                </Text>
+                <Text style={styles.suggestionDetails}>
+                  Based on {routeData.selectedRoute?.distance.toFixed(1)} km distance, {priceSuggestion.features?.weight || 'N/A'}kg weight, {priceSuggestion.features?.volume || 'N/A'}m³ volume
+                  {priceSuggestion.modelVersion?.includes('fallback') && ' (offline calculation)'}
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.applyButton} onPress={applySuggestion}>
+                <Ionicons name="checkmark-circle" size={18} color="white" />
+                <Text style={styles.applyButtonText}>Apply</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </PrimaryCard>
+        
         <PrimaryCard>
           <Text style={styles.cardLabel}>Set your price range for deliveries (LKR)</Text>
           
@@ -702,6 +883,112 @@ const styles = StyleSheet.create({
   },
   boldLabel: {
     fontWeight: 'bold',
+  },
+  // Price suggestion styles
+  suggestionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  suggestionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FF8C00',
+  },
+  suggestionButtonDisabled: {
+    backgroundColor: '#f5f5f5',
+    borderColor: '#e0e0e0',
+  },
+  suggestionButtonText: {
+    fontSize: 12,
+    color: '#FF8C00',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  suggestionButtonTextDisabled: {
+    color: '#ccc',
+  },
+  rotatingIcon: {
+    transform: [{ rotate: '360deg' }],
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffebee',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  suggestionErrorText: {
+    fontSize: 12,
+    color: '#f44336',
+    marginLeft: 5,
+    flex: 1,
+  },
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff8e1',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#FFB74D',
+  },
+  warningText: {
+    fontSize: 12,
+    color: '#FF8C00',
+    marginLeft: 5,
+    flex: 1,
+  },
+  suggestionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e8f5e8',
+    padding: 15,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+  },
+  suggestionContent: {
+    flex: 1,
+  },
+  suggestionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+    marginBottom: 4,
+  },
+  suggestionRange: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1B5E20',
+    marginBottom: 4,
+  },
+  suggestionDetails: {
+    fontSize: 12,
+    color: '#388E3C',
+  },
+  applyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginLeft: 10,
+  },
+  applyButtonText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '600',
+    marginLeft: 4,
   },
 });
 

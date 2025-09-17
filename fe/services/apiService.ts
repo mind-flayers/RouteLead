@@ -421,7 +421,7 @@ export class ApiService {
   }
 
   // Route Creation API
-  static async createRoute(routeData: any): Promise<{ routeId: string; message: string }> {
+  static async createRoute(routeData: any): Promise<{ routeId: string; message: string; priceSuggestion?: any }> {
     console.log('Creating route with data:', routeData);
     
     try {
@@ -461,10 +461,34 @@ export class ApiService {
       
       return {
         routeId: result.routeId,
-        message: result.message || 'Route created successfully'
+        message: result.message || 'Route created successfully',
+        priceSuggestion: result.priceSuggestion
       };
     } catch (error) {
       console.error('Error creating route:', error);
+      throw error;
+    }
+  }
+
+  static async getPriceSuggestion(routeId: string): Promise<any> {
+    console.log('Fetching price suggestion for route:', routeId);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/routes/price-suggestion?routeId=${routeId}`, {
+        method: 'GET',
+        headers: await getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch price suggestion: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Price suggestion response:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('Error fetching price suggestion:', error);
       throw error;
     }
   }

@@ -206,11 +206,38 @@ public class RouteController {
             
             UUID routeId = service.createRoute(createRouteDto);
             
+            // TODO: Generate price prediction automatically after creating route
+            // Temporarily disabled for debugging
+            /*
+            PricePredictionDto pricePrediction = null;
+            try {
+                log.info("Generating price prediction for newly created route: {}", routeId);
+                pricePrediction = pricePredictionService.generatePricePrediction(routeId);
+                log.info("Price prediction generated successfully: {} - {}", 
+                    pricePrediction.getMinPrice(), pricePrediction.getMaxPrice());
+            } catch (Exception e) {
+                log.warn("Failed to generate price prediction for route {}: {}", routeId, e.getMessage());
+                // Don't fail route creation if price prediction fails
+            }
+            */
+            
             Map<String, Object> response = new HashMap<>();
             response.put("routeId", routeId);
             response.put("message", "Route created successfully");
             response.put("status", "SUCCESS");
             response.put("segmentsCount", createRouteDto.getSegments() != null ? createRouteDto.getSegments().size() : 0);
+            
+            // TODO: Include price suggestion in response if available
+            /*
+            if (pricePrediction != null) {
+                Map<String, Object> priceSuggestion = new HashMap<>();
+                priceSuggestion.put("minPrice", pricePrediction.getMinPrice());
+                priceSuggestion.put("maxPrice", pricePrediction.getMaxPrice());
+                priceSuggestion.put("modelVersion", pricePrediction.getModelVersion());
+                priceSuggestion.put("generatedAt", pricePrediction.getGeneratedAt());
+                response.put("priceSuggestion", priceSuggestion);
+            }
+            */
             
             log.info("Route created successfully with ID: {}", routeId);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -558,8 +585,27 @@ public class RouteController {
     @GetMapping("/price-suggestion")
     public ResponseEntity<PricePredictionDto> getPriceSuggestion(@RequestParam("routeId") UUID routeId) {
         log.info("GET /api/routes/price-suggestion - Fetching price suggestion for route {}", routeId);
-        PricePredictionDto suggestion = pricePredictionService.getLatestPriceSuggestion(routeId);
-        return ResponseEntity.ok(suggestion);
+        
+        try {
+            // Try to get existing prediction first
+            PricePredictionDto suggestion = pricePredictionService.getLatestPriceSuggestion(routeId);
+            return ResponseEntity.ok(suggestion);
+        } catch (RuntimeException e) {
+            // If no prediction exists, generate one
+            if (e.getMessage().contains("No price suggestion found")) {
+                log.info("No existing price prediction found for route {}, generating new one", routeId);
+                try {
+                    PricePredictionDto newSuggestion = pricePredictionService.generatePricePrediction(routeId);
+                    return ResponseEntity.ok(newSuggestion);
+                } catch (Exception generateError) {
+                    log.error("Failed to generate price prediction for route {}: {}", routeId, generateError.getMessage());
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+                }
+            } else {
+                log.error("Error fetching price suggestion for route {}: {}", routeId, e.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
+        }
     }
 
     @GetMapping("/directions")
