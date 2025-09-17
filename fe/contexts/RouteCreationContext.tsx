@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
 
 export interface LocationData {
   lat: number;
@@ -49,6 +49,7 @@ interface RouteCreationContextType {
   isRouteDataComplete: () => boolean;
   isFullRouteDataComplete: () => boolean; // New function for API call validation
   getCreateRoutePayload: (driverId: string) => any;
+  populateFromExisting: (existingRoute: any) => void; // New function for editing
 }
 
 const RouteCreationContext = createContext<RouteCreationContextType | undefined>(undefined);
@@ -123,6 +124,33 @@ export const RouteCreationProvider: React.FC<RouteCreationProviderProps> = ({ ch
     };
   };
 
+  const populateFromExisting = useCallback((existingRoute: any) => {
+    setRouteData({
+      origin: {
+        lat: existingRoute.originLat,
+        lng: existingRoute.originLng,
+        address: existingRoute.originLocationName || `${existingRoute.originLat}, ${existingRoute.originLng}`
+      },
+      destination: {
+        lat: existingRoute.destinationLat,
+        lng: existingRoute.destinationLng,
+        address: existingRoute.destinationLocationName || `${existingRoute.destinationLat}, ${existingRoute.destinationLng}`
+      },
+      selectedRoute: {
+        polyline: existingRoute.routePolyline || '',
+        distance: existingRoute.totalDistanceKm || 0,
+        duration: existingRoute.estimatedDurationMinutes || 0,
+        encoded_polyline: existingRoute.routePolyline || '',
+        segments: []
+      },
+      departureTime: new Date(existingRoute.departureTime),
+      biddingStartTime: existingRoute.biddingStart ? new Date(existingRoute.biddingStart) : undefined,
+      detourToleranceKm: existingRoute.detourToleranceKm || 5.0,
+      suggestedPriceMin: existingRoute.suggestedPriceMin,
+      suggestedPriceMax: existingRoute.suggestedPriceMax,
+    });
+  }, []);
+
   const value: RouteCreationContextType = {
     routeData,
     updateRouteData,
@@ -131,6 +159,7 @@ export const RouteCreationProvider: React.FC<RouteCreationProviderProps> = ({ ch
     isRouteDataComplete,
     isFullRouteDataComplete,
     getCreateRoutePayload,
+    populateFromExisting,
   };
 
   return (

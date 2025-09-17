@@ -537,17 +537,17 @@ export class ApiService {
 
       const routes = await response.json();
       
-      // Transform the response to match our MyRoute interface with async location formatting
-      const routesWithLocations = await Promise.all(routes.map(async (route: any) => {
+      // Transform the response to match our MyRoute interface - removed slow async geocoding
+      const transformedRoutes = routes.map((route: any) => {
         // Calculate bidding end time (2 hours before departure)
         const departureDate = new Date(route.departureTime);
         const biddingEndTime = new Date(departureDate.getTime() - (2 * 60 * 60 * 1000)); // 2 hours before
         
-        // Format location names if they're coordinates or use existing names
+        // Use existing location names or show formatted coordinates (no API calls)
         const originLocationName = route.originLocationName || 
-          await formatLocation(`${route.originLat}, ${route.originLng}`);
+          formatLocationSync(`${route.originLat}, ${route.originLng}`);
         const destinationLocationName = route.destinationLocationName || 
-          await formatLocation(`${route.destinationLat}, ${route.destinationLng}`);
+          formatLocationSync(`${route.destinationLat}, ${route.destinationLng}`);
 
         return {
           id: route.id,
@@ -572,11 +572,170 @@ export class ApiService {
           totalDistanceKm: route.totalDistanceKm,
           estimatedDurationMinutes: route.estimatedDurationMinutes,
         };
-      }));
+      });
 
-      return routesWithLocations;
+      return transformedRoutes;
     } catch (error) {
       console.error('Error fetching my routes:', error);
+      throw error;
+    }
+  }
+
+  // Delete Route API
+  static async deleteRoute(routeId: string, driverId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log(`Deleting route ${routeId} for driver ${driverId}`);
+      const response = await fetch(
+        `${API_BASE_URL}/routes/${routeId}?driverId=${driverId}`,
+        {
+          method: 'DELETE',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to delete route: ${response.status} - ${errorData}`);
+      }
+
+      const result = await response.json();
+      console.log('Delete route response:', result);
+      
+      return {
+        success: true,
+        message: result.message || 'Route deleted successfully'
+      };
+    } catch (error) {
+      console.error('Error deleting route:', error);
+      throw error;
+    }
+  }
+
+  // Update Route API
+  static async updateRoute(routeId: string, routeData: any): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log(`Updating route ${routeId} with data:`, routeData);
+      
+      // Backend expects PATCH method with driverId as query parameter
+      // and ReturnRouteUpdateRequestDto format - only send required fields
+      const updateDto = {
+        originLat: Number(routeData.originLat),
+        originLng: Number(routeData.originLng),
+        destinationLat: Number(routeData.destinationLat),
+        destinationLng: Number(routeData.destinationLng),
+        departureTime: routeData.departureTime,
+        detourToleranceKm: Number(routeData.detourToleranceKm),
+        suggestedPriceMin: Number(routeData.suggestedPriceMin),
+        suggestedPriceMax: Number(routeData.suggestedPriceMax),
+        status: 'OPEN' // Keep status as OPEN for active routes
+      };
+      
+      console.log('Sending update DTO:', updateDto);
+      
+      const response = await fetch(
+        `${API_BASE_URL}/routes/${routeId}?driverId=${routeData.driverId}`,
+        {
+          method: 'PATCH',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify(updateDto),
+        }
+      );
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorText = await response.text();
+          errorMessage = `Failed to update route: ${response.status} - ${errorText}`;
+        } catch (e) {
+          errorMessage = `Failed to update route: ${response.status} - ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Handle response carefully to avoid JSON parsing issues
+      let result;
+      try {
+        const responseText = await response.text();
+        console.log('Raw response text:', responseText);
+        
+        // Only try to parse as JSON if the response looks like JSON
+        if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
+          result = JSON.parse(responseText);
+        } else {
+          // Handle plain text responses
+          result = { message: responseText || 'Route updated successfully' };
+        }
+      } catch (jsonError) {
+        console.warn('Failed to parse response as JSON, treating as success:', jsonError);
+        // If JSON parsing fails but the HTTP status was OK, treat as success
+        result = { message: 'Route updated successfully' };
+      }
+      
+      console.log('Update route response:', result);
+      
+      return {
+        success: true,
+        message: result.message || 'Route updated successfully'
+      };
+    } catch (error) {
+      console.error('Error updating route:', error);
+      throw error;
+    }
+  }
+
+  // Get Route by ID API
+  static async getRouteById(routeId: string): Promise<MyRoute> {
+    try {
+      console.log(`Fetching route ${routeId}`);
+      const response = await fetch(
+        `${API_BASE_URL}/routes/${routeId}`,
+        {
+          method: 'GET',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch route: ${response.status}`);
+      }
+
+      const route = await response.json();
+      
+      // Calculate bidding end time (2 hours before departure)
+      const departureDate = new Date(route.departureTime);
+      const biddingEndTime = new Date(departureDate.getTime() - (2 * 60 * 60 * 1000)); // 2 hours before
+      
+      // Use existing location names or show formatted coordinates (no API calls for speed)
+      const originLocationName = route.originLocationName || 
+        formatLocationSync(`${route.originLat}, ${route.originLng}`);
+      const destinationLocationName = route.destinationLocationName || 
+        formatLocationSync(`${route.destinationLat}, ${route.destinationLng}`);
+
+      return {
+        id: route.id,
+        originLat: route.originLat,
+        originLng: route.originLng,
+        destinationLat: route.destinationLat,
+        destinationLng: route.destinationLng,
+        departureTime: route.departureTime,
+        biddingStart: route.biddingStart,
+        status: route.status,
+        originLocationName,
+        destinationLocationName,
+        createdAt: route.createdAt,
+        biddingEndTime: biddingEndTime.toISOString(),
+        bidCount: route.totalBidsCount || route.bidCount || 0,
+        highestBidAmount: route.highestBidAmount,
+        // Additional fields from database
+        detourToleranceKm: route.detourToleranceKm,
+        suggestedPriceMin: route.suggestedPriceMin,
+        suggestedPriceMax: route.suggestedPriceMax,
+        routePolyline: route.routePolyline,
+        totalDistanceKm: route.totalDistanceKm,
+        estimatedDurationMinutes: route.estimatedDurationMinutes,
+      };
+    } catch (error) {
+      console.error('Error fetching route by ID:', error);
       throw error;
     }
   }
