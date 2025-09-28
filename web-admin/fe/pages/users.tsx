@@ -1,5 +1,6 @@
-'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { authHeaders } from '../lib/authHeaders';
 
 const NAVY_BLUE = '#1A237E';
@@ -123,6 +124,7 @@ const paginationBtnStyle: React.CSSProperties = {
 };
 
 const UserManagement: React.FC = () => {
+	const [showDocsModal, setShowDocsModal] = useState(false);
 	const [search, setSearch] = useState('');
 	const [role, setRole] = useState('All Roles');
 	const [status, setStatus] = useState('All Statuses');
@@ -131,10 +133,11 @@ const UserManagement: React.FC = () => {
 	const [loading, setLoading] = useState(true);
 	const [statusDropdown, setStatusDropdown] = useState<string | null>(null);
 	const [verificationDropdown, setVerificationDropdown] = useState<string | null>(null);
-	const [editModalOpen, setEditModalOpen] = useState(false);
-	const [editUser, setEditUser] = useState<any | null>(null);
-	const [editForm, setEditForm] = useState<any>({});
-	const [editLoading, setEditLoading] = useState(false);
+		const [editModalOpen, setEditModalOpen] = useState(false);
+		const [editUser, setEditUser] = useState<any | null>(null);
+		const [editForm, setEditForm] = useState<any>({});
+		const [editLoading, setEditLoading] = useState(false);
+		const [docs, setDocs] = useState<any>(null);
 	const [currentPage, setCurrentPage] = useState(1);
 	const pageSize = 10;
 
@@ -145,18 +148,24 @@ const UserManagement: React.FC = () => {
 				const res = await fetch('/api/admin/users', { headers: await authHeaders() });
 				const data = await res.json();
 				// Map snake_case to camelCase and exclude admin users
-				setUserList(
-					data
-						.filter((u: any) => String(u.role || '').toUpperCase() !== 'ADMIN') // Exclude admin users (case-insensitive)
-						.map((u: any) => ({
-							...u,
-							firstName: u.firstName || u.first_name,
-							lastName: u.lastName || u.last_name,
-							phoneNumber: u.phoneNumber || u.phone_number,
-							isVerified: u.isVerified ?? u.is_verified,
-							createdAt: u.createdAt || u.created_at,
-						}))
-				);
+				if (Array.isArray(data)) {
+					setUserList(
+						data
+							.filter((u: any) => String(u.role || '').toUpperCase() !== 'ADMIN') // Exclude admin users (case-insensitive)
+							.map((u: any) => ({
+								...u,
+								firstName: u.firstName || u.first_name,
+								lastName: u.lastName || u.last_name,
+								phoneNumber: u.phoneNumber || u.phone_number,
+								isVerified: u.isVerified ?? u.is_verified,
+								createdAt: u.createdAt || u.created_at,
+								nicNumber: u.nicNumber || u.nic_number || '',
+							}))
+					);
+				} else {
+					setUserList([]);
+					// Optionally, handle error or show a message
+				}
 			} catch (err) {
 				setUserList([]);
 			}
@@ -402,7 +411,7 @@ const UserManagement: React.FC = () => {
 														email: u.email || '',
 														phoneNumber: u.phoneNumber || '',
 														role: u.role || '',
-														isVerified: !!u.isVerified,
+														verification_status: u.verification_status || 'PENDING',
 													});
 													setEditModalOpen(true);
 												}}
@@ -656,35 +665,55 @@ select option:checked, select option:focus {
 						onSubmit={async (e) => {
 							e.preventDefault();
 							setEditLoading(true);
-							await fetch(`/api/admin/users/${editUser.id}`, {
-								method: 'PUT',
-								headers: { 'Content-Type': 'application/json' },
-								body: JSON.stringify({
-									first_name: editForm.firstName,
-									last_name: editForm.lastName,
-									email: editForm.email,
-									phone_number: editForm.phoneNumber,
-									role: editForm.role,
-									is_verified: editForm.isVerified,
-								}),
-							});
-							setEditModalOpen(false);
-							setEditUser(null);
-							setEditLoading(false);
-							setLoading(true);
-							const res = await fetch('/api/admin/users');
-							const data = await res.json();
-							setUserList(
-								data.map((u: any) => ({
-									...u,
-									firstName: u.firstName || u.first_name,
-									lastName: u.lastName || u.last_name,
-									phoneNumber: u.phoneNumber || u.phone_number,
-									isVerified: u.isVerified ?? u.is_verified,
-									createdAt: u.createdAt || u.created_at,
-								}))
-							);
-							setLoading(false);
+															const putRes = await fetch(`/api/admin/users/${editUser.id}`, {
+																method: 'PUT',
+																headers: {
+																	'Content-Type': 'application/json',
+																	...(await authHeaders()),
+																},
+																body: JSON.stringify({
+																	first_name: editForm.firstName,
+																	last_name: editForm.lastName,
+																	email: editForm.email,
+																	phone_number: editForm.phoneNumber,
+																	role: editForm.role,
+																	verification_status: editForm.verification_status,
+																}),
+															});
+															if (!putRes.ok) {
+																const err = await putRes.json().catch(() => ({}));
+																alert('Failed to update user: ' + (err.error || putRes.statusText));
+																setEditLoading(false);
+																return;
+															}
+															setEditModalOpen(false);
+															setEditUser(null);
+															setEditLoading(false);
+															setLoading(true);
+															const res = await fetch('/api/admin/users', { headers: await authHeaders() });
+															if (!res.ok) {
+																const err = await res.json().catch(() => ({}));
+																alert('Failed to fetch users: ' + (err.error || res.statusText));
+																setUserList([]);
+																setLoading(false);
+																return;
+															}
+															const data = await res.json();
+															if (Array.isArray(data)) {
+																setUserList(
+																	data.map((u: any) => ({
+																		...u,
+																		firstName: u.firstName || u.first_name,
+																		lastName: u.lastName || u.last_name,
+																		phoneNumber: u.phoneNumber || u.phone_number,
+																		isVerified: u.isVerified ?? u.is_verified,
+																		createdAt: u.createdAt || u.created_at,
+																	}))
+																);
+															} else {
+																setUserList([]);
+															}
+															setLoading(false);
 						}}
 						style={{
 							background: '#fff',
@@ -745,18 +774,19 @@ select option:checked, select option:focus {
 								<option value="CUSTOMER">CUSTOMER</option>
 								<option value="ADMIN">ADMIN</option>
 							</select>
-							<label>Verified</label>
+							<label>Status</label>
 							<select
-								value={editForm.isVerified ? 'true' : 'false'}
-								onChange={e => setEditForm({ ...editForm, isVerified: e.target.value === 'true' })}
+								value={editForm.verification_status}
+								onChange={e => setEditForm({ ...editForm, verification_status: e.target.value })}
 								style={{ padding: '10px', borderRadius: 8, border: '1.5px solid #E5E7EB', fontSize: 15 }}
 								required
 							>
-								<option value="true">Verified</option>
-								<option value="false">Pending</option>
+								<option value="APPROVED">Approved</option>
+								<option value="PENDING">Pending</option>
+								<option value="REJECTED">Rejected</option>
 							</select>
 						</div>
-						<div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+						<div style={{ display: 'flex', gap: 12, marginTop: 8, justifyContent: 'center' }}>
 							<button
 								type="button"
 								onClick={() => { setEditModalOpen(false); setEditUser(null); }}
@@ -793,8 +823,196 @@ select option:checked, select option:focus {
 							>
 								{editLoading ? 'Saving...' : 'Save Changes'}
 							</button>
+							<button
+								type="button"
+								style={{
+									background: NAVY_BLUE,
+									color: '#fff',
+									border: 'none',
+									borderRadius: 8,
+									padding: '10px 18px',
+									fontWeight: 600,
+									fontSize: 15,
+									cursor: 'pointer',
+									boxShadow: '0 2px 8px #1A237E22',
+									transition: 'background 0.2s, box-shadow 0.2s',
+								}}
+								onClick={async () => {
+									// Simulate fetching documents for the user
+									// Replace this with your real API call if needed
+									setDocs(editUser?.documents || null);
+									setShowDocsModal(true);
+								}}
+							>
+								Check Documents
+							</button>
 						</div>
 					</form>
+				</div>
+			)}
+
+			{/* Check Documents Modal */}
+			{showDocsModal && editUser && (
+				<div
+					style={{
+						position: 'fixed',
+						top: 0, left: 0, right: 0, bottom: 0,
+						background: 'rgba(0,0,0,0.18)',
+						zIndex: 1100,
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'center',
+					}}
+				>
+					<div style={{
+						background: '#fff',
+						borderRadius: 18,
+						boxShadow: '0 8px 32px #0004',
+						padding: '2.5rem 3.5rem',
+						minWidth: 520,
+						maxWidth: 800,
+						minHeight: 320,
+						maxHeight: '90vh',
+						overflowY: 'auto',
+						display: 'flex',
+						flexDirection: 'column',
+					}}>
+						<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+							<div style={{ fontWeight: 800, fontSize: 26, color: NAVY_BLUE, letterSpacing: 0.5 }}>User Documents</div>
+							<button
+								type="button"
+								onClick={async () => {
+									const content = document.getElementById('user-docs-modal-content');
+									if (!content) return;
+									// Wait for all images to load
+									const images = content.querySelectorAll('img');
+									const promises = Array.from(images).map(img => {
+										if (img.complete) return Promise.resolve();
+										return new Promise(resolve => {
+											img.onload = img.onerror = resolve;
+										});
+									});
+									await Promise.all(promises);
+									// Use useCORS: true for external images
+									const canvas = await html2canvas(content, { scale: 2, useCORS: true, backgroundColor: '#fff' });
+									const imgData = canvas.toDataURL('image/png');
+									const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+									const pageWidth = pdf.internal.pageSize.getWidth();
+									const margin = 40;
+									const heading = 'User Document';
+									pdf.setFont('helvetica', 'bold');
+									pdf.setFontSize(22);
+									pdf.text(heading, pageWidth / 2, margin, { align: 'center' });
+									// Add user name and user ID below heading
+									pdf.setFontSize(14);
+									pdf.setFont('helvetica', 'normal');
+									const userName = `${editUser.firstName || ''} ${editUser.lastName || ''}`.trim();
+									const userId = editUser.id || '';
+									let y = margin + 22;
+									if (userName) {
+										pdf.text(`Name: ${userName}`, margin, y);
+										y += 18;
+									}
+									if (userId) {
+										pdf.text(`User ID: ${userId}`, margin, y);
+										y += 18;
+									}
+									const imgWidth = pageWidth - margin * 2;
+									const imgHeight = canvas.height * (imgWidth / canvas.width);
+									pdf.addImage(imgData, 'PNG', margin, y, imgWidth, imgHeight, undefined, 'FAST');
+									const name = `${editUser.firstName || ''}_${editUser.lastName || ''}`.replace(/\s+/g, '_') || 'user';
+									pdf.save(`${name}_documents.pdf`);
+								}}
+								style={{
+									background: ROYAL_ORANGE,
+									color: '#fff',
+									border: 'none',
+									borderRadius: 8,
+									padding: '10px 22px',
+									fontWeight: 700,
+									fontSize: 16,
+									cursor: 'pointer',
+									boxShadow: '0 2px 8px #FF8C0022',
+									transition: 'background 0.2s, box-shadow 0.2s',
+								}}
+							>
+								Download as PDF
+							</button>
+						</div>
+						<div style={{ marginBottom: 24, fontSize: 18, color: '#333' }}>
+							<b>Role:</b> {editUser.role}
+						</div>
+						<div id="user-docs-modal-content" style={{ padding: 24, background: '#fff', borderRadius: 12, maxWidth: 700, margin: '0 auto', fontFamily: 'Montserrat, Arial, sans-serif' }}>
+						{editUser.role === 'DRIVER' ? (
+							<div>
+								<div style={{
+									display: 'grid',
+									gridTemplateColumns: '1fr 1fr',
+									gap: '18px 32px',
+									marginBottom: 18,
+									alignItems: 'center',
+									background: '#f8f8fa',
+									borderRadius: 10,
+									padding: 18,
+								}}>
+									<div style={{ fontSize: 17 }}><b>NIC Number:</b> <span style={{ color: '#222' }}>{docs?.nicNumber || editUser.nicNumber || 'Not provided'}</span></div>
+									<div style={{ fontSize: 17 }}><b>Face Photo:</b><br />{(editUser.profile_photo_url || docs?.facePhoto) ? (
+										<img src={editUser.profile_photo_url || docs?.facePhoto} alt="Face" style={{ maxWidth: 140, maxHeight: 140, borderRadius: '50%', border: '2px solid #eee', marginTop: 6 }} />
+									) : <span style={{ color: '#888' }}>Not uploaded</span>}</div>
+									<div style={{ fontSize: 17 }}><b>Driver Licence Number:</b> <span style={{ color: '#222' }}>{docs?.licenceNumber || 'Not uploaded'}</span></div>
+									<div style={{ fontSize: 17 }}><b>Licence Expiry Date:</b> <span style={{ color: '#222' }}>{docs?.licenceExpiry || 'Not uploaded'}</span></div>
+									<div style={{ fontSize: 17, gridColumn: '1/3' }}><b>Vehicle Documents:</b><br />{docs?.vehicleDocs ? docs.vehicleDocs.map((v: any, i: number) => <div key={i}><a href={v.url} target="_blank" rel="noopener noreferrer">{v.name || `Document ${i+1}`}</a></div>) : <span style={{ color: '#888' }}>Not uploaded</span>}</div>
+									<div style={{ fontSize: 17, gridColumn: '1/3' }}><b>Other Documents:</b><br />{docs?.otherDocs ? docs.otherDocs.map((d: any, i: number) => <div key={i}><a href={d.url} target="_blank" rel="noopener noreferrer">{d.name || `Document ${i+1}`}</a></div>) : <span style={{ color: '#888' }}>None</span>}</div>
+								</div>
+								{/* Vehicle Details Section */}
+								<div style={{ marginTop: 32, paddingTop: 18, borderTop: '2px solid #e3e3e3', background: '#f8f8fa', borderRadius: 10, padding: 18 }}>
+									<div style={{ fontWeight: 800, fontSize: 22, color: '#1A237E', marginBottom: 18 }}>Vehicle Details</div>
+									<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 32px', alignItems: 'center' }}>
+										<div style={{ fontSize: 17 }}><b>Make:</b> <span style={{ color: '#222' }}>{editUser.vehicle_make || docs?.vehicleMake || 'Not provided'}</span></div>
+										<div style={{ fontSize: 17 }}><b>Model:</b> <span style={{ color: '#222' }}>{editUser.vehicle_model || docs?.vehicleModel || 'Not provided'}</span></div>
+										<div style={{ fontSize: 17 }}><b>Plate Number:</b> <span style={{ color: '#222' }}>{editUser.vehicle_plate_number || docs?.vehiclePlateNumber || 'Not provided'}</span></div>
+										<div style={{ fontSize: 17, gridColumn: '1/3' }}><b>Vehicle Photos:</b><br />{
+											(editUser.vehicle_photos || docs?.vehiclePhotos) ?
+												((editUser.vehicle_photos || docs?.vehiclePhotos).map ?
+													(editUser.vehicle_photos || docs?.vehiclePhotos).map((url: string, i: number) => (
+														<img key={i} src={url} alt={`Vehicle ${i+1}`} style={{ maxWidth: 200, maxHeight: 140, marginRight: 12, marginBottom: 12, borderRadius: 10, border: '2px solid #eee' }} />
+													))
+													: <span style={{ color: '#888' }}>Not uploaded</span>)
+												: <span style={{ color: '#888' }}>Not uploaded</span>
+										}</div>
+									</div>
+								</div>
+							</div>
+						) : (
+							<div style={{ display: 'flex', flexDirection: 'column', gap: 16, background: '#f8f8fa', borderRadius: 10, padding: 18 }}>
+								<div><b>NIC Number:</b> {docs?.nicNumber || editUser.nicNumber || 'Not provided'}</div>
+								<div><b>Face Photo:</b> {(editUser.profile_photo_url || docs?.facePhoto) ? (
+									<img src={editUser.profile_photo_url || docs?.facePhoto} alt="Face" style={{ maxWidth: 120, maxHeight: 120, borderRadius: '50%' }} />
+								) : 'Not uploaded'}</div>
+								<div><b>Other Documents:</b> {docs?.otherDocs ? docs.otherDocs.map((d: any, i: number) => <div key={i}><a href={d.url} target="_blank" rel="noopener noreferrer">{d.name || `Document ${i+1}`}</a></div>) : 'None'}</div>
+							</div>
+						)}
+						</div>
+						<div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 32 }}>
+							<button
+								type="button"
+								onClick={() => setShowDocsModal(false)}
+								style={{
+									background: '#fff',
+									border: `2px solid #1A237E33`,
+									borderRadius: 10,
+									padding: '12px 32px',
+									fontWeight: 700,
+									fontSize: 18,
+									color: NAVY_BLUE,
+									cursor: 'pointer',
+									transition: 'background 0.2s, border 0.2s',
+								}}
+							>
+								Close
+							</button>
+						</div>
+					</div>
 				</div>
 			)}
 		</div>
@@ -802,6 +1020,10 @@ select option:checked, select option:focus {
 };
 
 // Dummy StatCard for completeness
+
+// Add the update button to the end of the main component
+// (This ensures it appears on all pages for easy access)
+export default UserManagement;
 const StatCard = ({ title, value, desc, color }: { title: string, value: string, desc: string, color: string }) => (
 	<div style={{
 		background: '#F8F6F4',
@@ -822,4 +1044,3 @@ const StatCard = ({ title, value, desc, color }: { title: string, value: string,
 	</div>
 );
 
-export default UserManagement;
