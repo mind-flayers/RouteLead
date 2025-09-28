@@ -26,8 +26,10 @@ public class DeliveryTracking {
     @JoinColumn(name = "bid_id", nullable = false)
     private Bid bid;
 
-    @Column(name = "status", nullable = false)
-    private String status = "picked_up";
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, columnDefinition = "delivery_status_enum")
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    private DeliveryStatusEnum status = DeliveryStatusEnum.picked_up;
 
     @Column(name = "estimated_arrival")
     private ZonedDateTime estimatedArrival;
@@ -50,30 +52,26 @@ public class DeliveryTracking {
         if (createdAt == null) {
             createdAt = ZonedDateTime.now();
         }
-        if (status == null || status.isEmpty()) {
-            status = "picked_up";
+        if (status == null) {
+            status = DeliveryStatusEnum.picked_up;
         }
     }
     
     // Helper methods to work with enum
     public DeliveryStatusEnum getStatusEnum() {
-        try {
-            return DeliveryStatusEnum.valueOf(status);
-        } catch (Exception e) {
-            return DeliveryStatusEnum.open; // Default to open (initial state)
-        }
-    }
-    
-    public void setStatusEnum(DeliveryStatusEnum statusEnum) {
-        this.status = statusEnum.name();
-    }
-    
-    // Getter and setter for status string
-    public String getStatus() {
         return status;
     }
     
-    public void setStatus(String status) {
-        this.status = status;
+    public void setStatusEnum(DeliveryStatusEnum statusEnum) {
+        this.status = statusEnum;
+    }
+    
+    // Getter and setter for status string (for backward compatibility)
+    public String getStatus() {
+        return status != null ? status.name() : null;
+    }
+    
+    public void setStatus(String statusString) {
+        this.status = DeliveryStatusEnum.valueOf(statusString);
     }
 } 

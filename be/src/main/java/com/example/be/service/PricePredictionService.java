@@ -205,4 +205,12 @@ public class PricePredictionService {
             throw new RuntimeException("Failed to call ML service: " + e.getMessage());
         }
     }
+    
+    /**
+     * Public method to call ML service with standalone features
+     * This can be used by controllers that need direct ML predictions
+     */
+    public BigDecimal callMLServiceStandalone(Map<String, Object> features) {
+        return callMLService(features);
+    }
 }
