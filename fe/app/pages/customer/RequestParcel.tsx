@@ -31,6 +31,12 @@ export default function RequestParcel() {
   const [loading, setLoading] = useState(true);
   const [calculatedVolume, setCalculatedVolume] = useState<number | null>(null);
   const [maxBudget, setMaxBudget] = useState('1000.00'); // Add max budget state with default value
+  const [routeDetails, setRouteDetails] = useState<{
+    suggestedPriceMin: number;
+    suggestedPriceMax: number;
+    driverName: string;
+  } | null>(null);
+  const [priceValidationError, setPriceValidationError] = useState<string | null>(null);
 
   // Calculate volume when dimensions change
   useEffect(() => {
@@ -46,6 +52,44 @@ export default function RequestParcel() {
       setCalculatedVolume(null);
     }
   }, [length, width, height]);
+
+  // Fetch route details to get price range
+  useEffect(() => {
+    const fetchRouteDetails = async () => {
+      if (!routeId || routeId === 'custom' || routeId === '') {
+        console.log('No valid route ID provided, skipping route details fetch');
+        return;
+      }
+
+      try {
+        console.log('Fetching route details for routeId:', routeId);
+        const response = await fetch(`${Config.API_BASE}/routes/${routeId}`);
+        
+        if (!response.ok) {
+          console.error('Failed to fetch route details:', response.status);
+          return;
+        }
+        
+        const routeData = await response.json();
+        console.log('Route details received:', routeData);
+        
+        setRouteDetails({
+          suggestedPriceMin: routeData.suggestedPriceMin || 0,
+          suggestedPriceMax: routeData.suggestedPriceMax || 0,
+          driverName: routeData.driverName || 'Unknown Driver'
+        });
+        
+        // Set default max budget to the minimum suggested price
+        if (routeData.suggestedPriceMin) {
+          setMaxBudget(routeData.suggestedPriceMin.toString());
+        }
+      } catch (error) {
+        console.error('Error fetching route details:', error);
+      }
+    };
+
+    fetchRouteDetails();
+  }, [routeId]);
 
   // Get authenticated user ID
   useEffect(() => {
@@ -85,7 +129,41 @@ export default function RequestParcel() {
     };
 
     getCurrentUser();
-  }, []);
+  }, [router]);
+
+  // Validate max budget against route's suggested price range
+  const validateMaxBudget = (value: string) => {
+    setMaxBudget(value);
+    setPriceValidationError(null);
+    
+    if (!value || value.trim() === '') {
+      setPriceValidationError('Maximum budget is required');
+      return;
+    }
+    
+    const budgetValue = parseFloat(value);
+    if (isNaN(budgetValue)) {
+      setPriceValidationError('Please enter a valid number');
+      return;
+    }
+    
+    if (budgetValue <= 0) {
+      setPriceValidationError('Maximum budget must be greater than 0');
+      return;
+    }
+    
+    if (routeDetails) {
+      if (budgetValue < routeDetails.suggestedPriceMin) {
+        setPriceValidationError(`Minimum allowed budget is LKR ${routeDetails.suggestedPriceMin.toFixed(2)}`);
+        return;
+      }
+      
+      if (budgetValue > routeDetails.suggestedPriceMax) {
+        setPriceValidationError(`Maximum allowed budget is LKR ${routeDetails.suggestedPriceMax.toFixed(2)}`);
+        return;
+      }
+    }
+  };
 
   const handleRequestParcel = async () => {
     // Check if user is authenticated
@@ -98,6 +176,12 @@ export default function RequestParcel() {
     if (!weight || !length || !width || !height || !description || 
         !pickupContactName || !pickupContactPhone || !deliveryContactName || !deliveryContactPhone || !maxBudget) {
       Alert.alert('Validation Error', 'Please fill in all fields including contact information and max budget.');
+      return;
+    }
+    
+    // Validate price range if route details are available
+    if (priceValidationError) {
+      Alert.alert('Price Validation Error', priceValidationError);
       return;
     }
     
@@ -257,6 +341,11 @@ export default function RequestParcel() {
         <View style={styles.routeInfo}>
           <Text style={styles.routeTitle}>Route Details</Text>
           <Text style={styles.routeText}>{origin} → {destination}</Text>
+          {routeDetails && (
+            <Text style={styles.driverText}>
+              Driver: {routeDetails.driverName}
+            </Text>
+          )}
           <Text style={styles.coordinatesText}>
             Pickup: {pickupLat}, {pickupLng}
           </Text>
@@ -325,14 +414,25 @@ export default function RequestParcel() {
           />
           
           <Text style={styles.label}>Maximum Budget (LKR)</Text>
+          {routeDetails && (
+            <Text style={styles.priceRangeText}>
+              Allowed range: LKR {routeDetails.suggestedPriceMin.toFixed(2)} - LKR {routeDetails.suggestedPriceMax.toFixed(2)}
+            </Text>
+          )}
           <TextInput
             value={maxBudget}
-            onChangeText={setMaxBudget}
+            onChangeText={validateMaxBudget}
             keyboardType="numeric"
-            placeholder="Enter your maximum budget (e.g., 1000.00)"
+            placeholder="Enter your maximum budget"
             placeholderTextColor="#555"
-            style={styles.input}
+            style={[
+              styles.input,
+              priceValidationError && styles.inputError
+            ]}
           />
+          {priceValidationError && (
+            <Text style={styles.errorText}>{priceValidationError}</Text>
+          )}
         </View>
 
         {/* Contact Information */}
@@ -455,6 +555,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#424242',
   },
+  driverText: {
+    fontSize: 13,
+    color: '#1976D2',
+    fontWeight: '500',
+    marginTop: 4,
+  },
   coordinatesText: {
     fontSize: 12,
     color: '#666',
@@ -513,5 +619,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#1B5E20',
+  },
+  priceRangeText: {
+    fontSize: 12,
+    color: '#1976D2',
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    borderWidth: 2,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: -12,
+    marginBottom: 16,
   },
 });

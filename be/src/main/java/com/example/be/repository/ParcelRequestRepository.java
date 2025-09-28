@@ -101,7 +101,7 @@ public interface ParcelRequestRepository extends JpaRepository<ParcelRequest, UU
 
     // Delete related disputes for parcel request
     @Modifying
-    @Query(value = "DELETE FROM disputes WHERE related_bid_id IN (SELECT id FROM bids WHERE request_id = :requestId)", nativeQuery = true)
+    @Query(value = "DELETE FROM disputes WHERE parcel_request_id = :requestId", nativeQuery = true)
     void deleteRelatedDisputes(@org.springframework.data.repository.query.Param("requestId") UUID requestId);
 
     // Delete related bids for parcel request

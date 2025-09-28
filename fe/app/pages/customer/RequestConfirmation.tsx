@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import CustomerFooter from '@/components/navigation/CustomerFooter';
 import { RouteDetailsService, RouteDetailsData } from '@/services/routeDetailsService';
 import { Config } from '@/constants/Config';
@@ -73,6 +75,19 @@ export default function RequestConfirmation() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | undefined>(params.routeId as string | undefined);
   const requestId = params.requestId as string | undefined;
 
+  // UI state for collapsible sections
+  const [showParcelDetails, setShowParcelDetails] = useState(false);
+
+  // Confetti effect state
+  const [showConfetti, setShowConfetti] = useState(false);
+  const confettiRef = useRef(null);
+
+  // Function to manually trigger confetti (for testing)
+  const triggerConfetti = () => {
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 5000);
+  };
+
   // Don't auto-populate bid price - let user enter their own amount
   // The max budget is shown as a reference only
 
@@ -98,10 +113,21 @@ export default function RequestConfirmation() {
             setIsBiddingClosed(true);
             setCountdown('Bidding closed');
             
+            // Trigger confetti effect for winning bid
+            setShowConfetti(true);
+            setTimeout(() => setShowConfetti(false), 5000); // Hide confetti after 5 seconds
+            
             // Find the winning bid
             const winningBid = data.rankedBids.find((bid: any) => bid.status === 'ACCEPTED');
             if (winningBid) {
               setWinningBid(winningBid);
+              
+              // Check if this is the user's winning bid by comparing with their existing bids
+              const isUserWinningBid = bids.some(bid => bid.id === winningBid.id);
+              if (isUserWinningBid) {
+                console.log('🎉 User won the bid! Triggering confetti effect');
+                // Confetti is already triggered above, but we can add additional celebration here
+              }
             }
           }
           
@@ -615,425 +641,415 @@ export default function RequestConfirmation() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 32 }}>
-        <Text className="text-2xl font-bold mb-4 text-center text-[#0D47A1]">Parcel Request Submitted Successfully</Text>
-        <Text className="text-gray-600 mb-8 text-center text-base leading-6">
-          Your parcel request has been successfully submitted. Drivers will be notified and can bid on your request.
-        </Text>
+    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Bidding Dashboard</Text>
+          <Text style={styles.headerSubtitle}>
+            {routeData ? `${routeData.originAddress} → ${routeData.destinationAddress}` : 'Loading route...'}
+          </Text>
+        </View>
+
+        {/* Auto-bid notification */}
         {params.maxBudget && (
-          <View className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-            <Text className="text-green-800 text-center font-medium">
-              ✓ First bid automatically created with your max budget: LKR {params.maxBudget}
+          <View style={styles.autoBidCard}>
+            <Ionicons name="checkmark-circle" size={20} color="#059669" />
+            <Text style={styles.autoBidText}>
+              Auto-bid created: LKR {params.maxBudget}
             </Text>
           </View>
         )}
 
-        <View className="mb-8 bg-[#F6F6FA] rounded-xl p-6 border border-[#FF8C00]">
-          <Text className="font-semibold mb-4 text-lg">Request Details</Text>
-          
-          {/* Route Information */}
-          <View className="flex-row justify-between mb-3">
-            <Text className="text-gray-500 text-base">Route</Text>
-            <Text className="font-semibold text-base">
-              {routeData ? `${routeData.originAddress} → ${routeData.destinationAddress}` : 'Loading route...'}
+        {/* Bidding Timer */}
+        {routeData?.departureTime && (
+          <View style={[
+            styles.timerCard,
+            countdown === 'Bidding closed' ? styles.timerCardClosed : 
+            isCountdownWarning() ? styles.timerCardWarning : styles.timerCardActive
+          ]}>
+            <View style={styles.timerHeader}>
+              <Ionicons 
+                name={countdown === 'Bidding closed' ? 'close-circle' : 'time'} 
+                size={20} 
+                color={countdown === 'Bidding closed' ? '#DC2626' : isCountdownWarning() ? '#DC2626' : '#EA580C'} 
+              />
+              <Text style={[
+                styles.timerTitle,
+                countdown === 'Bidding closed' ? styles.timerTitleClosed : 
+                isCountdownWarning() ? styles.timerTitleWarning : styles.timerTitleActive
+              ]}>
+                {countdown === 'Bidding closed' ? 'Bidding Closed' : 'Bidding Closes In'}
+              </Text>
+            </View>
+            <Text style={[
+              styles.timerValue,
+              countdown === 'Bidding closed' ? styles.timerValueClosed : 
+              isCountdownWarning() ? styles.timerValueWarning : styles.timerValueActive
+            ]}>
+              {countdown || 'Loading...'}
+            </Text>
+            <Text style={[
+              styles.timerSubtext,
+              countdown === 'Bidding closed' ? styles.timerSubtextClosed : 
+              isCountdownWarning() ? styles.timerSubtextWarning : styles.timerSubtextActive
+            ]}>
+              {countdown === 'Bidding closed' ? 'No more bids can be placed' : '3 hours before departure'}
             </Text>
           </View>
+        )}
 
-          {/* Parcel Information */}
-          <View className="flex-row justify-between mb-3">
-            <Text className="text-gray-500 text-base">Weight</Text>
-            <Text className="font-semibold text-base">{parcelData?.weight || '5 kg'}</Text>
+        {/* Parcel Details Toggle */}
+        <TouchableOpacity 
+          style={styles.parcelToggle}
+          onPress={() => setShowParcelDetails(!showParcelDetails)}
+        >
+          <View style={styles.parcelToggleContent}>
+            <Ionicons name="cube-outline" size={20} color="#6B7280" />
+            <Text style={styles.parcelToggleText}>Parcel Details</Text>
+            <Ionicons 
+              name={showParcelDetails ? 'chevron-up' : 'chevron-down'} 
+              size={20} 
+              color="#6B7280" 
+            />
           </View>
-          
-          <View className="flex-row justify-between mb-3">
-            <Text className="text-gray-500 text-base">Volume</Text>
-            <Text className="font-semibold text-base">{parcelData?.volume || '0.125 m³'}</Text>
-          </View>
-          
-          <View className="flex-row justify-between mb-3">
-            <Text className="text-gray-500 text-base">Description</Text>
-            <Text className="font-semibold text-base">{parcelData?.description || 'Fragile electronics'}</Text>
-          </View>
+        </TouchableOpacity>
 
-          {/* Contact Information */}
-          <View className="mt-4 pt-4 border-t border-gray-200">
-            <Text className="text-gray-500 text-sm mb-2">Pickup Contact</Text>
-            <Text className="font-semibold text-base">{parcelData?.pickupContactName}</Text>
-            <Text className="text-gray-600 text-sm">{parcelData?.pickupContactPhone}</Text>
+        {/* Collapsible Parcel Details */}
+        {showParcelDetails && (
+          <View style={styles.parcelDetailsCard}>
+            <View style={styles.parcelRow}>
+              <Text style={styles.parcelLabel}>Weight</Text>
+              <Text style={styles.parcelValue}>{parcelData?.weight || '5 kg'}</Text>
+            </View>
+            <View style={styles.parcelRow}>
+              <Text style={styles.parcelLabel}>Volume</Text>
+              <Text style={styles.parcelValue}>{parcelData?.volume || '0.125 m³'}</Text>
+            </View>
+            <View style={styles.parcelRow}>
+              <Text style={styles.parcelLabel}>Description</Text>
+              <Text style={styles.parcelValue}>{parcelData?.description || 'Fragile electronics'}</Text>
+            </View>
+            
+            <View style={styles.separator} />
+            
+            <View style={styles.contactSection}>
+              <Text style={styles.contactTitle}>Pickup Contact</Text>
+              <Text style={styles.contactName}>{parcelData?.pickupContactName}</Text>
+              <Text style={styles.contactPhone}>{parcelData?.pickupContactPhone}</Text>
+            </View>
+            
+            <View style={styles.contactSection}>
+              <Text style={styles.contactTitle}>Delivery Contact</Text>
+              <Text style={styles.contactName}>{parcelData?.deliveryContactName}</Text>
+              <Text style={styles.contactPhone}>{parcelData?.deliveryContactPhone}</Text>
+            </View>
+            
+            {routeData && (
+              <>
+                <View style={styles.separator} />
+                <View style={styles.routeDetailsSection}>
+                  <Text style={styles.routeDetailsTitle}>Route Information</Text>
+                  {routeData.totalDistance && (
+                    <Text style={styles.routeDetail}>Distance: {routeData.totalDistance}</Text>
+                  )}
+                  {routeData.estimatedDuration && (
+                    <Text style={styles.routeDetail}>Duration: {routeData.estimatedDuration}</Text>
+                  )}
+                  {routeData.departureTime && (
+                    <Text style={styles.routeDetail}>
+                      Departure: {new Date(routeData.departureTime).toLocaleString()}
+                    </Text>
+                  )}
+                </View>
+              </>
+            )}
           </View>
+        )}
 
-          <View className="mt-2">
-            <Text className="text-gray-500 text-sm mb-2">Delivery Contact</Text>
-            <Text className="font-semibold text-base">{parcelData?.deliveryContactName}</Text>
-            <Text className="text-gray-600 text-sm">{parcelData?.deliveryContactPhone}</Text>
-          </View>
-
-          {/* Route Details (if available) */}
-          {routeData && (
-            <View className="mt-4 pt-4 border-t border-gray-200">
-              <Text className="text-gray-500 text-sm mb-2">Route Details</Text>
-              {routeData.totalDistance && (
-                <Text className="text-gray-600 text-sm">Distance: {routeData.totalDistance}</Text>
-              )}
-              {routeData.estimatedDuration && (
-                <Text className="text-gray-600 text-sm">Duration: {routeData.estimatedDuration}</Text>
-              )}
-              {routeData.departureTime && (
-                <View className="mt-2">
-                  <Text className="text-gray-600 text-sm">
-                    Departure: {new Date(routeData.departureTime).toLocaleString()}
+        {/* Bids Section */}
+        <View style={styles.bidsSection}>
+          <View style={styles.bidsHeader}>
+            <Text style={styles.bidsTitle}>Your Bids</Text>
+            <View style={styles.bidsHeaderButtons}>
+              {/* Test Confetti Button - Remove in production */}
+              <TouchableOpacity 
+                style={styles.testConfettiButton}
+                onPress={triggerConfetti}
+              >
+                <Ionicons name="sparkles" size={16} color="white" />
+                <Text style={styles.testConfettiButtonText}>🎉</Text>
+              </TouchableOpacity>
+              
+              {rankedBids.length > 0 && (
+                <TouchableOpacity 
+                  style={styles.refreshButton}
+                  onPress={() => selectedRouteId && fetchRankedBids(selectedRouteId)}
+                  disabled={rankedBidsLoading}
+                >
+                  <Ionicons name="refresh" size={16} color="white" />
+                  <Text style={styles.refreshButtonText}>
+                    {rankedBidsLoading ? 'Refreshing...' : 'Refresh'}
                   </Text>
-                  
-                  {/* Countdown Timer */}
-                  <View className={`mt-2 border rounded-lg p-3 ${
-                    countdown === 'Bidding closed' 
-                      ? 'bg-red-50 border-red-200' 
-                      : isCountdownWarning()
-                      ? 'bg-red-50 border-red-200'
-                      : 'bg-orange-50 border-orange-200'
-                  }`}>
-                    <Text className={`text-sm font-medium mb-1 ${
-                      countdown === 'Bidding closed' 
-                        ? 'text-red-800' 
-                        : isCountdownWarning()
-                        ? 'text-red-800'
-                        : 'text-orange-800'
-                    }`}>
-                      {countdown === 'Bidding closed' ? '🚫 Bidding Closed' : '⏰ Bidding Closes In'}
-                    </Text>
-                    <Text className={`text-lg font-bold font-mono ${
-                      countdown === 'Bidding closed' 
-                        ? 'text-red-900' 
-                        : isCountdownWarning()
-                        ? 'text-red-900'
-                        : 'text-orange-900'
-                    }`}>
-                      {countdown || 'Loading...'}
-                    </Text>
-                    <Text className={`text-xs mt-1 ${
-                      countdown === 'Bidding closed' 
-                        ? 'text-red-700' 
-                        : isCountdownWarning()
-                        ? 'text-red-700'
-                        : 'text-orange-700'
-                    }`}>
-                      {countdown === 'Bidding closed' 
-                        ? 'No more bids can be placed' 
-                        : '(3 hours before departure)'
-                      }
-                    </Text>
-                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Bid Statistics Summary */}
+          {rankedBids.length > 0 && (
+            <View style={styles.bidStatsCard}>
+              <View style={styles.bidStatsRow}>
+                <View style={styles.bidStatItem}>
+                  <Text style={styles.bidStatLabel}>Total Bids</Text>
+                  <Text style={styles.bidStatValue}>{rankedBids.length}</Text>
+                </View>
+                <View style={styles.bidStatItem}>
+                  <Text style={styles.bidStatLabel}>Price Range</Text>
+                  <Text style={styles.bidStatValue}>
+                    LKR {Math.min(...rankedBids.map(b => b.offeredPrice))} - {Math.max(...rankedBids.map(b => b.offeredPrice))}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+          {bidsLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#2563EB" />
+              <Text style={styles.loadingText}>Loading bids...</Text>
+            </View>
+          ) : bidsError ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{bidsError}</Text>
+            </View>
+          ) : bids.length === 0 ? (
+            <View style={styles.noBidsContainer}>
+              <Ionicons name="pricetag-outline" size={32} color="#9CA3AF" />
+              <Text style={styles.noBidsText}>No bids yet</Text>
+            </View>
+          ) : (
+            <View style={styles.bidsList}>
+              {rankedBidsLoading && (
+                <View style={styles.rankingLoadingContainer}>
+                  <ActivityIndicator size="small" color="#2563EB" />
+                  <Text style={styles.rankingLoadingText}>Calculating rankings...</Text>
                 </View>
               )}
+              
+              {rankedBidsError && (
+                <View style={styles.rankingErrorContainer}>
+                  <Text style={styles.rankingErrorText}>⚠️ Unable to calculate winning chances</Text>
+                </View>
+              )}
+              
+              {bids.map((b, i) => {
+                const winningChance = getWinningChanceForBid(b.id, b.offeredPrice);
+                const rank = getBidRank(b.id);
+                const isTopBid = rank === 1;
+                
+                return (
+                  <View key={b.id || i} style={styles.bidCard}>
+                    <View style={styles.bidHeader}>
+                      <View style={styles.bidRankContainer}>
+                        {rank > 0 ? (
+                          <View style={[styles.rankBadge, isTopBid ? styles.topRankBadge : styles.regularRankBadge]}>
+                            <Text style={[styles.rankText, isTopBid ? styles.topRankText : styles.regularRankText]}>
+                              {rank}
+                            </Text>
+                          </View>
+                        ) : null}
+                        <Text style={styles.bidNumber}>
+                          {isTopBid ? '🥇 Top Bid' : rank > 0 ? `Rank #${rank}` : `Bid #${i + 1}`}
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.bidActions}>
+                        {winningChance > 0 ? (
+                          <View style={styles.winningChanceBadge}>
+                            <Text style={styles.winningChanceText}>{winningChance}%</Text>
+                          </View>
+                        ) : rankedBids.length > 0 ? (
+                          <View style={styles.processingBadge}>
+                            <Text style={styles.processingBadgeText}>Processing...</Text>
+                          </View>
+                        ) : null}
+                        
+                        <TouchableOpacity
+                          style={[styles.deleteButton, deletingBids[b.id] && styles.deleteButtonDisabled]}
+                          onPress={() => confirmAndDeleteBid(b.id, b.offeredPrice)}
+                          disabled={deletingBids[b.id]}
+                        >
+                          {deletingBids[b.id] ? (
+                            <ActivityIndicator size="small" color="#EF4444" />
+                          ) : (
+                            <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.bidDetails}>
+                      <View style={styles.bidPriceRow}>
+                        <Text style={styles.bidPriceLabel}>Amount</Text>
+                        <Text style={styles.bidPriceValue}>LKR {String(b.offeredPrice)}</Text>
+                      </View>
+                      
+                      <View style={styles.bidDateRow}>
+                        <Text style={styles.bidDateLabel}>Created</Text>
+                        <Text style={styles.bidDateValue}>
+                          {b.createdAt ? new Date(b.createdAt).toLocaleDateString() : ''}
+                        </Text>
+                      </View>
+                      
+                      {winningChance > 0 && (
+                        <View style={styles.winningChanceBar}>
+                          <View style={styles.winningChanceBarHeader}>
+                            <Text style={styles.winningChanceBarLabel}>Winning Probability</Text>
+                            <Text style={styles.winningChanceBarValue}>{winningChance}%</Text>
+                          </View>
+                          <View style={styles.winningChanceBarBackground}>
+                            <View 
+                              style={[
+                                styles.winningChanceBarFill,
+                                { width: `${winningChance}%` },
+                                winningChance >= 80 ? styles.winningChanceBarHigh :
+                                winningChance >= 60 ? styles.winningChanceBarMedium :
+                                winningChance >= 40 ? styles.winningChanceBarLow : styles.winningChanceBarVeryLow
+                              ]}
+                            />
+                          </View>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
             </View>
           )}
         </View>
 
-        {/* Bids Section */}
-        <Text className="font-semibold mb-2 text-[#0D47A1] text-lg">Bids</Text>
-        
-         
-         
-         {/* Bid Statistics Summary */}
-         {rankedBids.length > 0 && (
-          <View className="mb-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-blue-800 font-semibold">📈 Bid Competition Summary</Text>
-              <TouchableOpacity 
-                onPress={() => selectedRouteId && fetchRankedBids(selectedRouteId)}
-                disabled={rankedBidsLoading}
-                className="bg-blue-600 px-3 py-1 rounded"
-              >
-                <Text className="text-white text-xs font-medium">
-                  {rankedBidsLoading ? 'Refreshing...' : '🔄 Refresh'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <View className="flex-row justify-between">
-              <View>
-                <Text className="text-blue-600 text-sm">Total Bids</Text>
-                <Text className="text-blue-800 font-bold">{rankedBids.length}</Text>
-              </View>
-              <View>
-                <Text className="text-blue-600 text-sm">Highest Score</Text>
-                <Text className="text-blue-800 font-bold">
-                  {Math.max(...rankedBids.map(b => b.score)).toFixed(2)}
-                </Text>
-              </View>
-              <View>
-                <Text className="text-blue-600 text-sm">Price Range</Text>
-                <Text className="text-blue-800 font-bold">
-                  LKR {Math.min(...rankedBids.map(b => b.offeredPrice))} - {Math.max(...rankedBids.map(b => b.offeredPrice))}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-        {bidsLoading ? (
-          <View className="mb-6">
-            <ActivityIndicator size="small" color="#0D47A1" />
-          </View>
-        ) : bidsError ? (
-          <Text className="text-red-500 mb-6">{bidsError}</Text>
-        ) : bids.length === 0 ? (
-          <Text className="text-gray-600 mb-6">No bids yet.</Text>
-        ) : (
-          <View className="mb-6 bg-gray-50 rounded-lg p-4">
-            {/* Bid Rankings Header */}
-            {rankedBidsLoading ? (
-              <View className="mb-4">
-                <ActivityIndicator size="small" color="#0D47A1" />
-                <Text className="text-gray-600 text-sm mt-2">Calculating bid rankings...</Text>
-              </View>
-            ) : rankedBidsError ? (
-              <View className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
-                <Text className="text-red-600 text-sm">⚠️ Unable to calculate winning chances: {rankedBidsError}</Text>
-              </View>
-                         ) : rankedBids.length > 0 ? (
-               <View className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
-                 <Text className="text-blue-800 text-sm font-medium">📊 Bid Rankings & Winning Chances</Text>
-                 <Text className="text-blue-600 text-xs mt-1">
-                   Based on price, volume, distance, and detour factors
-                 </Text>
-                 <Text className="text-blue-600 text-xs mt-1">
-                   💡 Tap the 🗑️ icon to delete your bids
-                 </Text>
-               </View>
-             ) : null}
-            
-                         {bids.map((b, i) => {
-               console.log('Processing bid:', b);
-               const winningChance = getWinningChanceForBid(b.id, b.offeredPrice);
-               const rank = getBidRank(b.id);
-               const isTopBid = rank === 1;
-               
-               console.log(`Bid ${b.id}: rank=${rank}, winningChance=${winningChance}%`);
-               
-                               return (
-                 <View key={b.id || i} className="py-3 border-b border-gray-200 last:border-b-0">
-                   {/* Bid Header with Rank */}
-                   <View className="flex-row justify-between items-center mb-2">
-                     <View className="flex-row items-center">
-                       {rank > 0 ? (
-                         <>
-                           <View className={`w-6 h-6 rounded-full mr-2 items-center justify-center ${
-                             isTopBid ? 'bg-green-500' : 'bg-gray-300'
-                           }`}>
-                             <Text className={`text-xs font-bold ${
-                               isTopBid ? 'text-white' : 'text-gray-700'
-                             }`}>
-                               {rank}
-                             </Text>
-                           </View>
-                           <Text className="text-gray-700 font-medium">
-                             {isTopBid ? '🥇 Top Bid' : `Rank #${rank}`}
-                           </Text>
-                         </>
-                       ) : (
-                         <Text className="text-gray-700 font-medium">
-                           📊 Bid #{i + 1}
-                         </Text>
-                       )}
-                     </View>
-                     <View className="flex-row items-center space-x-2">
-                       {winningChance > 0 ? (
-                         <View className="bg-green-100 px-2 py-1 rounded">
-                           <Text className="text-green-800 text-xs font-bold">
-                             {winningChance}% chance
-                           </Text>
-                         </View>
-                       ) : rankedBids.length > 0 ? (
-                         <View className="bg-yellow-100 px-2 py-1 rounded">
-                           <Text className="text-yellow-700 text-xs">
-                             Processing...
-                           </Text>
-                         </View>
-                       ) : null}
-                       
-                       {/* Delete Button */}
-                       <TouchableOpacity
-                         onPress={() => confirmAndDeleteBid(b.id, b.offeredPrice)}
-                         disabled={deletingBids[b.id]}
-                         className={`p-1 rounded ${
-                           deletingBids[b.id] ? 'bg-gray-300' : 'bg-red-100'
-                         }`}
-                       >
-                         {deletingBids[b.id] ? (
-                           <ActivityIndicator size="small" color="#EF4444" />
-                         ) : (
-                           <Text className="text-red-600 text-xs font-bold">🗑️</Text>
-                         )}
-                       </TouchableOpacity>
-                     </View>
-                   </View>
-                   
-                   {/* Bid Details */}
-                   <View className="flex-row justify-between mb-1">
-                     <Text className="text-gray-600">Price</Text>
-                     <Text className="font-semibold text-lg">LKR {String(b.offeredPrice)}</Text>
-                   </View>
-                   
-                   <View className="flex-row justify-between mb-1">
-                     <Text className="text-gray-600">Created</Text>
-                     <Text className="text-gray-700">{b.createdAt ? new Date(b.createdAt).toLocaleString() : ''}</Text>
-                   </View>
+        {/* Bidding Section */}
+        <View style={styles.biddingSection}>
+          <Text style={styles.biddingTitle}>Place New Bid</Text>
+          
+          {selectedRouteId ? (
+            <>
+              {countdown === 'Bidding closed' ? (
+                <View style={styles.biddingStatusContainer}>
+                  <View style={styles.biddingClosedCard}>
+                    <Ionicons name="close-circle" size={24} color="#DC2626" />
+                    <Text style={styles.biddingClosedTitle}>Bidding Closed</Text>
+                    <Text style={styles.biddingClosedText}>
+                      The bidding period has ended. No new bids can be placed.
+                    </Text>
+                  </View>
                   
-                                     {/* Winning Chance Bar */}
-                   {winningChance > 0 ? (
-                     <View className="mt-2">
-                       <View className="flex-row justify-between mb-1">
-                         <Text className="text-gray-600 text-xs">Winning Probability</Text>
-                         <Text className="text-gray-600 text-xs">{winningChance}%</Text>
-                       </View>
-                       <View className="w-full bg-gray-200 rounded-full h-2">
-                         <View 
-                           className={`h-2 rounded-full ${
-                             winningChance >= 80 ? 'bg-green-500' :
-                             winningChance >= 60 ? 'bg-yellow-500' :
-                             winningChance >= 40 ? 'bg-orange-500' : 'bg-red-500'
-                           }`}
-                           style={{ width: `${winningChance}%` }}
-                         />
-                       </View>
-                     </View>
-                   ) : rankedBids.length > 0 ? (
-                     <View className="mt-2">
-                       <View className="flex-row justify-between mb-1">
-                         <Text className="text-gray-600 text-xs">Winning Probability</Text>
-                         <Text className="text-yellow-600 text-xs">Processing...</Text>
-                       </View>
-                       <View className="w-full bg-gray-200 rounded-full h-2">
-                         <View className="h-2 bg-yellow-400 rounded-full animate-pulse" style={{ width: '60%' }} />
-                       </View>
-                     </View>
-                   ) : null}
-                </View>
-              );
-            })}
-          </View>
-        )}
-
-        <Text className="font-semibold mb-4 text-[#0D47A1] text-lg">Next Steps</Text>
-        {selectedRouteId ? (
-           <View className="mb-4">
-             {/* Bidding Status */}
-             {countdown === 'Bidding closed' ? (
-               <View className="mb-4">
-                 <View className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                   <Text className="text-red-800 text-center font-medium">
-                     🚫 Bidding is now closed for this route
-                   </Text>
-                   <Text className="text-red-600 text-center text-sm mt-1">
-                     The bidding period has ended. No new bids can be placed.
-                   </Text>
-                 </View>
-                 
-                                   {/* Winning Bid Display */}
+                  {/* Winning Bid Display */}
                   {winningBid ? (
-                    <View className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                      <Text className="text-green-800 text-center font-medium mb-2">
-                        🎉 Winning Bid Selected!
+                    <View style={[styles.winningBidCard, showConfetti && styles.winningBidCardCelebration]}>
+                      <Ionicons name="trophy" size={24} color="#059669" />
+                      <Text style={styles.winningBidTitle}>
+                        {showConfetti ? '🎉🎊 You Won! 🎊🎉' : '🎉 You Won!'}
                       </Text>
-                      <Text className="text-green-700 text-center text-lg font-bold">
-                        LKR {winningBid.offeredPrice}
-                      </Text>
-                      <Text className="text-green-600 text-center text-sm mt-1">
-                        Your bid has been matched successfully
+                      <Text style={styles.winningBidAmount}>LKR {winningBid.offeredPrice}</Text>
+                      <Text style={styles.winningBidText}>
+                        {showConfetti ? 'Congratulations! Your bid has been matched successfully!' : 'Your bid has been matched successfully'}
                       </Text>
                     </View>
                   ) : requestStatus === 'MATCHED' ? (
-                    <View className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                      <Text className="text-green-800 text-center font-medium mb-2">
-                        ✅ Request Already Matched!
-                      </Text>
-                      <Text className="text-green-700 text-center text-lg font-bold">
-                        Your request has been successfully matched
-                      </Text>
-                      <Text className="text-green-600 text-center text-sm mt-1">
-                        You can proceed to payment to complete the booking
-                      </Text>
+                    <View style={styles.matchedCard}>
+                      <Ionicons name="checkmark-circle" size={24} color="#059669" />
+                      <Text style={styles.matchedTitle}>✅ Request Matched!</Text>
+                      <Text style={styles.matchedText}>Your request has been successfully matched</Text>
                     </View>
                   ) : rankedBids.length > 0 ? (
-                    <View className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                      <Text className="text-yellow-800 text-center font-medium">
-                        ⏳ Processing Winning Bid...
-                      </Text>
-                      <Text className="text-yellow-600 text-center text-sm mt-1">
-                        Please wait while we select the winning bid
-                      </Text>
+                    <View style={styles.processingCard}>
+                      <Ionicons name="hourglass" size={24} color="#D97706" />
+                      <Text style={styles.processingTitle}>⏳ Processing...</Text>
+                      <Text style={styles.processingStatusText}>Please wait while we select the winning bid</Text>
                     </View>
                   ) : (
-                    <View className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
-                      <Text className="text-gray-800 text-center font-medium">
-                        📊 No Bids Available
-                      </Text>
-                      <Text className="text-gray-600 text-center text-sm mt-1">
-                        No bids were placed for this request
-                      </Text>
+                    <View style={styles.noBidsCard}>
+                      <Ionicons name="pricetag-outline" size={24} color="#6B7280" />
+                      <Text style={styles.noBidsTitle}>📊 No Bids Available</Text>
+                      <Text style={styles.noBidsStatusText}>No bids were placed for this request</Text>
                     </View>
                   )}
-                 
-                                   {/* Go to Payment Button */}
+                  
+                  {/* Go to Payment Button */}
                   {(winningBid || requestStatus === 'MATCHED') && (
                     <TouchableOpacity
-                      className="bg-green-600 py-4 rounded-lg mb-4"
+                      style={styles.paymentButton}
                       onPress={() => handleProceedToPayment(winningBid?.offeredPrice || 0, winningBid?.id)}
                     >
-                      <Text className="text-white text-center font-semibold text-lg">
-                        💳 Go to Payment - LKR {winningBid?.offeredPrice || 'Amount to be determined'}
+                      <Ionicons name="card" size={20} color="white" />
+                      <Text style={styles.paymentButtonText}>
+                        Go to Payment - LKR {winningBid?.offeredPrice || 'Amount to be determined'}
                       </Text>
                     </TouchableOpacity>
                   )}
-               </View>
-             ) : (
-               <>
-                 <Text className="text-gray-700 mb-2 text-base font-medium">Your Bid Amount (LKR)</Text>
-                 {params.maxBudget && (
-                   <Text className="text-blue-600 mb-2 text-sm">💡 Your max budget: LKR {params.maxBudget} (you can bid any amount up to this)</Text>
-                 )}
-                 <View className="flex-row space-x-2">
-                   <TextInput
-                     value={bidPrice}
-                     onChangeText={setBidPrice}
-                     keyboardType="numeric"
-                     placeholder="Enter your maximum bid amount"
-                     placeholderTextColor="#9CA3AF"
-                     className="flex-1 bg-white border border-gray-300 rounded-lg px-4 py-3 text-base"
-                   />
-                   <TouchableOpacity
-                     onPress={handleAddBid}
-                     disabled={isCreatingBid}
-                     className={`px-4 py-3 rounded-lg justify-center ${isCreatingBid ? 'bg-gray-400' : 'bg-[#FF8C00]'}`}
-                   >
-                     {isCreatingBid ? (
-                       <Text className="text-white font-semibold">Adding...</Text>
-                     ) : (
-                       <Text className="text-white font-semibold">Add</Text>
-                     )}
-                   </TouchableOpacity>
-                 </View>
-               </>
-             )}
-           </View>
-         ) : (
-           <View className="mb-4">
-             <Text className="text-gray-600">Bidding is unavailable because this request is not linked to a specific route.</Text>
-           </View>
-         )}
+                </View>
+              ) : (
+                <View style={styles.bidInputContainer}>
+                  <View style={styles.bidInputHeader}>
+                    <Text style={styles.bidInputLabel}>Your Bid Amount (LKR)</Text>
+                    {params.maxBudget && (
+                      <Text style={styles.budgetHint}>
+                        💡 Max budget: LKR {params.maxBudget}
+                      </Text>
+                    )}
+                  </View>
+                  
+                  <View style={styles.bidInputRow}>
+                    <TextInput
+                      style={styles.bidInput}
+                      value={bidPrice}
+                      onChangeText={setBidPrice}
+                      keyboardType="numeric"
+                      placeholder="Enter bid amount"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                    <TouchableOpacity
+                      style={[styles.addBidButton, isCreatingBid && styles.addBidButtonDisabled]}
+                      onPress={handleAddBid}
+                      disabled={isCreatingBid}
+                    >
+                      {isCreatingBid ? (
+                        <ActivityIndicator size="small" color="white" />
+                      ) : (
+                        <>
+                          <Ionicons name="add" size={20} color="white" />
+                          <Text style={styles.addBidButtonText}>Add</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </>
+          ) : (
+            <View style={styles.noRouteContainer}>
+              <Ionicons name="warning" size={24} color="#D97706" />
+              <Text style={styles.noRouteText}>
+                Bidding is unavailable because this request is not linked to a specific route.
+              </Text>
+            </View>
+          )}
+        </View>
 
         
-        
-        <View className="flex-row space-x-3 mb-6">
+        {/* Action Buttons */}
+        <View style={styles.actionButtonsContainer}>
           <TouchableOpacity
-            className="flex-1 bg-[#0D47A1] py-4 rounded-lg"
+            style={styles.actionButton}
             onPress={() => router.push('/pages/customer/MyBids')}
           >
-            <Text className="text-white text-center font-semibold text-lg">View Bids</Text>
+            <Ionicons name="list" size={20} color="white" />
+            <Text style={styles.actionButtonText}>View All Bids</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
-            className="flex-1 bg-red-600 py-4 rounded-lg"
+            style={[styles.actionButton, styles.disputeButton]}
             onPress={() => router.push({
               pathname: '/pages/customer/DisputeForm',
               params: { 
@@ -1042,13 +1058,759 @@ export default function RequestConfirmation() {
               }
             })}
           >
-            <Text className="text-white text-center font-semibold text-lg">Open Dispute</Text>
+            <Ionicons name="warning" size={20} color="white" />
+            <Text style={styles.actionButtonText}>Open Dispute</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
       
       {/* Bottom Navigation Footer */}
       <CustomerFooter activeTab="home" />
+      
+      {/* Confetti Effect */}
+      {showConfetti && (
+        <ConfettiCannon
+          ref={confettiRef}
+          count={200}
+          origin={{ x: -10, y: 0 }}
+          fadeOut={true}
+          autoStart={true}
+          colors={['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F']}
+          explosionSpeed={350}
+          fallSpeed={2300}
+        />
+      )}
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    paddingBottom: 100,
+  },
+  
+  // Header styles
+  header: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  
+  // Auto-bid notification
+  autoBidCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  autoBidText: {
+    marginLeft: 8,
+    color: '#059669',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  
+  // Timer styles
+  timerCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    borderWidth: 1,
+  },
+  timerCardActive: {
+    backgroundColor: '#FEF3C7',
+    borderColor: '#FCD34D',
+  },
+  timerCardWarning: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#FCA5A5',
+  },
+  timerCardClosed: {
+    backgroundColor: '#FEE2E2',
+    borderColor: '#FCA5A5',
+  },
+  timerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  timerTitle: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  timerTitleActive: {
+    color: '#D97706',
+  },
+  timerTitleWarning: {
+    color: '#DC2626',
+  },
+  timerTitleClosed: {
+    color: '#DC2626',
+  },
+  timerValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    fontFamily: 'monospace',
+    marginBottom: 4,
+  },
+  timerValueActive: {
+    color: '#D97706',
+  },
+  timerValueWarning: {
+    color: '#DC2626',
+  },
+  timerValueClosed: {
+    color: '#DC2626',
+  },
+  timerSubtext: {
+    fontSize: 12,
+  },
+  timerSubtextActive: {
+    color: '#B45309',
+  },
+  timerSubtextWarning: {
+    color: '#B91C1C',
+  },
+  timerSubtextClosed: {
+    color: '#B91C1C',
+  },
+  
+  // Parcel details toggle
+  parcelToggle: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  parcelToggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  parcelToggleText: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  
+  // Parcel details card
+  parcelDetailsCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  parcelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  parcelLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  parcelValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1F2937',
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 12,
+  },
+  contactSection: {
+    marginBottom: 12,
+  },
+  contactTitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  contactName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1F2937',
+  },
+  contactPhone: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  routeDetailsSection: {
+    marginTop: 8,
+  },
+  routeDetailsTitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  routeDetail: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  
+  // Bids section
+  bidsSection: {
+    marginBottom: 24,
+  },
+  bidsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  bidsHeaderButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bidsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  refreshButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  testConfettiButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  testConfettiButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  
+  // Bid stats
+  bidStatsCard: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+  },
+  bidStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  bidStatItem: {
+    alignItems: 'center',
+  },
+  bidStatLabel: {
+    fontSize: 12,
+    color: '#3B82F6',
+    marginBottom: 4,
+  },
+  bidStatValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#1E40AF',
+  },
+  
+  // Loading and error states
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginLeft: 8,
+    color: '#6B7280',
+    fontSize: 14,
+  },
+  errorContainer: {
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: 14,
+  },
+  noBidsContainer: {
+    alignItems: 'center',
+    padding: 32,
+  },
+  noBidsText: {
+    marginTop: 8,
+    color: '#6B7280',
+    fontSize: 16,
+  },
+  
+  // Ranking states
+  rankingLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  rankingLoadingText: {
+    marginLeft: 8,
+    color: '#3B82F6',
+    fontSize: 12,
+  },
+  rankingErrorContainer: {
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    marginBottom: 12,
+  },
+  rankingErrorText: {
+    color: '#DC2626',
+    fontSize: 12,
+  },
+  
+  // Bids list
+  bidsList: {
+    gap: 12,
+  },
+  bidCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  bidHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  bidRankContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rankBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  topRankBadge: {
+    backgroundColor: '#059669',
+  },
+  regularRankBadge: {
+    backgroundColor: '#D1D5DB',
+  },
+  rankText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  topRankText: {
+    color: 'white',
+  },
+  regularRankText: {
+    color: '#374151',
+  },
+  bidNumber: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  bidActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  winningChanceBadge: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  winningChanceText: {
+    color: '#059669',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  processingBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  processingBadgeText: {
+    color: '#D97706',
+    fontSize: 12,
+  },
+  deleteButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: '#FEE2E2',
+  },
+  deleteButtonDisabled: {
+    backgroundColor: '#F3F4F6',
+  },
+  
+  // Bid details
+  bidDetails: {
+    gap: 8,
+  },
+  bidPriceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bidPriceLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  bidPriceValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  bidDateRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bidDateLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  bidDateValue: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  
+  // Winning chance bar
+  winningChanceBar: {
+    marginTop: 8,
+  },
+  winningChanceBarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  winningChanceBarLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  winningChanceBarValue: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  winningChanceBarBackground: {
+    height: 6,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  winningChanceBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  winningChanceBarHigh: {
+    backgroundColor: '#059669',
+  },
+  winningChanceBarMedium: {
+    backgroundColor: '#D97706',
+  },
+  winningChanceBarLow: {
+    backgroundColor: '#EA580C',
+  },
+  winningChanceBarVeryLow: {
+    backgroundColor: '#DC2626',
+  },
+  
+  // Bidding section
+  biddingSection: {
+    marginBottom: 24,
+  },
+  biddingTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  
+  // Bidding status cards
+  biddingStatusContainer: {
+    gap: 16,
+  },
+  biddingClosedCard: {
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  biddingClosedTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#DC2626',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  biddingClosedText: {
+    fontSize: 14,
+    color: '#B91C1C',
+    textAlign: 'center',
+  },
+  winningBidCard: {
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  winningBidTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#059669',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  winningBidAmount: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#047857',
+    marginBottom: 4,
+  },
+  winningBidText: {
+    fontSize: 14,
+    color: '#065F46',
+    textAlign: 'center',
+  },
+  winningBidCardCelebration: {
+    transform: [{ scale: 1.05 }],
+    shadowColor: '#059669',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  matchedCard: {
+    alignItems: 'center',
+    backgroundColor: '#DCFCE7',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  matchedTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#059669',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  matchedText: {
+    fontSize: 14,
+    color: '#065F46',
+    textAlign: 'center',
+  },
+  processingCard: {
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  processingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#D97706',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  processingStatusText: {
+    fontSize: 14,
+    color: '#B45309',
+    textAlign: 'center',
+  },
+  noBidsCard: {
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  noBidsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  noBidsStatusText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  
+  // Payment button
+  paymentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#059669',
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  paymentButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // Bid input
+  bidInputContainer: {
+    gap: 12,
+  },
+  bidInputHeader: {
+    gap: 4,
+  },
+  bidInputLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  budgetHint: {
+    fontSize: 12,
+    color: '#3B82F6',
+  },
+  bidInputRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  bidInput: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  addBidButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EA580C',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 4,
+  },
+  addBidButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  addBidButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  
+  // No route
+  noRouteContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    gap: 12,
+  },
+  noRouteText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#B45309',
+  },
+  
+  // Action buttons
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2563EB',
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  disputeButton: {
+    backgroundColor: '#DC2626',
+  },
+  actionButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});

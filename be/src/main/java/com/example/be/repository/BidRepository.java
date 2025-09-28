@@ -17,6 +17,10 @@ public interface BidRepository extends JpaRepository<Bid, UUID> {
     void updateBidStatus(@Param("bidId") UUID bidId, @Param("status") String status);
 
     @Modifying
+    @Query(value = "UPDATE parcel_requests SET status = CAST(:status AS parcel_request_status), updated_at = NOW() WHERE id = (SELECT request_id FROM bids WHERE id = :bidId)", nativeQuery = true)
+    void updateParcelRequestStatusForBid(@Param("bidId") UUID bidId, @Param("status") String status);
+
+    @Modifying
     @Query(value = "INSERT INTO bids (request_id, route_id, start_index, end_index, offered_price, status, created_at, updated_at) " +
             "VALUES (:requestId, :routeId, :startIndex, :endIndex, :offeredPrice, CAST(:status AS bid_status), NOW(), NOW())", nativeQuery = true)
     void insertBid(
@@ -94,7 +98,7 @@ public interface BidRepository extends JpaRepository<Bid, UUID> {
             "DELETE FROM earnings WHERE bid_id = :bidId; " +
             "DELETE FROM conversations WHERE bid_id = :bidId; " +
             "DELETE FROM delivery_tracking WHERE bid_id = :bidId; " +
-            "DELETE FROM disputes WHERE related_bid_id = :bidId; " +
+            "DELETE FROM disputes WHERE parcel_request_id = (SELECT request_id FROM bids WHERE id = :bidId); " +
             "DELETE FROM bids WHERE id = :bidId;", nativeQuery = true)
     void deleteBidWithCascade(@Param("bidId") UUID bidId);
     
@@ -102,4 +106,9 @@ public interface BidRepository extends JpaRepository<Bid, UUID> {
      * Find bids by route ID and status for bid closing service
      */
     List<Bid> findByRouteIdAndStatus(UUID routeId, com.example.be.types.BidStatus status);
+    
+    /**
+     * Find bids by request ID
+     */
+    List<Bid> findByRequestId(UUID requestId);
 }

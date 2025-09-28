@@ -82,4 +82,27 @@ public class BidClosingController {
                     .body(errorResponse);
         }
     }
+    
+    /**
+     * Diagnostic endpoint to check routes and bids status
+     */
+    @GetMapping("/diagnostic")
+    public ResponseEntity<?> diagnostic() {
+        log.info("GET /api/admin/bid-closing/diagnostic - Running bid closing diagnostic");
+        
+        try {
+            return bidClosingService.runDiagnostic();
+        } catch (Exception e) {
+            log.error("Error running diagnostic: ", e);
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", java.time.LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            
+            return ResponseEntity.status(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(errorResponse);
+        }
+    }
 }

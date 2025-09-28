@@ -133,7 +133,11 @@ public class BidClosingService {
         try {
             // Use native SQL to update bid status to avoid enum issues
             bidRepository.updateBidStatus(bidId, "ACCEPTED");
-            log.info("Successfully accepted winning bid: {}", bidId);
+            
+            // Also update the associated parcel request status to MATCHED
+            bidRepository.updateParcelRequestStatusForBid(bidId, "MATCHED");
+            
+            log.info("Successfully accepted winning bid: {} and updated parcel request status to MATCHED", bidId);
         } catch (Exception e) {
             log.error("Error accepting winning bid {}: ", bidId, e);
             throw e;
@@ -177,5 +181,79 @@ public class BidClosingService {
                 .orElseThrow(() -> new RuntimeException("Route not found: " + routeId));
         
         processRouteBidClosing(route);
+    }
+    
+    /**
+     * Diagnostic method to check the current state of routes and bids
+     */
+    public org.springframework.http.ResponseEntity<?> runDiagnostic() {
+        log.info("Running bid closing diagnostic...");
+        
+        try {
+            java.util.Map<String, Object> diagnostic = new java.util.HashMap<>();
+            diagnostic.put("timestamp", java.time.LocalDateTime.now());
+            diagnostic.put("currentTime", ZonedDateTime.now());
+            diagnostic.put("threeHoursFromNow", ZonedDateTime.now().plusHours(3));
+            
+            // Check routes that should have bidding closed
+            List<ReturnRoute> routesToClose = routeRepository.findRoutesForBidClosing(ZonedDateTime.now().plusHours(3));
+            diagnostic.put("routesNeedingBidClosing", routesToClose.size());
+            
+            java.util.List<java.util.Map<String, Object>> routeDetails = new java.util.ArrayList<>();
+            for (ReturnRoute route : routesToClose) {
+                java.util.Map<String, Object> routeInfo = new java.util.HashMap<>();
+                routeInfo.put("routeId", route.getId());
+                routeInfo.put("departureTime", route.getDepartureTime());
+                routeInfo.put("status", route.getStatus());
+                
+                // Check if bidding is already closed
+                List<Bid> acceptedBids = bidRepository.findByRouteIdAndStatusNative(route.getId(), "ACCEPTED");
+                routeInfo.put("hasAcceptedBids", !acceptedBids.isEmpty());
+                routeInfo.put("acceptedBidsCount", acceptedBids.size());
+                
+                // Check pending bids
+                List<Bid> pendingBids = bidRepository.findByRouteIdAndStatusNative(route.getId(), "PENDING");
+                routeInfo.put("pendingBidsCount", pendingBids.size());
+                
+                // Check all bids
+                List<Bid> allBids = bidRepository.findByRouteIdAndStatusNative(route.getId(), null);
+                routeInfo.put("totalBidsCount", allBids.size());
+                
+                routeDetails.add(routeInfo);
+            }
+            diagnostic.put("routeDetails", routeDetails);
+            
+            // Check all routes with bids
+            java.util.List<ReturnRoute> allRoutes = routeRepository.findAll();
+            java.util.List<java.util.Map<String, Object>> allRouteStatus = new java.util.ArrayList<>();
+            
+            for (ReturnRoute route : allRoutes) {
+                java.util.Map<String, Object> status = new java.util.HashMap<>();
+                status.put("routeId", route.getId());
+                status.put("departureTime", route.getDepartureTime());
+                status.put("status", route.getStatus());
+                
+                List<Bid> allBids = bidRepository.findByRouteIdAndStatusNative(route.getId(), null);
+                status.put("totalBids", allBids.size());
+                
+                List<Bid> pendingBids = bidRepository.findByRouteIdAndStatusNative(route.getId(), "PENDING");
+                status.put("pendingBids", pendingBids.size());
+                
+                List<Bid> acceptedBids = bidRepository.findByRouteIdAndStatusNative(route.getId(), "ACCEPTED");
+                status.put("acceptedBids", acceptedBids.size());
+                
+                List<Bid> rejectedBids = bidRepository.findByRouteIdAndStatusNative(route.getId(), "REJECTED");
+                status.put("rejectedBids", rejectedBids.size());
+                
+                allRouteStatus.add(status);
+            }
+            diagnostic.put("allRoutesStatus", allRouteStatus);
+            
+            return org.springframework.http.ResponseEntity.ok(diagnostic);
+            
+        } catch (Exception e) {
+            log.error("Error running diagnostic: ", e);
+            throw e;
+        }
     }
 }

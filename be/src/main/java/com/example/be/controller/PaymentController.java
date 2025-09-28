@@ -1,7 +1,12 @@
 package com.example.be.controller;
 
 import com.example.be.dto.PayHereResponseDto;
+import com.example.be.model.Bid;
+import com.example.be.model.Payment;
+import com.example.be.repository.BidRepository;
+import com.example.be.repository.PaymentRepository;
 import com.example.be.service.PayHereService;
+import com.example.be.types.PaymentStatusEnum;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -29,6 +35,8 @@ public class PaymentController {
 
     private final PayHereService payHereService;
     private final EntityManager entityManager;
+    private final BidRepository bidRepository;
+    private final PaymentRepository paymentRepository;
 
     /**
      * Get PayHere configuration
@@ -287,6 +295,25 @@ public class PaymentController {
             UUID bidIdUuid = UUID.fromString(bidId);
             UUID userIdUuid = UUID.fromString(userId);
             
+            // Check if payment already exists for this bid
+            Optional<Payment> existingPayment = paymentRepository.findByBidId(bidIdUuid);
+            if (existingPayment.isPresent()) {
+                Payment payment = existingPayment.get();
+                log.info("Payment already exists for bid {} with status: {}", bidId, payment.getPaymentStatus());
+                
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("message", "Payment already exists for this bid");
+                response.put("data", Map.of(
+                    "paymentId", payment.getId().toString(),
+                    "paymentStatus", payment.getPaymentStatus().toString(),
+                    "amount", payment.getAmount(),
+                    "transactionId", payment.getTransactionId(),
+                    "isPaid", payment.getPaymentStatus() == PaymentStatusEnum.completed
+                ));
+                return ResponseEntity.ok(response);
+            }
+            
             // Generate transaction IDs
             String orderId = "BYPASS_" + System.currentTimeMillis() + "_" + bidIdUuid.toString().substring(0, 8);
             String transactionId = "BYPASS_" + System.currentTimeMillis();
@@ -362,7 +389,7 @@ public class PaymentController {
     }
 
     /**
-     * Check payment status for a specific bid using native SQL
+     * Check payment status for a specific bid using pure native SQL
      * GET /api/payments/bid/{bidId}/status
      */
     @GetMapping("/bid/{bidId}/status")
@@ -370,16 +397,28 @@ public class PaymentController {
         try {
             log.info("Checking payment status for bid: {}", bidId);
             
-            // Use native SQL to avoid Hibernate enum issues
-            String sql = "SELECT id, user_id, bid_id, amount, currency, payment_method, " +
-                        "payment_status::text, transaction_id, gateway_response, created_at, updated_at " +
-                        "FROM payments WHERE bid_id = ?";
-            
-            Query query = entityManager.createNativeQuery(sql);
-            query.setParameter(1, bidId);
+            // Use pure native SQL query
+            String sql = """
+                SELECT 
+                    p.id,
+                    p.user_id,
+                    p.bid_id,
+                    p.amount,
+                    p.currency,
+                    p.payment_method,
+                    p.payment_status::text,
+                    p.transaction_id,
+                    p.gateway_response,
+                    p.created_at,
+                    p.updated_at
+                FROM payments p
+                WHERE p.bid_id = ?
+                """;
             
             @SuppressWarnings("unchecked")
-            List<Object[]> results = query.getResultList();
+            List<Object[]> results = entityManager.createNativeQuery(sql)
+                .setParameter(1, bidId)
+                .getResultList();
             
             if (!results.isEmpty()) {
                 Object[] row = results.get(0);
@@ -427,13 +466,14 @@ public class PaymentController {
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
             response.put("message", "Error checking payment status: " + e.getMessage());
+            response.put("error", e.getClass().getSimpleName());
             
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
 
     /**
-     * Check payment status for bids by request ID using native SQL
+     * Check payment status for bids by request ID using JPA repositories
      * GET /api/payments/request/{requestId}/status
      */
     @GetMapping("/request/{requestId}/status")
@@ -441,18 +481,70 @@ public class PaymentController {
         try {
             log.info("Checking payment status for request: {}", requestId);
             
-            // Convert requestId to UUID
-            UUID requestIdUuid = UUID.fromString(requestId);
+            // Validate UUID format
+            UUID requestIdUuid;
+            try {
+                requestIdUuid = UUID.fromString(requestId);
+            } catch (IllegalArgumentException e) {
+                log.error("Invalid UUID format for requestId: {}", requestId);
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Invalid request ID format: " + requestId);
+                return ResponseEntity.badRequest().body(response);
+            }
             
-            // First, try to get bids for this request to see if any exist
-            String bidsSql = "SELECT id, offered_price, status FROM bids WHERE request_id = ?";
-            Query bidsQuery = entityManager.createNativeQuery(bidsSql);
-            bidsQuery.setParameter(1, requestIdUuid);
+            // Get bids for this request using JPA repository
+            List<Bid> bids = bidRepository.findByRequestId(requestIdUuid);
+            log.info("Found {} bids for request: {}", bids.size(), requestId);
             
+            // Debug: Also try to find all bids using native SQL to see if there are more
+            try {
+                String sql = "SELECT id, request_id, route_id, offered_price, status FROM bids WHERE request_id = ?";
             @SuppressWarnings("unchecked")
-            List<Object[]> bidsResults = bidsQuery.getResultList();
+                List<Object[]> nativeResults = entityManager.createNativeQuery(sql)
+                    .setParameter(1, requestIdUuid)
+                    .getResultList();
+                log.info("Native SQL found {} bids for request: {}", nativeResults.size(), requestId);
+                for (Object[] row : nativeResults) {
+                    log.info("Native bid: ID={}, RequestID={}, RouteID={}, Price={}, Status={}", 
+                        row[0], row[1], row[2], row[3], row[4]);
+                }
+            } catch (Exception e) {
+                log.error("Error in native SQL query: {}", e.getMessage());
+            }
             
-            if (bidsResults.isEmpty()) {
+            // Debug: Log all bid IDs
+            for (Bid bid : bids) {
+                log.info("Bid ID: {}, Status: {}, Offered Price: {}", bid.getId(), bid.getStatus(), bid.getOfferedPrice());
+            }
+            
+            // Debug: Check if payment exists by direct ID lookup
+            try {
+                UUID paymentId = UUID.fromString("1f0bc0c9-c509-418d-a8b8-ecb300fbf5d2");
+                Optional<Payment> directPayment = paymentRepository.findById(paymentId);
+                if (directPayment.isPresent()) {
+                    Payment p = directPayment.get();
+                    log.info("Direct payment lookup found: ID={}, Status={}, BidID={}, Amount={}", 
+                        p.getId(), p.getPaymentStatus(), p.getBid() != null ? p.getBid().getId() : "NULL", p.getAmount());
+                    
+                    // Check if this bid belongs to the current request
+                    if (p.getBid() != null) {
+                        log.info("Payment bid belongs to request: {}", p.getBid().getRequest() != null ? p.getBid().getRequest().getId() : "NULL");
+                        log.info("Payment bid belongs to route: {}", p.getBid().getRoute() != null ? p.getBid().getRoute().getId() : "NULL");
+                        
+                        // Check if this is the route with many bids
+                        if (p.getBid().getRoute() != null && p.getBid().getRoute().getId().toString().equals("1cc88146-8e0b-41fa-a81a-17168a1407ec")) {
+                            log.info("*** PAYMENT FOUND FOR ROUTE WITH MANY BIDS ***");
+                        }
+                    }
+                } else {
+                    log.info("Direct payment lookup failed for ID: {}", paymentId);
+                }
+            } catch (Exception e) {
+                log.error("Error in direct payment lookup: {}", e.getMessage());
+            }
+            
+            if (bids.isEmpty()) {
                 log.info("No bids found for request: {}", requestId);
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", true);
@@ -464,42 +556,38 @@ public class PaymentController {
                 return ResponseEntity.ok(response);
             }
             
-            // Now try to get payments for these bids
+            // Process each bid and check for payments
             List<Map<String, Object>> paymentStatuses = new ArrayList<>();
             
-            for (Object[] bidRow : bidsResults) {
-                String bidId = bidRow[0].toString();
-                BigDecimal offeredPrice = (BigDecimal) bidRow[1];
-                String bidStatus = bidRow[2].toString();
-                
-                // Try to find payment for this bid
-                String paymentSql = "SELECT id, user_id, bid_id, amount, currency, payment_method, " +
-                            "payment_status::text, transaction_id, gateway_response, created_at, updated_at " +
-                            "FROM payments WHERE bid_id = ?";
-                
-                Query paymentQuery = entityManager.createNativeQuery(paymentSql);
-                paymentQuery.setParameter(1, UUID.fromString(bidId));
-                
-                @SuppressWarnings("unchecked")
-                List<Object[]> paymentResults = paymentQuery.getResultList();
-                
+            for (Bid bid : bids) {
                 Map<String, Object> status = new HashMap<>();
-                status.put("bidId", bidId);
-                status.put("offeredPrice", offeredPrice);
-                status.put("bidStatus", bidStatus);
+                status.put("bidId", bid.getId().toString());
+                status.put("offeredPrice", bid.getOfferedPrice());
+                status.put("bidStatus", bid.getStatus().toString());
                 
-                if (!paymentResults.isEmpty()) {
-                    Object[] paymentRow = paymentResults.get(0);
-                    status.put("paymentStatus", paymentRow[6] != null ? paymentRow[6].toString() : "UNKNOWN");
-                    status.put("amount", paymentRow[3]);
-                    status.put("transactionId", paymentRow[7]);
-                    status.put("orderId", paymentRow[8] != null ? extractOrderIdFromGatewayResponse(paymentRow[8].toString()) : null);
-                    status.put("paid", "completed".equals(paymentRow[6]));
-                    status.put("paymentDate", paymentRow[10]);
+                // Check if there's a payment for this bid
+                log.info("Looking for payment for bid ID: {}", bid.getId());
+                Optional<Payment> paymentOpt = paymentRepository.findByBidId(bid.getId());
+                
+                if (paymentOpt.isPresent()) {
+                    log.info("Found payment for bid ID: {}, status: {}", bid.getId(), paymentOpt.get().getPaymentStatus());
+                    Payment payment = paymentOpt.get();
+                    status.put("paymentStatus", payment.getPaymentStatus().toString());
+                    status.put("amount", payment.getAmount());
+                    status.put("currency", payment.getCurrency());
+                    status.put("paymentMethod", payment.getPaymentMethod());
+                    status.put("transactionId", payment.getTransactionId());
+                    status.put("orderId", payment.getGatewayResponse() != null ? 
+                        extractOrderIdFromGatewayResponse(payment.getGatewayResponse().toString()) : null);
+                    status.put("paid", payment.getPaymentStatus() == PaymentStatusEnum.completed);
+                    status.put("paymentDate", payment.getCreatedAt());
                 } else {
                     // No payment found for this bid
+                    log.info("No payment found for bid ID: {}", bid.getId());
                     status.put("paymentStatus", "NOT_FOUND");
-                    status.put("amount", offeredPrice);
+                    status.put("amount", bid.getOfferedPrice());
+                    status.put("currency", "LKR");
+                    status.put("paymentMethod", null);
                     status.put("transactionId", null);
                     status.put("orderId", null);
                     status.put("paid", false);
@@ -518,22 +606,18 @@ public class PaymentController {
                 .mapToInt(s -> (Boolean) s.get("paid") ? 1 : 0)
                 .sum());
             
+            log.info("Successfully processed payment status for request: {} with {} payment statuses", 
+                requestId, paymentStatuses.size());
+            
             return ResponseEntity.ok(response);
             
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid UUID format for requestId: {}", requestId);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", false);
-            response.put("message", "Invalid request ID format");
-            
-            return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
             log.error("Error checking payment status for request: {}", requestId, e);
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
             response.put("message", "Failed to check payment status: " + e.getMessage());
+            response.put("error", e.getClass().getSimpleName());
             
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }

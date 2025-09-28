@@ -159,7 +159,7 @@ public class BidService {
             
             // Calculate statistics for this parcel request
             java.math.BigDecimal highestBid = java.math.BigDecimal.ZERO;
-            java.math.BigDecimal lowestBid = null;
+            java.math.BigDecimal lowestBid = java.math.BigDecimal.ZERO; // Initialize to ZERO instead of null
             java.math.BigDecimal totalBidAmount = java.math.BigDecimal.ZERO;
             
             for (BidDto bid : requestBids) {
@@ -167,7 +167,7 @@ public class BidService {
                     if (highestBid.compareTo(bid.getOfferedPrice()) < 0) {
                         highestBid = bid.getOfferedPrice();
                     }
-                    if (lowestBid == null || lowestBid.compareTo(bid.getOfferedPrice()) > 0) {
+                    if (lowestBid.compareTo(java.math.BigDecimal.ZERO) == 0 || lowestBid.compareTo(bid.getOfferedPrice()) > 0) {
                         lowestBid = bid.getOfferedPrice();
                     }
                     totalBidAmount = totalBidAmount.add(bid.getOfferedPrice());
@@ -186,7 +186,7 @@ public class BidService {
         
         // Calculate overall statistics
         java.math.BigDecimal overallHighestBid = java.math.BigDecimal.ZERO;
-        java.math.BigDecimal overallLowestBid = null;
+        java.math.BigDecimal overallLowestBid = java.math.BigDecimal.ZERO; // Initialize to ZERO instead of null
         java.math.BigDecimal overallTotalBidAmount = java.math.BigDecimal.ZERO;
         int totalBidsCount = 0;
         
@@ -195,7 +195,7 @@ public class BidService {
                 if (overallHighestBid.compareTo(bid.getOfferedPrice()) < 0) {
                     overallHighestBid = bid.getOfferedPrice();
                 }
-                if (overallLowestBid == null || overallLowestBid.compareTo(bid.getOfferedPrice()) > 0) {
+                if (overallLowestBid.compareTo(java.math.BigDecimal.ZERO) == 0 || overallLowestBid.compareTo(bid.getOfferedPrice()) > 0) {
                     overallLowestBid = bid.getOfferedPrice();
                 }
                 overallTotalBidAmount = overallTotalBidAmount.add(bid.getOfferedPrice());

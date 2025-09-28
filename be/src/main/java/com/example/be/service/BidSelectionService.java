@@ -53,9 +53,15 @@ public class BidSelectionService {
             .orElseThrow(() -> new RuntimeException("Route not found: " + routeId));
         
         // 1) figure out the min / max prices across *all* bids
-        double minPrice = resp.getLowestBid().doubleValue();
-        double maxPrice = resp.getHighestBid().doubleValue();
+        double minPrice = resp.getLowestBid() != null ? resp.getLowestBid().doubleValue() : 0.0;
+        double maxPrice = resp.getHighestBid() != null ? resp.getHighestBid().doubleValue() : 0.0;
         double totalDist = 100.0; // Default distance - you can enhance this with actual route calculation
+        
+        // Handle case where there are no bids or all bids have zero price
+        if (minPrice == 0.0 && maxPrice == 0.0) {
+            log.warn("No valid bids found for route: {} - returning empty list", routeId);
+            return new ArrayList<>();
+        }
         
         log.info("Price range: min={}, max={}, total distance={}", minPrice, maxPrice, totalDist);
 
@@ -121,9 +127,15 @@ public class BidSelectionService {
             .orElseThrow(() -> new RuntimeException("Route not found: " + routeId));
         
         // 1) figure out the min / max prices across *all* bids
-        double minPrice = resp.getLowestBid().doubleValue();
-        double maxPrice = resp.getHighestBid().doubleValue();
+        double minPrice = resp.getLowestBid() != null ? resp.getLowestBid().doubleValue() : 0.0;
+        double maxPrice = resp.getHighestBid() != null ? resp.getHighestBid().doubleValue() : 0.0;
         double totalDist = 100.0; // Default distance - you can enhance this with actual route calculation
+        
+        // Handle case where there are no bids or all bids have zero price
+        if (minPrice == 0.0 && maxPrice == 0.0) {
+            log.warn("No valid bids found for route: {} - returning empty list", routeId);
+            return new ArrayList<>();
+        }
         
         log.info("Price range: min={}, max={}, total distance={}", minPrice, maxPrice, totalDist);
 
