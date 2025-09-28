@@ -242,11 +242,11 @@ const Profile = () => {
               <Image
                 source={{ uri: profileData.profile_photo_url }}
                 className="w-24 h-24 rounded-full"
-                defaultSource={require('../../../assets/images/profile_placeholder.jpeg')}
+                defaultSource={require('../../../assets/images/profile_placeholder.jpg')}
               />
             ) : (
               <Image
-                source={require('../../../assets/images/profile_placeholder.jpeg')}
+                source={require('../../../assets/images/profile_placeholder.jpg')}
                 className="w-24 h-24 rounded-full"
               />
             )}
@@ -344,24 +344,7 @@ const Profile = () => {
           </View>
         </PrimaryCard>
 
-        {/* Debug Section - Remove in production */}
-        {__DEV__ && (
-          <>
-            <Text className="text-lg font-bold text-gray-800 mb-3 mt-2">Debug Information</Text>
-            <PrimaryCard className="mb-4 p-4">
-              <Text className="text-sm text-gray-600 mb-2">Raw Profile Data:</Text>
-              <Text className="text-xs text-gray-500 font-mono">
-                {JSON.stringify(profileData, null, 2)}
-              </Text>
-              <TouchableOpacity 
-                onPress={fetchUserProfile}
-                className="bg-blue-500 px-4 py-2 rounded-lg mt-3 self-start"
-              >
-                <Text className="text-white text-sm font-medium">Refresh Data</Text>
-              </TouchableOpacity>
-            </PrimaryCard>
-          </>
-        )}
+
 
         {/* App Preferences Section */}
         <Text className="text-lg font-bold text-gray-800 mb-3 mt-2">App Preferences</Text>

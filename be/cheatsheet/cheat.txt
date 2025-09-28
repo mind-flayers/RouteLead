@@ -4,3 +4,4 @@ gh auth login
 .\venv\Scripts\Activate.ps1
 uvicorn serve_price_model:app --reload --port 8000
 ngrok http 8080
+cloudflared --config "C:\Users\rajak\.cloudflared\routelead.yml" tunnel run 7216b092-3417-4113-9927-a2319bfe9175
