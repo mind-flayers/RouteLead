@@ -60,20 +60,35 @@ export class ProfilePictureService {
    */
   static async getProfilePictureUrl(userId: string): Promise<string | null> {
     try {
-      safeLog('log', '📥 Fetching profile picture URL...');
+      safeLog('log', `📥 Fetching profile picture URL for user: ${userId}`);
       
+      if (!userId) {
+        safeLog('warn', 'No userId provided to getProfilePictureUrl');
+        return null;
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select('profile_photo_url')
         .eq('id', userId)
-        .single();
+        .limit(1);
 
       if (error) {
         safeLog('error', 'Error fetching profile picture', error);
         return null;
       }
       
-      return data?.profile_photo_url || null;
+      // Handle case where no rows are returned
+      if (!data || data.length === 0) {
+        safeLog('log', `No profile found for user: ${userId}`);
+        return null;
+      }
+
+      // Return the first (and should be only) result
+      const profilePhotoUrl = data[0]?.profile_photo_url || null;
+      safeLog('log', `✅ Profile picture URL fetched: ${profilePhotoUrl ? 'Found' : 'None'}`);
+      
+      return profilePhotoUrl;
       
     } catch (error) {
       safeLog('error', 'Error getting profile picture URL', error);

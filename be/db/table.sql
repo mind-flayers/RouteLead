@@ -51,7 +51,7 @@ BEGIN
   END IF;
   IF NOT EXISTS(SELECT 1 FROM pg_type WHERE typname = 'delivery_status_enum') THEN
     CREATE TYPE delivery_status_enum AS ENUM(
-      'ACCEPTED','EN_ROUTE_PICKUP','PICKED_UP','EN_ROUTE_DELIVERY','DELIVERED'
+      'open','picked_up','in_transit','delivered','cancelled'
     );
   END IF;
   IF NOT EXISTS(SELECT 1 FROM pg_type WHERE typname = 'gender_enum') THEN

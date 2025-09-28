@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -24,9 +26,8 @@ public class DeliveryTracking {
     @JoinColumn(name = "bid_id", nullable = false)
     private Bid bid;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, columnDefinition = "delivery_status_enum")
-    private DeliveryStatusEnum status = DeliveryStatusEnum.ACCEPTED;
+    @Column(name = "status", nullable = false)
+    private String status = "picked_up";
 
     @Column(name = "estimated_arrival")
     private ZonedDateTime estimatedArrival;
@@ -49,8 +50,30 @@ public class DeliveryTracking {
         if (createdAt == null) {
             createdAt = ZonedDateTime.now();
         }
-        if (status == null) {
-            status = DeliveryStatusEnum.ACCEPTED;
+        if (status == null || status.isEmpty()) {
+            status = "picked_up";
         }
+    }
+    
+    // Helper methods to work with enum
+    public DeliveryStatusEnum getStatusEnum() {
+        try {
+            return DeliveryStatusEnum.valueOf(status);
+        } catch (Exception e) {
+            return DeliveryStatusEnum.open; // Default to open (initial state)
+        }
+    }
+    
+    public void setStatusEnum(DeliveryStatusEnum statusEnum) {
+        this.status = statusEnum.name();
+    }
+    
+    // Getter and setter for status string
+    public String getStatus() {
+        return status;
+    }
+    
+    public void setStatus(String status) {
+        this.status = status;
     }
 } 

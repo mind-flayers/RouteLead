@@ -474,7 +474,7 @@ public class BidService {
             // Create delivery tracking record
             DeliveryTracking deliveryTracking = new DeliveryTracking();
             deliveryTracking.setBid(bid);
-            deliveryTracking.setStatus(DeliveryStatusEnum.ACCEPTED);
+            deliveryTracking.setStatus("picked_up");
             
             // Calculate estimated arrival time (for now, set to 2 hours from now)
             deliveryTracking.setEstimatedArrival(ZonedDateTime.now().plusHours(2));

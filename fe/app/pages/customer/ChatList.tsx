@@ -17,6 +17,7 @@ interface Driver {
   driverId: string;
   driverName: string;
   driverPhoto: string;
+  driverPhone?: string;
   vehicleMake: string;
   vehicleModel: string;
   vehiclePlate: string;
@@ -94,6 +95,7 @@ const ChatList = () => {
             conversationId: driver.conversationId,
             driverName: driver.driverName,
             driverPhoto: driver.driverPhoto || '',
+            driverPhone: driver.driverPhone || '',
             driverId: driver.driverId,
             bidId: driver.bidId,
             requestId: driver.requestId
@@ -130,6 +132,7 @@ const ChatList = () => {
             conversationId: data.conversationId,
             driverName: driver.driverName,
             driverPhoto: driver.driverPhoto || '',
+            driverPhone: driver.driverPhone || '',
             driverId: driver.driverId,
             bidId: driver.bidId,
             requestId: driver.requestId

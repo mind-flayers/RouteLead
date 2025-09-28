@@ -145,9 +145,9 @@ public class ChatController {
                 msgData.put("text", row[1]);
                 msgData.put("senderId", row[2].toString());
                 msgData.put("receiverId", row[3] != null ? row[3].toString() : null);
-                msgData.put("senderName", (row[5] != null ? row[5] : "") + " " + (row[6] != null ? row[6] : ""));
                 msgData.put("isRead", row[4]);
                 msgData.put("createdAt", row[5]);
+                msgData.put("senderName", (row[6] != null ? row[6] : "") + " " + (row[7] != null ? row[7] : ""));
                 return msgData;
             }).toList();
             
@@ -284,6 +284,143 @@ public class ChatController {
     }
 
     /**
+     * Get conversation by bid ID with conditional access validation
+     * GET /api/chat/conversation/by-bid/{bidId}
+     * 
+     * Chat access is only allowed when:
+     * 1. Bid status is 'ACCEPTED'
+     * 2. Parcel request status is 'MATCHED'
+     * 3. Payment status is 'COMPLETED'
+     */
+    @GetMapping("/conversation/by-bid/{bidId}")
+    public ResponseEntity<Map<String, Object>> getConversationByBidId(@PathVariable String bidId) {
+        try {
+            log.info("Fetching conversation by bid ID with access validation: {}", bidId);
+            
+            UUID bidIdUuid = UUID.fromString(bidId);
+            
+            // First, check if conversation exists and validate access conditions
+            String validationSql = """
+                SELECT 
+                    c.id, c.bid_id, c.customer_id, c.driver_id, c.last_message_at, c.created_at,
+                    cu.first_name as customer_first_name, cu.last_name as customer_last_name,
+                    cu.profile_photo_url as customer_photo,
+                    dr.first_name as driver_first_name, dr.last_name as driver_last_name,
+                    dr.profile_photo_url as driver_photo,
+                    b.status as bid_status,
+                    pr.status as parcel_status,
+                    p.payment_status
+                FROM conversations c
+                JOIN profiles cu ON c.customer_id = cu.id
+                JOIN profiles dr ON c.driver_id = dr.id
+                JOIN bids b ON c.bid_id = b.id
+                JOIN parcel_requests pr ON b.request_id = pr.id
+                LEFT JOIN payments p ON p.bid_id = b.id
+                WHERE c.bid_id = ?
+                """;
+            
+            @SuppressWarnings("unchecked")
+            List<Object[]> results = entityManager.createNativeQuery(validationSql)
+                .setParameter(1, bidIdUuid)
+                .getResultList();
+            
+            if (results.isEmpty()) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "No conversation found for bid ID: " + bidId);
+                response.put("accessDenied", false);
+                return ResponseEntity.ok(response);
+            }
+            
+            Object[] row = results.get(0);
+            String bidStatus = (String) row[12];
+            String parcelStatus = (String) row[13];
+            String paymentStatus = (String) row[14];
+            
+            log.info("Access validation for bid {}: bidStatus={}, parcelStatus={}, paymentStatus={}", 
+                     bidId, bidStatus, parcelStatus, paymentStatus);
+            
+            // Validate access conditions
+            if (!"ACCEPTED".equals(bidStatus)) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Chat access denied: Bid must be accepted. Current status: " + bidStatus);
+                response.put("accessDenied", true);
+                response.put("reason", "BID_NOT_ACCEPTED");
+                response.put("bidStatus", bidStatus);
+                return ResponseEntity.ok(response);
+            }
+            
+            if (!"MATCHED".equals(parcelStatus)) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Chat access denied: Parcel request must be matched. Current status: " + parcelStatus);
+                response.put("accessDenied", true);
+                response.put("reason", "PARCEL_NOT_MATCHED");
+                response.put("parcelStatus", parcelStatus);
+                return ResponseEntity.ok(response);
+            }
+            
+            if (!"completed".equals(paymentStatus)) {
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", false);
+                response.put("message", "Chat access denied: Payment must be completed. Current status: " + 
+                           (paymentStatus != null ? paymentStatus : "NO_PAYMENT"));
+                response.put("accessDenied", true);
+                response.put("reason", "PAYMENT_NOT_COMPLETED");
+                response.put("paymentStatus", paymentStatus);
+                return ResponseEntity.ok(response);
+            }
+            
+            // All conditions met - return conversation data
+            Map<String, Object> conversationData = new HashMap<>();
+            conversationData.put("id", row[0].toString());
+            conversationData.put("bidId", row[1].toString());
+            conversationData.put("customerId", row[2].toString());
+            conversationData.put("driverId", row[3].toString());
+            conversationData.put("lastMessageAt", row[4]);
+            conversationData.put("createdAt", row[5]);
+            conversationData.put("customerName", (row[6] != null ? row[6] : "") + " " + (row[7] != null ? row[7] : ""));
+            conversationData.put("customerPhoto", row[8]);
+            conversationData.put("driverName", (row[9] != null ? row[9] : "") + " " + (row[10] != null ? row[10] : ""));
+            conversationData.put("driverPhoto", row[11]);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("conversation", conversationData);
+            response.put("accessDenied", false);
+            response.put("validationDetails", Map.of(
+                "bidStatus", bidStatus,
+                "parcelStatus", parcelStatus,
+                "paymentStatus", paymentStatus
+            ));
+            
+            log.info("Chat access granted for bid ID: {} - all conditions met", bidId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid UUID format for bidId: {}", bidId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Invalid bid ID format");
+            response.put("accessDenied", false);
+            
+            return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            log.error("Error fetching conversation by bid ID: {}", bidId, e);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to fetch conversation: " + e.getMessage());
+            response.put("accessDenied", false);
+            
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
      * Mark messages as read
      * PUT /api/chat/conversation/{conversationId}/read
      */
@@ -353,6 +490,7 @@ public class ChatController {
                     d.first_name as driver_first_name,
                     d.last_name as driver_last_name,
                     d.profile_photo_url as driver_photo,
+                    d.phone_number as driver_phone,
                     vd.make as vehicle_make,
                     vd.model as vehicle_model,
                     vd.plate_number as vehicle_plate,
@@ -391,20 +529,24 @@ public class ChatController {
                 driverData.put("driverId", row[5] != null ? row[5].toString() : null);
                 driverData.put("driverName", (row[6] != null ? row[6] : "") + " " + (row[7] != null ? row[7] : ""));
                 driverData.put("driverPhoto", row[8]);
-                driverData.put("vehicleMake", row[9]);
-                driverData.put("vehicleModel", row[10]);
-                driverData.put("vehiclePlate", row[11]);
-                driverData.put("offeredPrice", row[12]);
-                driverData.put("bidCreatedAt", row[13]);
-                driverData.put("conversationId", row[14] != null ? row[14].toString() : null);
+                driverData.put("driverPhone", row[9]); // Added phone number
+                driverData.put("vehicleMake", row[10]); // Shifted indices
+                driverData.put("vehicleModel", row[11]);
+                driverData.put("vehiclePlate", row[12]);
+                driverData.put("offeredPrice", row[13]);
+                driverData.put("bidCreatedAt", row[14]);
+                driverData.put("conversationId", row[15] != null ? row[15].toString() : null);
                 
                 // Check if conversation exists
-                boolean hasConversation = row[14] != null;
+                boolean hasConversation = row[15] != null;
                 driverData.put("hasConversation", hasConversation);
+                
+                // Initialize unread count to 0
+                long unreadCount = 0;
                 
                 // If conversation exists, get last message and unread count
                 if (hasConversation) {
-                    UUID conversationId = UUID.fromString(row[14].toString());
+                    UUID conversationId = UUID.fromString(row[15].toString());
                     
                     // Get last message
                     Message lastMessage = messageRepository.findLastMessageByConversationId(conversationId);
@@ -413,11 +555,13 @@ public class ChatController {
                         driverData.put("lastMessageTime", lastMessage.getCreatedAt());
                     }
                     
-                    // Count unread messages
-                    long unreadCount = messageRepository.countByConversationIdAndSenderIdNotAndIsReadFalse(
+                    // Count unread messages for this customer
+                    unreadCount = messageRepository.countByConversationIdAndSenderIdNotAndIsReadFalse(
                         conversationId, customerIdUuid);
-                    driverData.put("unreadCount", unreadCount);
                 }
+                
+                // Always include unreadCount (0 if no conversation)
+                driverData.put("unreadCount", unreadCount);
                 
                 driverList.add(driverData);
             }
@@ -839,5 +983,64 @@ public class ChatController {
             
             return ResponseEntity.status(500).body(response);
         }
+    }
+
+    /**
+     * Mark messages as read in a conversation
+     * POST /api/chat/conversation/{conversationId}/mark-read
+     */
+    @PostMapping("/conversation/{conversationId}/mark-read")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> markMessagesAsReadPost(
+            @PathVariable String conversationId, 
+            @RequestBody Map<String, String> requestBody) {
+        try {
+            log.info("Marking messages as read for conversation: {}", conversationId);
+            
+            UUID conversationIdUuid = UUID.fromString(conversationId);
+            String userId = requestBody.get("userId");
+            UUID userIdUuid = UUID.fromString(userId);
+            
+            // Mark all messages in this conversation as read (except the user's own messages)
+            messageRepository.markMessagesAsRead(conversationIdUuid, userIdUuid);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Messages marked as read");
+            
+            log.info("Successfully marked messages as read for conversation: {} by user: {}", conversationId, userId);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid UUID format: {}", e.getMessage());
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Invalid ID format");
+            
+            return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            log.error("Error marking messages as read for conversation: {}", conversationId, e);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "Failed to mark messages as read: " + e.getMessage());
+            
+            return ResponseEntity.status(500).body(response);
+        }
+    }
+
+    /**
+     * Mark conversation as read (alias for mark-read)
+     * POST /api/chat/conversation/{conversationId}/mark-conversation-read
+     */
+    @PostMapping("/conversation/{conversationId}/mark-conversation-read")
+    @Transactional
+    public ResponseEntity<Map<String, Object>> markConversationAsRead(
+            @PathVariable String conversationId, 
+            @RequestBody Map<String, String> requestBody) {
+        // This is just an alias for the mark-read functionality
+        return markMessagesAsReadPost(conversationId, requestBody);
     }
 }

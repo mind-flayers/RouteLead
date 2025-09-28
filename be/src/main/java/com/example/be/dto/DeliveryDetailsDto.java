@@ -1,6 +1,5 @@
 package com.example.be.dto;
 
-import com.example.be.types.DeliveryStatusEnum;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -21,7 +20,7 @@ public class DeliveryDetailsDto {
     
     // Bid Details
     private BigDecimal bidAmount;
-    private DeliveryStatusEnum status;
+    private String status; // Changed from DeliveryStatusEnum to String for proper JSON serialization
     private ZonedDateTime estimatedArrival;
     private ZonedDateTime actualPickupTime;
     private ZonedDateTime actualDeliveryTime;

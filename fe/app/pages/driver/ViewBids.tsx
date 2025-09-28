@@ -1,19 +1,21 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import PrimaryCard from '../../../components/ui/PrimaryCard';
 import SecondaryButton from '../../../components/ui/SecondaryButton';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
 import IndigoButton from '../../../components/ui/IndigoButton';
+import { ProfileAvatar } from '@/components/ui/ProfileImage';
 import { useNavigation } from '@react-navigation/native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useViewBids } from '@/hooks/useViewBids';
 import { formatCurrency, formatDate } from '@/services/apiService';
 import { calculateCountdown, isBiddingActive } from '@/utils/routeUtils';
 
 const ViewBids = () => {
   const navigation = useNavigation();
+  const router = useRouter();
   const { routeId } = useLocalSearchParams();
   const actualRouteId = Array.isArray(routeId) ? routeId[0] : routeId || '1cc88146-8e0b-41fa-a81a-17168a1407ec'; // Fallback for testing
   
@@ -47,7 +49,7 @@ const ViewBids = () => {
 
   const handleViewDetails = () => {
     // Navigate to DeliveryManagement screen
-    (navigation as any).navigate('pages/driver/DeliveryManagement');
+    router.push('/pages/driver/DeliveryManagement');
   };
 
   const handleAcceptBid = useCallback(async (bidId: string) => {
@@ -71,7 +73,10 @@ const ViewBids = () => {
                     text: 'Manage Delivery', 
                     onPress: () => {
                       // Navigate to DeliveryManagement with the bidId
-                      (navigation as any).navigate('pages/driver/DeliveryManagement', { bidId });
+                      router.push({ 
+                        pathname: '/pages/driver/DeliveryManagement', 
+                        params: { bidId } 
+                      });
                     }
                   }
                 ]
@@ -110,9 +115,9 @@ const ViewBids = () => {
       <PrimaryCard key={bid.id} style={{ marginBottom: 16 }}>
         {/* Customer Info */}
         <View className="flex-row items-center mb-3">
-          <Image 
-            source={require('../../../assets/images/profile_placeholder.jpeg')} 
-            className="w-12 h-12 rounded-full"
+          <ProfileAvatar 
+            userId={bid.customerId}
+            size={48}
           />
           <View className="ml-3 flex-1">
             <Text className="text-lg font-bold">{customerName || 'Unknown Customer'}</Text>
@@ -191,12 +196,12 @@ const ViewBids = () => {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-100">
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-row items-center p-4 bg-white border-b border-gray-200">
           <TouchableOpacity onPress={handleBackPress} className="p-2">
             <Ionicons name="arrow-back" size={24} color="black" />
           </TouchableOpacity>
-          <Text className="flex-1 text-center text-xl font-bold">View Bids</Text>
+          <Text className="flex-1 text-center text-xl font-bold text-gray-900">View Bids</Text>
           <View className="w-10" />
         </View>
         <View className="flex-1 justify-center items-center">
@@ -208,13 +213,13 @@ const ViewBids = () => {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       {/* Top Bar */}
       <View className="flex-row items-center p-4 bg-white border-b border-gray-200">
         <TouchableOpacity onPress={handleBackPress} className="p-2">
           <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
-        <Text className="flex-1 text-center text-xl font-bold">View Bids</Text>
+        <Text className="flex-1 text-center text-xl font-bold text-gray-900">View Bids</Text>
         <View className="w-10" />
       </View>
 
@@ -226,9 +231,11 @@ const ViewBids = () => {
       ) : (
         <ScrollView 
           className="flex-1"
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 100 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={refresh} colors={['#f97316']} />
           }
+          showsVerticalScrollIndicator={false}
         >
           {data && (
           <>

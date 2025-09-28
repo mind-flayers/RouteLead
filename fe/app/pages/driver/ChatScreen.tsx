@@ -1,19 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { ProfileAvatar } from '@/components/ui/ProfileImage';
 import { ApiService, ChatMessage } from '@/services/apiService';
 import { useDriverInfo } from '@/hooks/useEarningsData';
+import { deliveryService, DeliveryDetails } from '@/services/deliveryService';
+import { PhoneService } from '@/services/phoneService';
+import { Config } from '@/constants/Config';
 
 const ChatScreen = () => {
   const router = useRouter();
-  const { conversationId, customerName, customerId, bidId, profileImage, isNewConversation } = useLocalSearchParams();
+  const { conversationId, customerName, customerId, bidId, profileImage, customerPhone, isNewConversation } = useLocalSearchParams();
   const { driverId } = useDriverInfo();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetails | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -71,6 +76,11 @@ const ChatScreen = () => {
         await loadMessages(chatId);
       }
 
+      // Load delivery details if we have a bidId
+      if (bidId) {
+        await loadDeliveryDetails(bidId as string);
+      }
+
     } catch (error) {
       console.error('Error initializing chat:', error);
       Alert.alert('Error', 'Failed to initialize chat. Please try again.');
@@ -79,10 +89,41 @@ const ChatScreen = () => {
     }
   };
 
+  const loadDeliveryDetails = async (bidIdParam: string) => {
+    try {
+      const details = await deliveryService.getDeliveryDetails(bidIdParam);
+      setDeliveryDetails(details);
+    } catch (error) {
+      console.error('Error loading delivery details:', error);
+      // Don't show alert for this as it's not critical
+    }
+  };
+
   const loadMessages = async (chatId: string) => {
     try {
       const messagesData = await ApiService.getConversationMessages(chatId);
       setMessages(messagesData);
+      
+      // Mark messages as read when loading the conversation (optional - backend may not support yet)
+      if (driverId) {
+        try {
+          // Check if the endpoints exist before calling them
+          const response = await fetch(`${Config.API_BASE}/chat/conversation/${chatId}/mark-read`, {
+            method: 'HEAD', // Just check if endpoint exists
+          });
+          
+          if (response.status !== 404) {
+            await ApiService.markMessagesAsRead(chatId, driverId);
+            await ApiService.markConversationAsRead(chatId, driverId);
+            console.log('Messages marked as read for conversation:', chatId);
+          } else {
+            console.log('Message read marking endpoints not available yet');
+          }
+        } catch (error) {
+          // Silently fail - this is not critical functionality
+          console.log('Message read marking not available or failed:', error);
+        }
+      }
     } catch (error) {
       console.error('Error loading messages:', error);
       Alert.alert('Error', 'Failed to load messages');
@@ -118,6 +159,10 @@ const ChatScreen = () => {
       Alert.alert('Error', 'Failed to send message');
       setMessage(messageText); // Restore message on failure
     }
+  };
+
+  const handleMakeCall = () => {
+    PhoneService.makeCall(customerPhone as string, customerName as string);
   };
 
   const formatTime = (dateString: string): string => {
@@ -160,12 +205,10 @@ const ChatScreen = () => {
     return (
       <View key={msg.id} className={`flex-row items-end mb-3 ${isMyMessage ? 'justify-end' : 'justify-start'}`}>
         {!isMyMessage && (
-          <Image
-            source={profileImage && profileImage !== 'profile_placeholder' ? 
-              { uri: profileImage as string } : 
-              require('../../../assets/images/profile_placeholder.jpeg')
-            }
-            className="w-8 h-8 rounded-full mr-2"
+          <ProfileAvatar 
+            userId={customerId as string}
+            size={32}
+            className="mr-2"
           />
         )}
         <View className={`max-w-[70%] p-3 rounded-lg ${
@@ -185,28 +228,23 @@ const ChatScreen = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       {/* Top Bar */}
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
         <TouchableOpacity onPress={() => router.back()} className="p-2">
           <Ionicons name="arrow-back" size={24} color="black" />
         </TouchableOpacity>
         <View className="flex-row items-center flex-1 ml-3">
-          <Image
-            source={profileImage && profileImage !== 'profile_placeholder' ? 
-              { uri: profileImage as string } : 
-              require('../../../assets/images/profile_placeholder.jpeg')
-            }
-            className="w-10 h-10 rounded-full mr-3"
+          <ProfileAvatar 
+            userId={customerId as string}
+            size={40}
+            className="mr-3"
           />
           <Text className="text-lg font-bold">{customerName || 'Chat'}</Text>
         </View>
         <TouchableOpacity 
           className="p-2"
-          onPress={() => router.push({
-            pathname: '/pages/driver/CallScreen',
-            params: { customerName: customerName }
-          })}
+          onPress={handleMakeCall}
         >
           <Ionicons name="call-outline" size={24} color="black" />
         </TouchableOpacity>
@@ -214,6 +252,35 @@ const ChatScreen = () => {
           <Feather name="more-vertical" size={24} color="black" />
         </TouchableOpacity>
       </View>
+
+      {/* Delivery Context Card */}
+      {deliveryDetails && (
+        <View className="bg-blue-50 border-l-4 border-blue-500 mx-4 mb-2 p-3 rounded-r-lg">
+          <View className="flex-row items-center mb-2">
+            <Ionicons name="cube-outline" size={16} color="#3B82F6" />
+            <Text className="text-blue-700 font-semibold ml-2 text-sm">Delivery Context</Text>
+          </View>
+          <View className="space-y-1">
+            <Text className="text-gray-700 text-xs">
+              <Text className="font-semibold">Status:</Text> {deliveryDetails.status}
+            </Text>
+            <Text className="text-gray-700 text-xs">
+              <Text className="font-semibold">From:</Text> {deliveryDetails.pickupAddress}
+            </Text>
+            <Text className="text-gray-700 text-xs">
+              <Text className="font-semibold">To:</Text> {deliveryDetails.dropoffAddress}
+            </Text>
+            <Text className="text-gray-700 text-xs">
+              <Text className="font-semibold">Amount:</Text> LKR {deliveryDetails.bidAmount.toFixed(2)}
+            </Text>
+            {deliveryDetails.specialInstructions && (
+              <Text className="text-gray-700 text-xs">
+                <Text className="font-semibold">Instructions:</Text> {deliveryDetails.specialInstructions}
+              </Text>
+            )}
+          </View>
+        </View>
+      )}
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

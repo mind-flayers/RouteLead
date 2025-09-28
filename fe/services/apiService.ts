@@ -33,6 +33,7 @@ export const testApiConnection = async () => {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true',
       },
     });
     
@@ -105,6 +106,7 @@ export interface DriverConversation {
   customerId: string;
   customerName: string;
   customerProfileImage?: string;
+  customerPhone?: string;
   lastMessage: string;
   lastMessageTime: string;
   unreadCount: number;
@@ -117,6 +119,7 @@ export interface AvailableCustomer {
   customerId: string;
   customerName: string;
   customerProfileImage?: string;
+  customerPhone?: string;
   bidId: string;
   routeDescription: string;
   amount: number;
@@ -534,17 +537,17 @@ export class ApiService {
 
       const routes = await response.json();
       
-      // Transform the response to match our MyRoute interface with async location formatting
-      const routesWithLocations = await Promise.all(routes.map(async (route: any) => {
+      // Transform the response to match our MyRoute interface - removed slow async geocoding
+      const transformedRoutes = routes.map((route: any) => {
         // Calculate bidding end time (2 hours before departure)
         const departureDate = new Date(route.departureTime);
         const biddingEndTime = new Date(departureDate.getTime() - (2 * 60 * 60 * 1000)); // 2 hours before
         
-        // Format location names if they're coordinates or use existing names
+        // Use existing location names or show formatted coordinates (no API calls)
         const originLocationName = route.originLocationName || 
-          await formatLocation(`${route.originLat}, ${route.originLng}`);
+          formatLocationSync(`${route.originLat}, ${route.originLng}`);
         const destinationLocationName = route.destinationLocationName || 
-          await formatLocation(`${route.destinationLat}, ${route.destinationLng}`);
+          formatLocationSync(`${route.destinationLat}, ${route.destinationLng}`);
 
         return {
           id: route.id,
@@ -569,11 +572,170 @@ export class ApiService {
           totalDistanceKm: route.totalDistanceKm,
           estimatedDurationMinutes: route.estimatedDurationMinutes,
         };
-      }));
+      });
 
-      return routesWithLocations;
+      return transformedRoutes;
     } catch (error) {
       console.error('Error fetching my routes:', error);
+      throw error;
+    }
+  }
+
+  // Delete Route API
+  static async deleteRoute(routeId: string, driverId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log(`Deleting route ${routeId} for driver ${driverId}`);
+      const response = await fetch(
+        `${API_BASE_URL}/routes/${routeId}?driverId=${driverId}`,
+        {
+          method: 'DELETE',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to delete route: ${response.status} - ${errorData}`);
+      }
+
+      const result = await response.json();
+      console.log('Delete route response:', result);
+      
+      return {
+        success: true,
+        message: result.message || 'Route deleted successfully'
+      };
+    } catch (error) {
+      console.error('Error deleting route:', error);
+      throw error;
+    }
+  }
+
+  // Update Route API
+  static async updateRoute(routeId: string, routeData: any): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log(`Updating route ${routeId} with data:`, routeData);
+      
+      // Backend expects PATCH method with driverId as query parameter
+      // and ReturnRouteUpdateRequestDto format - only send required fields
+      const updateDto = {
+        originLat: Number(routeData.originLat),
+        originLng: Number(routeData.originLng),
+        destinationLat: Number(routeData.destinationLat),
+        destinationLng: Number(routeData.destinationLng),
+        departureTime: routeData.departureTime,
+        detourToleranceKm: Number(routeData.detourToleranceKm),
+        suggestedPriceMin: Number(routeData.suggestedPriceMin),
+        suggestedPriceMax: Number(routeData.suggestedPriceMax),
+        status: 'OPEN' // Keep status as OPEN for active routes
+      };
+      
+      console.log('Sending update DTO:', updateDto);
+      
+      const response = await fetch(
+        `${API_BASE_URL}/routes/${routeId}?driverId=${routeData.driverId}`,
+        {
+          method: 'PATCH',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify(updateDto),
+        }
+      );
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorText = await response.text();
+          errorMessage = `Failed to update route: ${response.status} - ${errorText}`;
+        } catch (e) {
+          errorMessage = `Failed to update route: ${response.status} - ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Handle response carefully to avoid JSON parsing issues
+      let result;
+      try {
+        const responseText = await response.text();
+        console.log('Raw response text:', responseText);
+        
+        // Only try to parse as JSON if the response looks like JSON
+        if (responseText.trim().startsWith('{') || responseText.trim().startsWith('[')) {
+          result = JSON.parse(responseText);
+        } else {
+          // Handle plain text responses
+          result = { message: responseText || 'Route updated successfully' };
+        }
+      } catch (jsonError) {
+        console.warn('Failed to parse response as JSON, treating as success:', jsonError);
+        // If JSON parsing fails but the HTTP status was OK, treat as success
+        result = { message: 'Route updated successfully' };
+      }
+      
+      console.log('Update route response:', result);
+      
+      return {
+        success: true,
+        message: result.message || 'Route updated successfully'
+      };
+    } catch (error) {
+      console.error('Error updating route:', error);
+      throw error;
+    }
+  }
+
+  // Get Route by ID API
+  static async getRouteById(routeId: string): Promise<MyRoute> {
+    try {
+      console.log(`Fetching route ${routeId}`);
+      const response = await fetch(
+        `${API_BASE_URL}/routes/${routeId}`,
+        {
+          method: 'GET',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch route: ${response.status}`);
+      }
+
+      const route = await response.json();
+      
+      // Calculate bidding end time (2 hours before departure)
+      const departureDate = new Date(route.departureTime);
+      const biddingEndTime = new Date(departureDate.getTime() - (2 * 60 * 60 * 1000)); // 2 hours before
+      
+      // Use existing location names or show formatted coordinates (no API calls for speed)
+      const originLocationName = route.originLocationName || 
+        formatLocationSync(`${route.originLat}, ${route.originLng}`);
+      const destinationLocationName = route.destinationLocationName || 
+        formatLocationSync(`${route.destinationLat}, ${route.destinationLng}`);
+
+      return {
+        id: route.id,
+        originLat: route.originLat,
+        originLng: route.originLng,
+        destinationLat: route.destinationLat,
+        destinationLng: route.destinationLng,
+        departureTime: route.departureTime,
+        biddingStart: route.biddingStart,
+        status: route.status,
+        originLocationName,
+        destinationLocationName,
+        createdAt: route.createdAt,
+        biddingEndTime: biddingEndTime.toISOString(),
+        bidCount: route.totalBidsCount || route.bidCount || 0,
+        highestBidAmount: route.highestBidAmount,
+        // Additional fields from database
+        detourToleranceKm: route.detourToleranceKm,
+        suggestedPriceMin: route.suggestedPriceMin,
+        suggestedPriceMax: route.suggestedPriceMax,
+        routePolyline: route.routePolyline,
+        totalDistanceKm: route.totalDistanceKm,
+        estimatedDurationMinutes: route.estimatedDurationMinutes,
+      };
+    } catch (error) {
+      console.error('Error fetching route by ID:', error);
       throw error;
     }
   }
@@ -646,9 +808,87 @@ export class ApiService {
         throw new Error(`Failed to get driver conversations: ${response.status}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      
+      // Extract conversations array from response and map to interface format
+      if (data.success && data.conversations) {
+        return data.conversations.map((conv: any) => ({
+          conversationId: conv.id,
+          customerId: conv.customerId,
+          customerName: conv.customerName,
+          customerProfileImage: conv.customerPhoto,
+          customerPhone: conv.customerPhone,
+          lastMessage: conv.lastMessage || 'No messages yet',
+          lastMessageTime: conv.lastMessageTime || conv.createdAt,
+          unreadCount: conv.unreadCount || 0,
+          bidId: conv.bidId,
+          routeDescription: conv.requestDescription,
+          deliveryStatus: 'active'
+        }));
+      }
+      
+      return [];
     } catch (error) {
       console.error('Error fetching driver conversations:', error);
+      throw error;
+    }
+  }
+
+  // Get Conversation by Bid ID API with access validation
+  static async getConversationByBid(bidId: string): Promise<{
+    conversation?: DriverConversation;
+    accessDenied: boolean;
+    reason?: string;
+    message?: string;
+    validationDetails?: {
+      bidStatus: string;
+      parcelStatus: string;
+      paymentStatus: string;
+    };
+  }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/conversation/by-bid/${bidId}`,
+        {
+          method: 'GET',
+          headers: await getAuthHeaders(),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to get conversation by bid: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        return {
+          accessDenied: data.accessDenied || false,
+          reason: data.reason,
+          message: data.message,
+          validationDetails: data.validationDetails
+        };
+      }
+
+      return {
+        conversation: data.conversation ? {
+          conversationId: data.conversation.id,
+          customerId: data.conversation.customerId,
+          customerName: data.conversation.customerName,
+          customerProfileImage: data.conversation.customerPhoto,
+          customerPhone: data.conversation.customerPhone || '',
+          lastMessage: '',
+          lastMessageTime: data.conversation.lastMessageAt || data.conversation.createdAt,
+          unreadCount: 0,
+          bidId: data.conversation.bidId,
+          routeDescription: '',
+          deliveryStatus: 'active'
+        } : undefined,
+        accessDenied: false,
+        validationDetails: data.validationDetails
+      };
+    } catch (error) {
+      console.error('Error fetching conversation by bid:', error);
       throw error;
     }
   }
@@ -668,7 +908,25 @@ export class ApiService {
         throw new Error(`Failed to get available customers: ${response.status}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      
+      // Extract customers array from response and map to interface format
+      if (data.success && data.customers) {
+        return data.customers.map((customer: any) => ({
+          customerId: customer.customerId,
+          customerName: customer.customerName,
+          customerProfileImage: customer.customerPhoto,
+          customerPhone: customer.customerPhone,
+          bidId: customer.bidId,
+          routeDescription: customer.requestDescription,
+          amount: customer.offeredPrice || 0,
+          createdAt: customer.createdAt,
+          pickupLocation: customer.pickupLocation || 'N/A',
+          deliveryLocation: customer.deliveryLocation || 'N/A'
+        }));
+      }
+      
+      return [];
     } catch (error) {
       console.error('Error fetching available customers:', error);
       throw error;
@@ -779,6 +1037,62 @@ export class ApiService {
       return await response.json();
     } catch (error) {
       console.error('Error creating conversation:', error);
+      throw error;
+    }
+  }
+
+  // Mark Messages as Read API
+  static async markMessagesAsRead(
+    conversationId: string,
+    userId: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/conversation/${conversationId}/mark-read`,
+        {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({
+            userId
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to mark messages as read: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+      throw error;
+    }
+  }
+
+  // Mark Conversation as Read API
+  static async markConversationAsRead(
+    conversationId: string,
+    userId: string
+  ): Promise<{ success: boolean; unreadCount: number }> {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/chat/conversation/${conversationId}/mark-conversation-read`,
+        {
+          method: 'POST',
+          headers: await getAuthHeaders(),
+          body: JSON.stringify({
+            userId
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to mark conversation as read: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error marking conversation as read:', error);
       throw error;
     }
   }

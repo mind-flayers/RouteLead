@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
@@ -7,7 +7,9 @@ import PrimaryButton from '@/components/ui/PrimaryButton';
 import PrimaryCard from '@/components/ui/PrimaryCard';
 import WithdrawalHistoryCard from '@/components/ui/WithdrawalHistoryCard';
 import PaymentPreferencesModal from '@/components/ui/PaymentPreferencesModal';
+import { ProfileAvatar } from '@/components/ui/ProfileImage';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
+import { VerificationGuard } from '@/components/guards/VerificationGuard';
 import { useEarningsData, useDriverInfo } from '@/hooks/useEarningsData';
 import { useMultipleLocationDescriptions } from '@/hooks/useLocationDescription';
 import { formatCurrency, formatDateTime, getRouteDescription, EarningsHistory } from '@/services/apiService';
@@ -213,22 +215,27 @@ const MyEarnings = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
-      {/* Top Bar */}
-      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
-        <Link href="/pages/driver/Notifications" className="items-center">
-          <Ionicons name="notifications-outline" size={24} color="black" />
-        </Link>
-        <Text className="text-xl font-bold">My Earnings</Text>
-        <Link href="/pages/driver/Profile" className="items-center">
-          <View className="flex-row items-center">
-            <Image
-              source={require('../../../assets/images/profile_placeholder.jpeg')}
-              className="w-8 h-8 rounded-full mr-2"
-            />
-          </View>
-        </Link>
-      </View>
+    <VerificationGuard 
+      featureName="My Earnings"
+      description="View your earnings, withdrawal history, and manage payments"
+    >
+      <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+        {/* Top Bar */}
+        <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
+          <Link href="/pages/driver/Notifications" className="items-center">
+            <Ionicons name="notifications-outline" size={24} color="black" />
+          </Link>
+          <Text className="text-xl font-bold text-gray-900">My Earnings</Text>
+          <Link href="/pages/driver/Profile" className="items-center">
+            <View className="flex-row items-center">
+              <ProfileAvatar 
+                useCurrentUser={true}
+                size={32}
+                className="mr-2"
+              />
+            </View>
+          </Link>
+        </View>
 
       {/* Tab Navigation */}
       <View className="flex-row bg-gray-50 mx-4 mt-4 rounded-lg p-1">
@@ -256,6 +263,7 @@ const MyEarnings = () => {
         refreshControl={
           <RefreshControl refreshing={refreshing || withdrawalLoading} onRefresh={refreshAllData} />
         }
+        showsVerticalScrollIndicator={false}
       >
         {/* Summary Cards */}
         <View className="p-4 space-y-4">
@@ -288,9 +296,9 @@ const MyEarnings = () => {
               </PrimaryCard>
               
               <PrimaryCard style={{ flex: 1, marginBottom: 0 }}>
-                <Text className="text-gray-600 text-sm">This Month</Text>
+                <Text className="text-gray-600 text-sm">This Week</Text>
                 <Text className="text-xl font-bold text-gray-800">
-                  {formatCurrency(summary.monthlyEarnings)}
+                  {formatCurrency(summary.weeklyEarnings)}
                 </Text>
               </PrimaryCard>
             </View>
@@ -341,7 +349,7 @@ const MyEarnings = () => {
                 </View>
               ) : filteredEarnings.length === 0 ? (
                 <View className="items-center py-12">
-                  <MaterialCommunityIcons name="cash-off" size={64} color="#9CA3AF" />
+                  <MaterialCommunityIcons name="currency-usd-off" size={64} color="#9CA3AF" />
                   <Text className="text-xl font-semibold text-gray-600 mt-4">No earnings found</Text>
                   <Text className="text-gray-500 text-center mt-2">
                     {selectedEarningsFilter === 'ALL' 
@@ -352,7 +360,8 @@ const MyEarnings = () => {
                 </View>
               ) : (
                 filteredEarnings.map((earning, index) => {
-                  const description = locationDescriptions[earning.id] || getRouteDescription(earning);
+                  const locationResult = locationDescriptions[index];
+                  const description = locationResult?.description || getRouteDescription(earning);
                   const statusStyle = getStatusBadgeStyle(earning.status);
                   
                   return (
@@ -437,6 +446,7 @@ const MyEarnings = () => {
 
       <DriverBottomNavigation />
     </SafeAreaView>
+    </VerificationGuard>
   );
 };
 

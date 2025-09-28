@@ -1,14 +1,64 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { Stack, useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouteCreation } from '../../../../contexts/RouteCreationContext';
+import { ApiService } from '../../../../services/apiService';
 import PrimaryButton from '../../../../components/ui/PrimaryButton';
 import SecondaryButton from '../../../../components/ui/SecondaryButton';
 
 const CreateRoute = () => {
   const router = useRouter();
-  const { routeData, clearRouteData, isLocationDataComplete } = useRouteCreation();
+  const params = useLocalSearchParams();
+  const { routeData, clearRouteData, isLocationDataComplete, populateFromExisting } = useRouteCreation();
+  const [loading, setLoading] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [hasLoadedEditData, setHasLoadedEditData] = useState(false);
+
+  // Check if we're in edit mode and load route data from params
+  useEffect(() => {
+    if (params.editMode === 'true' && params.routeId && !hasLoadedEditData) {
+      try {
+        setLoading(true);
+        setIsEditMode(true);
+        
+        // Create route object from query parameters
+        const existingRoute = {
+          id: params.routeId,
+          originLat: parseFloat(params.originLat as string),
+          originLng: parseFloat(params.originLng as string),
+          destinationLat: parseFloat(params.destinationLat as string),
+          destinationLng: parseFloat(params.destinationLng as string),
+          originLocationName: params.originLocationName,
+          destinationLocationName: params.destinationLocationName,
+          departureTime: params.departureTime,
+          suggestedPriceMin: params.suggestedPriceMin ? parseFloat(params.suggestedPriceMin as string) : undefined,
+          suggestedPriceMax: params.suggestedPriceMax ? parseFloat(params.suggestedPriceMax as string) : undefined,
+          detourToleranceKm: params.detourToleranceKm ? parseFloat(params.detourToleranceKm as string) : 5,
+          totalDistanceKm: params.totalDistanceKm ? parseFloat(params.totalDistanceKm as string) : undefined,
+          estimatedDurationMinutes: params.estimatedDurationMinutes ? parseFloat(params.estimatedDurationMinutes as string) : undefined,
+          routePolyline: params.routePolyline
+        };
+        
+        populateFromExisting(existingRoute);
+        setHasLoadedEditData(true);
+      } catch (error) {
+        console.error('Error loading route for edit:', error);
+        Alert.alert('Error', 'Failed to load route data for editing');
+        router.back();
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    // Cleanup function
+    return () => {
+      if (params.editMode !== 'true') {
+        setHasLoadedEditData(false);
+        setIsEditMode(false);
+      }
+    };
+  }, [params.editMode, params.routeId]); // Only depend on the essential params
 
   const handleSelectLocation = () => {
     router.push('/pages/driver/create_route/SelectLocation');
@@ -33,17 +83,43 @@ const CreateRoute = () => {
   };
 
   const handleReset = () => {
+    const actionText = isEditMode ? 'Reset Changes' : 'Reset Route';
+    const messageText = isEditMode 
+      ? 'This will revert all changes back to the original route data. Are you sure?'
+      : 'This will clear all your route data. Are you sure?';
+    
     Alert.alert(
-      'Reset Route',
-      'This will clear all your route data. Are you sure?',
+      actionText,
+      messageText,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
           text: 'Reset', 
           style: 'destructive',
           onPress: () => {
-            clearRouteData();
-            Alert.alert('Route Cleared', 'All route data has been reset.');
+            if (isEditMode && params.routeId) {
+              // Reload from params again
+              const existingRoute = {
+                id: params.routeId,
+                originLat: parseFloat(params.originLat as string),
+                originLng: parseFloat(params.originLng as string),
+                destinationLat: parseFloat(params.destinationLat as string),
+                destinationLng: parseFloat(params.destinationLng as string),
+                originLocationName: params.originLocationName,
+                destinationLocationName: params.destinationLocationName,
+                departureTime: params.departureTime,
+                suggestedPriceMin: params.suggestedPriceMin ? parseFloat(params.suggestedPriceMin as string) : undefined,
+                suggestedPriceMax: params.suggestedPriceMax ? parseFloat(params.suggestedPriceMax as string) : undefined,
+                detourToleranceKm: params.detourToleranceKm ? parseFloat(params.detourToleranceKm as string) : 5,
+                totalDistanceKm: params.totalDistanceKm ? parseFloat(params.totalDistanceKm as string) : undefined,
+                estimatedDurationMinutes: params.estimatedDurationMinutes ? parseFloat(params.estimatedDurationMinutes as string) : undefined,
+                routePolyline: params.routePolyline
+              };
+              populateFromExisting(existingRoute);
+            } else {
+              clearRouteData();
+            }
+            Alert.alert('Route Reset', isEditMode ? 'Changes have been reverted.' : 'All route data has been reset.');
           }
         },
       ]
@@ -55,7 +131,7 @@ const CreateRoute = () => {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Create Route',
+          title: isEditMode ? 'Edit Route' : 'Create Route',
           headerLeft: () => (
             <TouchableOpacity onPress={() => router.back()}>
               <Ionicons name="arrow-back" size={24} color="white" />
@@ -71,43 +147,53 @@ const CreateRoute = () => {
         }}
       />
 
-      {/* Progress Section */}
-      <View style={styles.progressContainer}>
-        <View style={styles.progressStep}>
-          <View style={[styles.progressCircle, styles.activeStep]}>
-            <Text style={styles.progressText}>1</Text>
-          </View>
-          <Text style={[styles.progressLabel, styles.boldLabel]}>Route Details</Text>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2196F3" />
+          <Text style={styles.loadingText}>Loading route data...</Text>
         </View>
-        <View style={styles.progressBar} />
-        <View style={styles.progressStep}>
-          <View style={[styles.progressCircle, isLocationDataComplete() && styles.completedStep]}>
-            <Text style={styles.progressText}>2</Text>
+      ) : (
+        <>
+          {/* Progress Section */}
+          <View style={styles.progressContainer}>
+            <View style={styles.progressStep}>
+              <View style={[styles.progressCircle, styles.activeStep]}>
+                <Text style={styles.progressText}>1</Text>
+              </View>
+              <Text style={[styles.progressLabel, styles.boldLabel]}>Route Details</Text>
+            </View>
+            <View style={styles.progressBar} />
+            <View style={styles.progressStep}>
+              <View style={[styles.progressCircle, isLocationDataComplete() && styles.completedStep]}>
+                <Text style={styles.progressText}>2</Text>
+              </View>
+              <Text style={styles.progressLabel}>Bidding & Capacity</Text>
+            </View>
+            <View style={styles.progressBar} />
+            <View style={styles.progressStep}>
+              <View style={styles.progressCircle}>
+                <Text style={styles.progressText}>3</Text>
+              </View>
+              <Text style={styles.progressLabel}>Pricing & Suggestions</Text>
+            </View>
+            <View style={styles.progressBar} />
+            <View style={styles.progressStep}>
+              <View style={styles.progressCircle}>
+                <Text style={styles.progressText}>4</Text>
+              </View>
+              <Text style={styles.progressLabel}>Overview</Text>
+            </View>
           </View>
-          <Text style={styles.progressLabel}>Bidding & Capacity</Text>
-        </View>
-        <View style={styles.progressBar} />
-        <View style={styles.progressStep}>
-          <View style={styles.progressCircle}>
-            <Text style={styles.progressText}>3</Text>
-          </View>
-          <Text style={styles.progressLabel}>Pricing & Suggestions</Text>
-        </View>
-        <View style={styles.progressBar} />
-        <View style={styles.progressStep}>
-          <View style={styles.progressCircle}>
-            <Text style={styles.progressText}>4</Text>
-          </View>
-          <Text style={styles.progressLabel}>Overview</Text>
-        </View>
-      </View>
 
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
         {/* Route Details Section */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Route Details</Text>
           <Text style={styles.sectionDescription}>
-            Define your origin and destination locations using our interactive map.
+            {isEditMode 
+              ? 'Modify your route details using our interactive map.'
+              : 'Define your origin and destination locations using our interactive map.'
+            }
           </Text>
 
           {/* Location Selection Button/Display */}
@@ -223,10 +309,13 @@ const CreateRoute = () => {
         />
         <PrimaryButton 
           onPress={handleNext} 
-          title={isLocationDataComplete() ? "Continue" : "Select Locations"} 
+          title={isLocationDataComplete() ? (isEditMode ? "Continue Editing" : "Continue") : "Select Locations"} 
           style={styles.button}
+          disabled={loading}
         />
       </View>
+        </>
+      )}
     </View>
   );
 };
@@ -237,6 +326,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f8f8',
     paddingHorizontal: 16,
     paddingTop: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 50,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
   scrollViewContent: {
     paddingBottom: 100,
