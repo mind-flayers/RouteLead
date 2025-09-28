@@ -59,6 +59,9 @@ export default function RequestConfirmation() {
 
   // Delete bid state
   const [deletingBids, setDeletingBids] = useState<{[key: string]: boolean}>({});
+  
+  // Bid creation loading state
+  const [isCreatingBid, setIsCreatingBid] = useState(false);
 
   // Countdown timer state
   const [countdown, setCountdown] = useState<string>('');
@@ -77,7 +80,51 @@ export default function RequestConfirmation() {
     loadRouteAndParcelData();
   }, [selectedRouteId]);
 
-  // Countdown timer effect
+  // ✅ NEW: Backend status polling for real-time bid updates
+  useEffect(() => {
+    if (!selectedRouteId) return;
+
+    const pollBidStatus = async () => {
+      try {
+        // Check if bidding is closed by backend
+        const response = await fetch(`${Config.API_BASE}/routes/${selectedRouteId}/ranked-bids`);
+        if (response.ok) {
+          const data = await response.json();
+          
+          // Check if any bids are accepted (bidding closed by backend)
+          const hasAcceptedBids = data.rankedBids?.some((bid: any) => bid.status === 'ACCEPTED');
+          if (hasAcceptedBids && !isBiddingClosed) {
+            console.log('Backend has closed bidding - updating frontend state');
+            setIsBiddingClosed(true);
+            setCountdown('Bidding closed');
+            
+            // Find the winning bid
+            const winningBid = data.rankedBids.find((bid: any) => bid.status === 'ACCEPTED');
+            if (winningBid) {
+              setWinningBid(winningBid);
+            }
+          }
+          
+          // Update ranked bids with latest data
+          if (data.rankedBids) {
+            setRankedBids(data.rankedBids);
+          }
+        }
+      } catch (error) {
+        console.error('Error polling bid status:', error);
+      }
+    };
+
+    // Poll every 30 seconds for real-time updates
+    const interval = setInterval(pollBidStatus, 30000);
+    
+    // Initial poll
+    pollBidStatus();
+    
+    return () => clearInterval(interval);
+  }, [selectedRouteId, isBiddingClosed]);
+
+  // Countdown timer effect - DISPLAY ONLY (backend handles bid closing)
   useEffect(() => {
     console.log('Countdown effect triggered. routeData?.departureTime:', routeData?.departureTime);
     
@@ -86,31 +133,27 @@ export default function RequestConfirmation() {
       return;
     }
 
-         const updateCountdown = () => {
-       const departureTime = new Date(routeData.departureTime);
-       const countdownTime = new Date(departureTime.getTime() - (3 * 60 * 60 * 1000)); // 3 hours earlier
-       const now = new Date();
-       
-       const timeDiff = countdownTime.getTime() - now.getTime();
-       
-       if (timeDiff <= 0) {
-         setCountdown('Bidding closed');
-         setIsBiddingClosed(true);
-         
-         // Automatically match the winning bid when countdown reaches zero
-         if (!winningBid && rankedBids.length > 0) {
-           handleAutoMatchWinningBid();
-         }
-         return;
-       }
-       
-       const hours = Math.floor(timeDiff / (1000 * 60 * 60));
-       const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
-       const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
-       
-       const countdownString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-       setCountdown(countdownString);
-     };
+    const updateCountdown = () => {
+      const departureTime = new Date(routeData.departureTime);
+      const countdownTime = new Date(departureTime.getTime() - (3 * 60 * 60 * 1000)); // 3 hours earlier
+      const now = new Date();
+      
+      const timeDiff = countdownTime.getTime() - now.getTime();
+      
+      if (timeDiff <= 0) {
+        setCountdown('Bidding closed');
+        setIsBiddingClosed(true);
+        // ✅ REMOVED: No more frontend bid closing - backend handles this now
+        return;
+      }
+      
+      const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+      const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+      
+      const countdownString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      setCountdown(countdownString);
+    };
 
     // Update immediately
     updateCountdown();
@@ -119,7 +162,7 @@ export default function RequestConfirmation() {
     const interval = setInterval(updateCountdown, 1000);
     
     return () => clearInterval(interval);
-  }, [routeData?.departureTime, rankedBids, winningBid]);
+  }, [routeData?.departureTime]); // ✅ REMOVED: rankedBids, winningBid dependencies
 
   // Helper function to check if countdown is warning (less than 1 hour)
   const isCountdownWarning = () => {
@@ -226,7 +269,7 @@ export default function RequestConfirmation() {
             setRequestStatus(req?.status || '');
             console.log('Request status loaded:', req?.status);
           }
-        } catch (_) {
+        } catch {
           // ignore; we'll still show what we have from params
         }
       }
@@ -376,10 +419,11 @@ export default function RequestConfirmation() {
     }
   };
 
-  const handleAddBid = () => {
+  const handleAddBid = async () => {
     if (!bidPrice.trim()) return;
     if (!requestId) {
       console.warn('No requestId found; cannot create bid');
+      Alert.alert('Error', 'Request ID not found. Please try again.');
       return;
     }
     if (!selectedRouteId) {
@@ -387,44 +431,70 @@ export default function RequestConfirmation() {
       Alert.alert('Cannot place bid', 'This request is not linked to a specific route.');
       return;
     }
-    // Fire-and-forget create bid
-    (async () => {
-      try {
-        const body = {
-          routeId: selectedRouteId,
-          offeredPrice: parseFloat(bidPrice)
-        };
-        const res = await fetch(`${Config.API_BASE}/parcel-requests/${requestId}/bids`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-        if (!res.ok) {
-          const text = await res.text();
-          console.error('Create bid failed:', text);
-        } else {
-          const created = await res.json().catch(() => null);
-          console.log('Created bid:', created);
-          const newItem = created && created.offeredPrice ? created : {
-            offeredPrice: body.offeredPrice,
-            createdAt: new Date().toISOString(),
-          };
-          setBids(prev => [newItem, ...prev]);
-          
-          // Refresh ranked bids to include the new bid
-          if (selectedRouteId) {
-            console.log('Refreshing ranked bids after new bid creation...');
-            // Add a small delay to ensure the backend has processed the new bid
-            setTimeout(async () => {
-              await fetchRankedBids(selectedRouteId);
-            }, 1000);
-          }
-        }
-      } catch (e) {
-        console.error('Error creating bid:', e);
+    
+    // Validate bid amount
+    const bidAmount = parseFloat(bidPrice);
+    if (isNaN(bidAmount) || bidAmount <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid bid amount.');
+      return;
+    }
+
+    setIsCreatingBid(true);
+    try {
+      const body = {
+        routeId: selectedRouteId,
+        offeredPrice: bidAmount,
+        startIndex: 0,
+        endIndex: 0
+      };
+      
+      console.log('Creating bid:', body);
+      
+      const res = await fetch(`${Config.API_BASE}/parcel-requests/${requestId}/bids`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Create bid failed:', res.status, errorText);
+        Alert.alert('Bid Failed', `Failed to create bid: ${errorText}`);
+        return;
       }
-    })();
-    setBidPrice('');
+      
+      const created = await res.json();
+      console.log('Created bid successfully:', created);
+      
+      // Update local state
+      const newItem = {
+        offeredPrice: created.offeredPrice,
+        createdAt: created.createdAt || new Date().toISOString(),
+        id: created.id
+      };
+      setBids(prev => [newItem, ...prev]);
+      
+      // Clear the input
+      setBidPrice('');
+      
+      // Show success message
+      Alert.alert('Bid Placed!', `Your bid of LKR ${bidAmount.toLocaleString()} has been placed successfully.`);
+      
+      // Refresh ranked bids to include the new bid
+      if (selectedRouteId) {
+        console.log('Refreshing ranked bids after new bid creation...');
+        // Add a small delay to ensure the backend has processed the new bid
+        setTimeout(async () => {
+          await fetchRankedBids(selectedRouteId);
+        }, 1000);
+      }
+      
+    } catch (e) {
+      console.error('Error creating bid:', e);
+      Alert.alert('Error', 'Failed to place bid. Please check your connection and try again.');
+    } finally {
+      setIsCreatingBid(false);
+    }
   };
 
   const handleDeleteBid = async (bidId: string) => {
@@ -483,74 +553,7 @@ export default function RequestConfirmation() {
     );
   };
 
-  // Function to automatically match the winning bid
-  const handleAutoMatchWinningBid = async () => {
-    if (rankedBids.length === 0) {
-      console.log('No ranked bids available for auto-matching');
-      return;
-    }
-
-    try {
-      // Get the top-ranked bid (highest score)
-      const topBid = rankedBids[0];
-      console.log('Auto-matching winning bid:', topBid);
-
-      // Update the bid status to ACCEPTED
-      const bidResponse = await fetch(`${Config.API_BASE}/bids/${topBid.id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'ACCEPTED' })
-      });
-
-      if (!bidResponse.ok) {
-        const errorText = await bidResponse.text();
-        console.error('Failed to update bid status:', bidResponse.status, errorText);
-        throw new Error(`Failed to update bid status: ${bidResponse.status} - ${errorText}`);
-      }
-
-      const updatedBid = await bidResponse.json();
-      console.log('Successfully accepted winning bid:', updatedBid);
-      
-      // Update the parcel request status to MATCHED
-      if (requestId) {
-        console.log('Updating parcel request status to MATCHED for requestId:', requestId);
-        const parcelResponse = await fetch(`${Config.API_BASE}/parcel-requests/${requestId}/status`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'MATCHED' })
-        });
-
-        if (!parcelResponse.ok) {
-          const errorText = await parcelResponse.text();
-          console.error('Failed to update parcel request status:', parcelResponse.status, errorText);
-          // Don't throw error here - bid was successful, just log the issue
-          console.warn('Warning: Bid accepted but failed to update parcel request status');
-        } else {
-          const updatedParcel = await parcelResponse.json();
-          console.log('Successfully updated parcel request status to MATCHED:', updatedParcel);
-        }
-      }
-      
-      // Set the winning bid
-      setWinningBid(updatedBid);
-      
-      // Show success message
-      Alert.alert(
-        'Bidding Complete!',
-        `Winning bid selected: LKR ${topBid.offeredPrice}`,
-        [
-          {
-            text: 'Proceed to Payment',
-            onPress: () => handleProceedToPayment(topBid.offeredPrice, topBid.id)
-          }
-        ]
-      );
-
-    } catch (error) {
-      console.error('Error auto-matching winning bid:', error);
-      // Alert.alert('Error', 'Failed to automatically match the winning bid. Please try again.');
-    }
-  };
+  // ✅ REMOVED: handleAutoMatchWinningBid function - backend handles bid closing now
 
   // Function to handle payment navigation
   const handleProceedToPayment = (amount: number, bidId?: string) => {
@@ -911,8 +914,8 @@ export default function RequestConfirmation() {
           </View>
         )}
 
-                 <Text className="font-semibold mb-4 text-[#0D47A1] text-lg">Next Steps</Text>
-         {selectedRouteId ? (
+        <Text className="font-semibold mb-4 text-[#0D47A1] text-lg">Next Steps</Text>
+        {selectedRouteId ? (
            <View className="mb-4">
              {/* Bidding Status */}
              {countdown === 'Bidding closed' ? (
@@ -1000,9 +1003,14 @@ export default function RequestConfirmation() {
                    />
                    <TouchableOpacity
                      onPress={handleAddBid}
-                     className="bg-[#FF8C00] px-4 py-3 rounded-lg justify-center"
+                     disabled={isCreatingBid}
+                     className={`px-4 py-3 rounded-lg justify-center ${isCreatingBid ? 'bg-gray-400' : 'bg-[#FF8C00]'}`}
                    >
-                     <Text className="text-white font-semibold">Add</Text>
+                     {isCreatingBid ? (
+                       <Text className="text-white font-semibold">Adding...</Text>
+                     ) : (
+                       <Text className="text-white font-semibold">Add</Text>
+                     )}
                    </TouchableOpacity>
                  </View>
                </>

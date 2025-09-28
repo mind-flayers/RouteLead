@@ -413,7 +413,7 @@ export default function Payment() {
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
         <View className="items-center mt-8">
           <Text style={styles.totalLabel}>TOTAL</Text>
-          <Text style={styles.totalAmount}>LKR {amount.toLocaleString()}</Text>
+          <Text style={styles.totalAmount}>LKR {amount ? amount.toLocaleString() : '0'}</Text>
           {bidId && (
             <Text style={styles.bidInfo}>Winning Bid Amount</Text>
           )}

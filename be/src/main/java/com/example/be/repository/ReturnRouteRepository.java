@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.OffsetDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -128,4 +128,10 @@ public interface ReturnRouteRepository extends JpaRepository<ReturnRoute, UUID> 
 
     @Query(value = "SELECT * FROM return_routes WHERE id = :routeId AND driver_id = :driverId", nativeQuery = true)
     java.util.Optional<ReturnRoute> findByIdAndDriverId(@Param("routeId") UUID routeId, @Param("driverId") UUID driverId);
+    
+    /**
+     * Find routes where bidding should be closed (departure time is within 3 hours)
+     */
+    @Query(value = "SELECT * FROM return_routes WHERE departure_time <= :closingTime AND status = 'INITIATED'", nativeQuery = true)
+    List<ReturnRoute> findRoutesForBidClosing(@Param("closingTime") ZonedDateTime closingTime);
 }

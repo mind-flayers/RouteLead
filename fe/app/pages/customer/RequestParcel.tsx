@@ -251,143 +251,147 @@ export default function RequestParcel() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Route Information */}
-      <View style={styles.routeInfo}>
-        <Text style={styles.routeTitle}>Route Details</Text>
-        <Text style={styles.routeText}>{origin} → {destination}</Text>
-        <Text style={styles.coordinatesText}>
-          Pickup: {pickupLat}, {pickupLng}
-        </Text>
-        <Text style={styles.coordinatesText}>
-          Dropoff: {dropoffLat}, {dropoffLng}
-        </Text>
-      </View>
-      
-      {/* Parcel Request Details */}
-      <Text style={styles.title}>Parcel Request</Text>
-
-      {/* Parcel Details */}
-      <View style={styles.section}>
-        <Text style={styles.label}>Weight (kg)</Text>
-        <TextInput
-          value={weight}
-          onChangeText={setWeight}
-          keyboardType="numeric"
-          placeholder="Enter weight in kg (e.g., 5)"
-          placeholderTextColor="#555"
-          style={styles.input}
-        />
-        <Text style={styles.label}>Dimensions (cm)</Text>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <TextInput
-            value={length}
-            onChangeText={setLength}
-            keyboardType="numeric"
-            placeholder="Length (cm)"
-            placeholderTextColor="#555"
-            style={[styles.input, { flex: 1, marginRight: 4 }]}
-          />
-          <TextInput
-            value={width}
-            onChangeText={setWidth}
-            keyboardType="numeric"
-            placeholder="Width (cm)"
-            placeholderTextColor="#555"
-            style={[styles.input, { flex: 1, marginHorizontal: 2 }]}
-          />
-          <TextInput
-            value={height}
-            onChangeText={setHeight}
-            keyboardType="numeric"
-            placeholder="Height (cm)"
-            placeholderTextColor="#555"
-            style={[styles.input, { flex: 1, marginLeft: 4 }]}
-                     />
-         </View>
-         
-         {/* Volume Display */}
-         {calculatedVolume !== null && (
-           <View style={styles.volumeInfo}>
-             <Text style={styles.volumeLabel}>Calculated Volume:</Text>
-             <Text style={styles.volumeValue}>{calculatedVolume.toFixed(4)} m³</Text>
-           </View>
-         )}
-         
-         <Text style={styles.label}>Description</Text>
-        <TextInput
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Describe your parcel (e.g., Fragile electronics, books, etc.)"
-          placeholderTextColor="#555"
-          style={styles.input}
-        />
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Route Information */}
+        <View style={styles.routeInfo}>
+          <Text style={styles.routeTitle}>Route Details</Text>
+          <Text style={styles.routeText}>{origin} → {destination}</Text>
+          <Text style={styles.coordinatesText}>
+            Pickup: {pickupLat}, {pickupLng}
+          </Text>
+          <Text style={styles.coordinatesText}>
+            Dropoff: {dropoffLat}, {dropoffLng}
+          </Text>
+        </View>
         
-        <Text style={styles.label}>Maximum Budget (LKR)</Text>
-        <TextInput
-          value={maxBudget}
-          onChangeText={setMaxBudget}
-          keyboardType="numeric"
-          placeholder="Enter your maximum budget (e.g., 1000.00)"
-          placeholderTextColor="#555"
-          style={styles.input}
-        />
-      </View>
+        {/* Parcel Request Details */}
+        <Text style={styles.title}>Parcel Request</Text>
 
-      {/* Contact Information */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Pickup Contact Information</Text>
-        <Text style={styles.label}>Contact Name</Text>
-        <TextInput
-          value={pickupContactName}
-          onChangeText={setPickupContactName}
-          placeholder="Enter pickup contact name"
-          placeholderTextColor="#555"
-          style={styles.input}
-        />
-        <Text style={styles.label}>Contact Phone</Text>
-        <TextInput
-          value={pickupContactPhone}
-          onChangeText={setPickupContactPhone}
-          placeholder="Enter pickup contact phone"
-          placeholderTextColor="#555"
-          style={styles.input}
-          keyboardType="phone-pad"
-        />
-      </View>
+        {/* Parcel Details */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Weight (kg)</Text>
+          <TextInput
+            value={weight}
+            onChangeText={setWeight}
+            keyboardType="numeric"
+            placeholder="Enter weight in kg (e.g., 5)"
+            placeholderTextColor="#555"
+            style={styles.input}
+          />
+          <Text style={styles.label}>Dimensions (cm)</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <TextInput
+              value={length}
+              onChangeText={setLength}
+              keyboardType="numeric"
+              placeholder="Length (cm)"
+              placeholderTextColor="#555"
+              style={[styles.input, { flex: 1, marginRight: 4 }]}
+            />
+            <TextInput
+              value={width}
+              onChangeText={setWidth}
+              keyboardType="numeric"
+              placeholder="Width (cm)"
+              placeholderTextColor="#555"
+              style={[styles.input, { flex: 1, marginHorizontal: 2 }]}
+            />
+            <TextInput
+              value={height}
+              onChangeText={setHeight}
+              keyboardType="numeric"
+              placeholder="Height (cm)"
+              placeholderTextColor="#555"
+              style={[styles.input, { flex: 1, marginLeft: 4 }]}
+                       />
+           </View>
+           
+           {/* Volume Display */}
+           {calculatedVolume !== null && (
+             <View style={styles.volumeInfo}>
+               <Text style={styles.volumeLabel}>Calculated Volume:</Text>
+               <Text style={styles.volumeValue}>{calculatedVolume.toFixed(4)} m³</Text>
+             </View>
+           )}
+           
+           <Text style={styles.label}>Description</Text>
+          <TextInput
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Describe your parcel (e.g., Fragile electronics, books, etc.)"
+            placeholderTextColor="#555"
+            style={styles.input}
+          />
+          
+          <Text style={styles.label}>Maximum Budget (LKR)</Text>
+          <TextInput
+            value={maxBudget}
+            onChangeText={setMaxBudget}
+            keyboardType="numeric"
+            placeholder="Enter your maximum budget (e.g., 1000.00)"
+            placeholderTextColor="#555"
+            style={styles.input}
+          />
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Delivery Contact Information</Text>
-        <Text style={styles.label}>Contact Name</Text>
-        <TextInput
-          value={deliveryContactName}
-          onChangeText={setDeliveryContactName}
-          placeholder="Enter delivery contact name"
-          placeholderTextColor="#555"
-          style={styles.input}
-        />
-        <Text style={styles.label}>Contact Phone</Text>
-        <TextInput
-          value={deliveryContactPhone}
-          onChangeText={setDeliveryContactPhone}
-          placeholder="Enter delivery contact phone"
-          placeholderTextColor="#555"
-          style={styles.input}
-          keyboardType="phone-pad"
-        />
-      </View>
+        {/* Contact Information */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Pickup Contact Information</Text>
+          <Text style={styles.label}>Contact Name</Text>
+          <TextInput
+            value={pickupContactName}
+            onChangeText={setPickupContactName}
+            placeholder="Enter pickup contact name"
+            placeholderTextColor="#555"
+            style={styles.input}
+          />
+          <Text style={styles.label}>Contact Phone</Text>
+          <TextInput
+            value={pickupContactPhone}
+            onChangeText={setPickupContactPhone}
+            placeholder="Enter pickup contact phone"
+            placeholderTextColor="#555"
+            style={styles.input}
+            keyboardType="phone-pad"
+          />
+        </View>
 
-      {/* Submit Button */}
-      <TouchableOpacity 
-        style={[styles.button, requestingParcel && styles.buttonDisabled]} 
-        onPress={handleRequestParcel}
-        disabled={requestingParcel}
-      >
-        <Text style={styles.buttonText}>
-          {requestingParcel ? 'Requesting...' : 'Request'}
-        </Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Delivery Contact Information</Text>
+          <Text style={styles.label}>Contact Name</Text>
+          <TextInput
+            value={deliveryContactName}
+            onChangeText={setDeliveryContactName}
+            placeholder="Enter delivery contact name"
+            placeholderTextColor="#555"
+            style={styles.input}
+          />
+          <Text style={styles.label}>Contact Phone</Text>
+          <TextInput
+            value={deliveryContactPhone}
+            onChangeText={setDeliveryContactPhone}
+            placeholder="Enter delivery contact phone"
+            placeholderTextColor="#555"
+            style={styles.input}
+            keyboardType="phone-pad"
+          />
+        </View>
+      </ScrollView>
+
+      {/* Fixed Submit Button */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity 
+          style={[styles.button, requestingParcel && styles.buttonDisabled]} 
+          onPress={handleRequestParcel}
+          disabled={requestingParcel}
+        >
+          <Text style={styles.buttonText}>
+            {requestingParcel ? 'Requesting...' : 'Request'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -395,8 +399,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 24,
     paddingVertical: 24,
+    paddingBottom: 100, // Add padding to prevent content from being hidden behind the fixed button
+  },
+  buttonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    paddingBottom: 34, // Account for safe area
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
   },
   title: {
     fontSize: 18,
