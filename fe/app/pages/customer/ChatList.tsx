@@ -9,11 +9,6 @@ import { supabase } from '@/lib/supabase';
 
 // Interface for driver data
 interface Driver {
-  bidId: string;
-  requestId: string;
-  requestDescription: string;
-  weightKg: number;
-  volumeM3: number;
   driverId: string;
   driverName: string;
   driverPhoto: string;
@@ -21,8 +16,9 @@ interface Driver {
   vehicleMake: string;
   vehicleModel: string;
   vehiclePlate: string;
-  offeredPrice: number;
-  bidCreatedAt: string;
+  totalParcels: number;
+  latestBidCreatedAt: string;
+  sampleBidId: string | null;
   conversationId: string | null;
   hasConversation: boolean;
   lastMessage?: string;
@@ -65,9 +61,28 @@ const ChatList = () => {
       }
 
       const data = await response.json();
+      console.log('Chat API Response:', data);
       
       if (data.success) {
-        setDrivers(data.drivers || []);
+        // Ensure we have an array of drivers and each driver has the required fields
+        const driversData = (data.drivers || []).map((driver: any) => ({
+          driverId: driver.driverId || '',
+          driverName: driver.driverName || 'Unknown Driver',
+          driverPhoto: driver.driverPhoto || null,
+          driverPhone: driver.driverPhone || null,
+          vehicleMake: driver.vehicleMake || 'Unknown',
+          vehicleModel: driver.vehicleModel || 'Vehicle',
+          vehiclePlate: driver.vehiclePlate || 'N/A',
+          totalParcels: driver.totalParcels || 0,
+          latestBidCreatedAt: driver.latestBidCreatedAt || new Date().toISOString(),
+          sampleBidId: driver.sampleBidId || null,
+          conversationId: driver.conversationId || null,
+          hasConversation: driver.hasConversation || false,
+          lastMessage: driver.lastMessage || null,
+          lastMessageTime: driver.lastMessageTime || null,
+          unreadCount: driver.unreadCount || 0
+        }));
+        setDrivers(driversData);
       } else {
         throw new Error(data.message || 'Failed to load drivers');
       }
@@ -96,22 +111,25 @@ const ChatList = () => {
             driverName: driver.driverName,
             driverPhoto: driver.driverPhoto || '',
             driverPhone: driver.driverPhone || '',
-            driverId: driver.driverId,
-            bidId: driver.bidId,
-            requestId: driver.requestId
+            driverId: driver.driverId
           } 
         });
         return;
       }
 
-      // Create new conversation
+      // Create new conversation using the sample bid ID for this driver
+      if (!driver.sampleBidId) {
+        setError('No available bid found for this driver. Please try again later.');
+        return;
+      }
+
       const response = await fetch(`${Config.API_BASE}/chat/conversation/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          bidId: driver.bidId,
+          bidId: driver.sampleBidId,
           customerId: customerId,
           driverId: driver.driverId,
         }),
@@ -133,9 +151,7 @@ const ChatList = () => {
             driverName: driver.driverName,
             driverPhoto: driver.driverPhoto || '',
             driverPhone: driver.driverPhone || '',
-            driverId: driver.driverId,
-            bidId: driver.bidId,
-            requestId: driver.requestId
+            driverId: driver.driverId
           } 
         });
       } else {
@@ -171,14 +187,11 @@ const ChatList = () => {
     return driverName.split(' ').map(name => name.charAt(0)).join('').toUpperCase();
   };
 
-  const formatPrice = (price: number) => {
-    return `LKR ${price.toLocaleString()}`;
-  };
 
   const filteredDrivers = activeTab === 'active' ? drivers : [];
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white" edges={['bottom', 'left', 'right']}>
       {/* Top Bar */}
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
         <TouchableOpacity onPress={() => router.back()} className="items-center">
@@ -256,7 +269,7 @@ const ChatList = () => {
             ) : (
               filteredDrivers.map((driver) => (
             <TouchableOpacity
-                  key={driver.bidId}
+                  key={driver.driverId}
                   className="bg-white rounded-xl shadow-sm border border-gray-200 p-4"
                   onPress={() => handleStartConversation(driver)}
                 >
@@ -270,18 +283,18 @@ const ChatList = () => {
                         />
                       ) : (
                         <Text className="text-orange-600 font-bold text-lg">
-                          {getDriverInitials(driver.driverName)}
+                          {getDriverInitials(driver.driverName || 'Driver')}
                         </Text>
                       )}
                     </View>
               <View className="flex-1">
-                      <Text className="font-bold text-base">{driver.driverName}</Text>
+                      <Text className="font-bold text-base">{driver.driverName || 'Unknown Driver'}</Text>
                       <Text className="text-gray-600 text-sm">
-                        {driver.vehicleMake} {driver.vehicleModel} • {driver.vehiclePlate}
+                        {driver.vehicleMake || 'Unknown'} {driver.vehicleModel || 'Vehicle'} • {driver.vehiclePlate || 'N/A'}
                       </Text>
               </View>
               <View className="items-end">
-                      <Text className="text-green-600 font-bold">{formatPrice(driver.offeredPrice)}</Text>
+                      <Text className="text-green-600 font-bold">{driver.totalParcels || 0} parcel{(driver.totalParcels || 0) > 1 ? 's' : ''}</Text>
                       {driver.hasConversation && driver.unreadCount && driver.unreadCount > 0 && (
                         <View className="bg-orange-500 rounded-full w-5 h-5 items-center justify-center mt-1">
                           <Text className="text-white text-xs font-bold">
@@ -292,19 +305,24 @@ const ChatList = () => {
               </View>
                   </View>
 
-                  {/* Request Details */}
+                  {/* Driver Details */}
                   <View className="bg-gray-50 rounded-lg p-3 mb-3">
                     <Text className="font-semibold text-gray-800 mb-1">
-                      {driver.requestDescription || 'Parcel Delivery'}
+                      Driver Details
                     </Text>
                     <View className="flex-row justify-between">
                       <Text className="text-gray-600 text-sm">
-                        {driver.weightKg}kg • {driver.volumeM3}m³
+                        Handling {driver.totalParcels || 0} delivery{(driver.totalParcels || 0) > 1 ? 'ies' : ''}
                       </Text>
                       <Text className="text-gray-500 text-xs">
-                        {formatTime(driver.bidCreatedAt)}
+                        {driver.latestBidCreatedAt ? formatTime(driver.latestBidCreatedAt) : 'Recently'}
                       </Text>
                     </View>
+                    {driver.driverPhone && (
+                      <Text className="text-gray-600 text-sm mt-1">
+                        Phone: {driver.driverPhone}
+                      </Text>
+                    )}
                   </View>
 
                   {/* Last Message or Start Chat */}
@@ -314,7 +332,7 @@ const ChatList = () => {
                         {driver.lastMessage}
                       </Text>
                       <Text className="text-gray-500 text-xs">
-                        {formatTime(driver.lastMessageTime || '')}
+                        {driver.lastMessageTime ? formatTime(driver.lastMessageTime) : 'Recently'}
                       </Text>
                     </View>
                   ) : (

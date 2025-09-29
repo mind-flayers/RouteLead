@@ -8,6 +8,7 @@ import com.example.be.dto.RouteDetailsDto;
 import com.example.be.dto.RouteBidCreateDto;
 import com.example.be.dto.RouteBidWithRequestDto;
 import com.example.be.dto.BidDto;
+import com.example.be.dto.SimpleRouteDto;
 import com.example.be.model.ReturnRoute;
 import com.example.be.types.RouteStatus;
 import com.example.be.repository.ReturnRouteRepository;
@@ -24,8 +25,12 @@ import java.util.List;
 import java.util.UUID;
 import java.util.Map;
 import java.util.HashMap;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+
+import java.util.Optional;
+
 import com.example.be.model.Profile;
 import com.example.be.repository.ProfileRepository;
 import com.example.be.repository.BidRepository;
@@ -47,11 +52,96 @@ public class RouteController {
     private final com.example.be.service.BidService bidService;
     private final BidSelectionService bidSelectionService;
 
+    @GetMapping
+    public ResponseEntity<?> getRecentRoutes(@RequestParam(defaultValue = "3") int limit) {
+        log.info("GET /api/routes - Fetching {} most recent routes", limit);
+        try {
+            List<ReturnRoute> routes = routeRepo.findAll()
+                .stream()
+                .sorted((r1, r2) -> r2.getCreatedAt().compareTo(r1.getCreatedAt()))
+                .limit(limit)
+                .collect(java.util.stream.Collectors.toList());
+            
+            // Convert to SimpleRouteDto to avoid circular references
+            List<SimpleRouteDto> routeDtos = routes.stream()
+                .map(route -> {
+                    SimpleRouteDto dto = new SimpleRouteDto();
+                    dto.setId(route.getId());
+                    dto.setDriverId(route.getDriver().getId());
+                    dto.setDriverName(route.getDriver().getFirstName() + " " + route.getDriver().getLastName());
+                    dto.setDriverEmail(route.getDriver().getEmail());
+                    dto.setDriverPhone(route.getDriver().getPhoneNumber());
+                    dto.setDriverProfilePhoto(route.getDriver().getProfilePhotoUrl());
+                    dto.setOriginLat(route.getOriginLat());
+                    dto.setOriginLng(route.getOriginLng());
+                    dto.setOriginAddress(null); // Address not stored in ReturnRoute entity
+                    dto.setDestinationLat(route.getDestinationLat());
+                    dto.setDestinationLng(route.getDestinationLng());
+                    dto.setDestinationAddress(null); // Address not stored in ReturnRoute entity
+                    dto.setDepartureTime(route.getDepartureTime());
+                    dto.setDetourToleranceKm(route.getDetourToleranceKm());
+                    dto.setSuggestedPriceMin(route.getSuggestedPriceMin());
+                    dto.setSuggestedPriceMax(route.getSuggestedPriceMax());
+                    dto.setStatus(route.getStatus().name());
+                    dto.setCreatedAt(route.getCreatedAt());
+                    dto.setUpdatedAt(route.getUpdatedAt());
+                    return dto;
+                })
+                .collect(java.util.stream.Collectors.toList());
+            
+            return ResponseEntity.ok(routeDtos);
+        } catch (Exception e) {
+            log.error("Error fetching recent routes: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
     @GetMapping("/{routeId}")
     public ResponseEntity<?> getRouteById(@PathVariable UUID routeId) {
-        return routeRepo.findById(routeId)
-            .<ResponseEntity<?>>map(ResponseEntity::ok)
-            .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).body("Route not found"));
+        log.info("GET /api/routes/{} - Fetching route by ID", routeId);
+        try {
+            Optional<ReturnRoute> routeOpt = routeRepo.findById(routeId);
+            if (routeOpt.isPresent()) {
+                ReturnRoute route = routeOpt.get();
+                // Convert to SimpleRouteDto to avoid circular references
+                SimpleRouteDto dto = new SimpleRouteDto();
+                dto.setId(route.getId());
+                dto.setDriverId(route.getDriver().getId());
+                dto.setDriverName(route.getDriver().getFirstName() + " " + route.getDriver().getLastName());
+                dto.setDriverEmail(route.getDriver().getEmail());
+                dto.setDriverPhone(route.getDriver().getPhoneNumber());
+                dto.setDriverProfilePhoto(route.getDriver().getProfilePhotoUrl());
+                dto.setOriginLat(route.getOriginLat());
+                dto.setOriginLng(route.getOriginLng());
+                dto.setOriginAddress(null); // Address not stored in ReturnRoute entity
+                dto.setDestinationLat(route.getDestinationLat());
+                dto.setDestinationLng(route.getDestinationLng());
+                dto.setDestinationAddress(null); // Address not stored in ReturnRoute entity
+                dto.setDepartureTime(route.getDepartureTime());
+                dto.setDetourToleranceKm(route.getDetourToleranceKm());
+                dto.setSuggestedPriceMin(route.getSuggestedPriceMin());
+                dto.setSuggestedPriceMax(route.getSuggestedPriceMax());
+                dto.setStatus(route.getStatus().name());
+                dto.setCreatedAt(route.getCreatedAt());
+                dto.setUpdatedAt(route.getUpdatedAt());
+                return ResponseEntity.ok(dto);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "Route not found"));
+            }
+        } catch (Exception e) {
+            log.error("Error fetching route by ID: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 
     @GetMapping("/{routeId}/details")

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Alert, TouchableOpacity } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useRouter } from 'expo-router';
+import { Config } from '../constants/Config';
 
 interface PayHereCheckoutProps {
   paymentData: any;
@@ -134,7 +135,7 @@ export default function PayHereCheckout({
       console.log('🔄 Processing bypass payment:', bypassRequest);
       
       // Call the bypass endpoint
-      const response = await fetch('https://e7a10c241203.ngrok-free.app/api/payments/bypass', {
+      const response = await fetch(`${Config.API_BASE}/payments/bypass`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -142,7 +143,19 @@ export default function PayHereCheckout({
         body: JSON.stringify(bypassRequest),
       });
       
+      console.log('📡 Bypass response status:', response.status);
+      console.log('📡 Bypass response headers:', response.headers);
+      
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.error('❌ Non-JSON response received:', textResponse.substring(0, 200));
+        throw new Error(`Server returned non-JSON response: ${response.status}`);
+      }
+      
       const result = await response.json();
+      console.log('📋 Bypass response data:', result);
       
       if (result.success) {
         console.log('✅ Payment bypassed successfully:', result.data);
@@ -151,8 +164,8 @@ export default function PayHereCheckout({
         // Call the onBypass callback directly without showing an alert
         onBypass?.(result.data);
       } else {
-        console.error('❌ Bypass payment failed:', result.message);
-        Alert.alert('Payment Error', result.message || 'Failed to process payment');
+        console.error('❌ Bypass payment failed:', result.message || result.error);
+        Alert.alert('Payment Error', result.message || result.error || 'Failed to process payment');
       }
       
     } catch (error) {
@@ -205,7 +218,7 @@ export default function PayHereCheckout({
         setError(message.error);
         onError?.(message.error);
       }
-    } catch (e) {
+    } catch {
       console.log('📱 Non-JSON message from WebView:', data);
     }
   };
