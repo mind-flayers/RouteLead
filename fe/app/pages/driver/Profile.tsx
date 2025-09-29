@@ -6,18 +6,23 @@ import { Link, router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import PrimaryCard from '../../../components/ui/PrimaryCard';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
+import PaymentPreferencesModal from '../../../components/ui/PaymentPreferencesModal';
+import ChangePasswordModal from '../../../components/ui/ChangePasswordModal';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
 import { VerificationApiService, VerificationStatus, VerificationRequirements } from '../../../services/verificationApiService';
 import { ProfilePictureService } from '../../../services/profilePictureService';
+import { BankDetailsAPI, BankDetails } from '../../../services/withdrawalService';
+import { useDriverInfo } from '../../../hooks/useEarningsData';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const Profile = () => {
   const navigation = useNavigation();
   const params = useLocalSearchParams();
   const { refreshUserProfile } = useAuth();
+  const { driverId } = useDriverInfo();
   const [userName, setUserName] = useState('Loading...');
   const [userEmail, setUserEmail] = useState('Loading...');
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus | null>(null);
@@ -27,6 +32,13 @@ const Profile = () => {
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [needsVerificationRefresh, setNeedsVerificationRefresh] = useState(false);
+  
+  // Payment Preferences state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
+  
+  // Change Password state
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   
   // Success alert state
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
@@ -76,6 +88,11 @@ const Profile = () => {
           } catch (error) {
             console.error('Error fetching verification requirements:', error);
           }
+          
+          // Load bank details if driverId is available
+          if (user.id) {
+            loadBankDetails(user.id);
+          }
         } else {
           setUserName('Guest');
           setUserEmail('N/A');
@@ -120,6 +137,41 @@ const Profile = () => {
     } catch (error) {
       console.error('Error refreshing verification status:', error);
     }
+  };
+
+  const loadBankDetails = async (userIdToUse?: string) => {
+    const targetUserId = userIdToUse || driverId;
+    if (!targetUserId) return;
+    
+    try {
+      const details = await BankDetailsAPI.getBankDetails(targetUserId);
+      setBankDetails(details);
+    } catch (error) {
+      console.error('Error loading bank details:', error);
+      // Don't show alert for bank details loading error, just log it
+    }
+  };
+
+  const handleBankDetailsUpdated = (updatedDetails: BankDetails) => {
+    setBankDetails(updatedDetails);
+  };
+
+  const handlePasswordChanged = () => {
+    Alert.alert(
+      'Password Changed',
+      'Your password has been changed successfully. For security reasons, please log in again.',
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Sign out the user to force re-authentication
+            supabase.auth.signOut();
+            router.replace('/pages/login');
+          },
+        },
+      ],
+      { cancelable: false }
+    );
   };
 
   // Check for success parameter and show alert
@@ -441,12 +493,19 @@ const Profile = () => {
               <Ionicons name="chevron-forward" size={20} color="gray" />
             </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => console.log('Payment Preferences')} className="flex-row items-center justify-between p-4">
+          <TouchableOpacity onPress={() => setShowPaymentModal(true)} className="flex-row items-center justify-between p-4">
             <View className="flex-row items-center">
               <FontAwesome5 name="credit-card" size={20} color="#f97316" />
               <Text className="ml-3 text-base text-gray-700">Payment Preferences</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="gray" />
+            <View className="flex-row items-center">
+              {bankDetails && (
+                <Text className="text-xs font-semibold mr-2 text-green-500">
+                  Configured
+                </Text>
+              )}
+              <Ionicons name="chevron-forward" size={20} color="gray" />
+            </View>
           </TouchableOpacity>
         </PrimaryCard>
 
@@ -479,7 +538,7 @@ const Profile = () => {
         {/* Support & Security Section */}
         <Text className="text-lg font-bold text-gray-800 mb-3 mt-2">Support & Security</Text>
         <PrimaryCard className="mb-4 p-0">
-          <TouchableOpacity onPress={() => console.log('Change Password')} className="flex-row items-center justify-between p-4 border-b border-gray-200">
+          <TouchableOpacity onPress={() => setShowChangePasswordModal(true)} className="flex-row items-center justify-between p-4 border-b border-gray-200">
             <View className="flex-row items-center">
               <FontAwesome5 name="lock" size={20} color="#f97316" />
               <Text className="ml-3 text-base text-gray-700">Change Password</Text>
@@ -508,6 +567,21 @@ const Profile = () => {
 
       {/* Bottom Navigation Bar */}
       <DriverBottomNavigation />
+
+      {/* Payment Preferences Modal */}
+      <PaymentPreferencesModal
+        visible={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        driverId={driverId}
+        onBankDetailsUpdated={handleBankDetailsUpdated}
+      />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        visible={showChangePasswordModal}
+        onClose={() => setShowChangePasswordModal(false)}
+        onPasswordChanged={handlePasswordChanged}
+      />
     </SafeAreaView>
   );
 };

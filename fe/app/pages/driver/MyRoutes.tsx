@@ -11,7 +11,7 @@ import PrimaryCard from '@/components/ui/PrimaryCard';
 import IndigoButton from '@/components/ui/IndigoButton';
 import { ProfileAvatar } from '@/components/ui/ProfileImage';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
-import { VerificationGuard } from '@/components/guards/VerificationGuard';
+import { VerificationGuard } from '@/components/guards/VerificationGuardOptimized';
 import { useMyRoutes } from '@/hooks/useMyRoutes';
 import { useDriverInfo } from '@/hooks/useEarningsData';
 import { formatCurrency, formatDate, ApiService } from '@/services/apiService';
@@ -156,139 +156,115 @@ const MyRoutes = () => {
     }
   };
 
-  // Enhanced status formatting function
-  const getEnhancedRouteStatus = (route: any) => {
-    const countdown = calculateRealTimeCountdown(route.biddingEndTime);
-    
-    // If bidding has ended, override status
-    if (countdown.isExpired && (route.status === 'INITIATED' || route.status === 'OPEN')) {
-      return {
-        label: 'Ended',
-        color: 'text-red-600',
-        bgColor: 'bg-red-100'
-      };
-    }
-    
-    // Use original status formatting
-    return formatRouteStatus(route.status);
-  };
-
   const renderRouteCard = useCallback((route: any) => {
-    const statusFormat = getEnhancedRouteStatus(route);
-    const countdown = calculateRealTimeCountdown(route.biddingEndTime);
-    const isActive = !countdown.isExpired;
+    // Safety checks for route data
+    if (!route || !route.id) {
+      console.warn('Invalid route data:', route);
+      return null;
+    }
+
+    // Safe countdown calculation
+    const countdown = route.biddingEndTime 
+      ? calculateRealTimeCountdown(route.biddingEndTime)
+      : { text: 'No data', isExpired: true };
     
     // Use location names from API response (already geocoded by the API)
-    const originDisplay = route.originLocationName || `${route.originLat}, ${route.originLng}`;
-    const destinationDisplay = route.destinationLocationName || `${route.destinationLat}, ${route.destinationLng}`;
+    const originDisplay = route.originLocationName || 
+      (route.originLat && route.originLng ? `${route.originLat}, ${route.originLng}` : 'Unknown origin');
+    const destinationDisplay = route.destinationLocationName || 
+      (route.destinationLat && route.destinationLng ? `${route.destinationLat}, ${route.destinationLng}` : 'Unknown destination');
 
-    // Format departure time
-    const departureDate = new Date(route.departureTime);
-    const formattedDepartureTime = departureDate.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: '2-digit', 
-      year: 'numeric'
-    });
-    const formattedDepartureHour = departureDate.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+    // Safe departure time formatting
+    let formattedDepartureTime = 'No date';
+    let formattedDepartureHour = 'No time';
+    
+    if (route.departureTime) {
+      try {
+        const departureDate = new Date(route.departureTime);
+        if (!isNaN(departureDate.getTime())) {
+          formattedDepartureTime = departureDate.toLocaleDateString('en-US', { 
+            weekday: 'short',
+            month: 'short', 
+            day: '2-digit', 
+            year: 'numeric'
+          });
+          formattedDepartureHour = departureDate.toLocaleTimeString('en-US', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          });
+        }
+      } catch (error) {
+        console.warn('Invalid departure time:', route.departureTime);
+      }
+    }
 
     return (
       <PrimaryCard key={route.id} style={{ marginBottom: 16 }}>
-        {/* Header with origin and status */}
-        <View className="flex-row items-center mb-2">
-          <Ionicons name="location-outline" size={18} color="gray" />
-          <Text className="text-lg font-semibold ml-2 flex-1" numberOfLines={1}>
+        {/* Origin Location */}
+        <View className="flex-row items-center mb-3">
+          <Ionicons name="location-outline" size={20} color="#f97316" />
+          <Text className="text-lg font-semibold ml-2 flex-1 text-gray-800" numberOfLines={2}>
             {originDisplay}
           </Text>
-          <View className={`ml-2 px-3 py-1 rounded-full ${statusFormat.bgColor}`}>
-            <Text className={`text-xs font-bold ${statusFormat.color}`}>
-              {statusFormat.label}
-            </Text>
-          </View>
         </View>
         
-        {/* Destination */}
-        <View className="flex-row items-center mb-2">
-          <MaterialCommunityIcons name="arrow-down" size={18} color="gray" style={{ marginLeft: 2 }} />
-          <Text className="text-lg font-semibold ml-2 flex-1" numberOfLines={1}>
+        {/* Destination Location */}
+        <View className="flex-row items-center mb-3">
+          <Ionicons name="flag-outline" size={20} color="#10b981" />
+          <Text className="text-lg font-semibold ml-2 flex-1 text-gray-800" numberOfLines={2}>
             {destinationDisplay}
           </Text>
         </View>
-
-        {/* Route Details */}
-        <View className="flex-row items-center mb-2 flex-wrap">
-          {route.totalDistanceKm && (
-            <View className="flex-row items-center mr-4 mb-1">
-              <Ionicons name="location" size={14} color="#555" />
-              <Text className="text-gray-600 ml-1 text-sm">{route.totalDistanceKm.toFixed(1)} km</Text>
-            </View>
-          )}
-          {route.estimatedDurationMinutes && (
-            <View className="flex-row items-center mr-4 mb-1">
-              <Ionicons name="time" size={14} color="#555" />
-              <Text className="text-gray-600 ml-1 text-sm">{Math.round(route.estimatedDurationMinutes)} min</Text>
-            </View>
-          )}
-          {route.detourToleranceKm && (
-            <View className="flex-row items-center mb-1">
-              <Ionicons name="swap-horizontal" size={14} color="#555" />
-              <Text className="text-gray-600 ml-1 text-sm">±{route.detourToleranceKm} km</Text>
-            </View>
-          )}
+        
+        {/* Departure Date & Time */}
+        <View className="flex-row items-center mb-3">
+          <Ionicons name="calendar-outline" size={20} color="#6366f1" />
+          <View className="ml-2">
+            <Text className="text-base font-medium text-gray-800">
+              {formattedDepartureTime}
+            </Text>
+            <Text className="text-sm text-gray-600">
+              at {formattedDepartureHour}
+            </Text>
+          </View>
         </View>
         
-        {/* Departure Time */}
-        <View className="flex-row items-center mb-2">
-          <Ionicons name="calendar-outline" size={18} color="gray" />
-          <Text className="text-gray-600 ml-2">
-            {formattedDepartureTime} at {formattedDepartureHour}
-          </Text>
-        </View>
-        
-        {/* Real-time Bidding Information */}
+        {/* Bidding Countdown - only show for active routes */}
         {(route.status === 'INITIATED' || route.status === 'OPEN') && (
-          <View className="flex-row items-center mb-2">
+          <View className="flex-row items-center mb-3">
             <Ionicons 
-              name="time-outline" 
-              size={18} 
+              name="timer-outline" 
+              size={20} 
               color={countdown.isExpired ? "#dc2626" : "#ea580c"} 
             />
             <Text 
-              className={`ml-2 font-medium ${
+              className={`ml-2 font-medium text-base ${
                 countdown.isExpired ? 'text-red-600' : 'text-orange-600'
               }`}
             >
-              {countdown.isExpired ? 'Bidding ended' : `Bidding ends: ${countdown.text}`}
-            </Text>
-          </View>
-        )}
-        
-        {/* Price Range */}
-        {route.suggestedPriceMin && route.suggestedPriceMax && (
-          <View className="flex-row items-center mb-2">
-            <Ionicons name="cash-outline" size={18} color="gray" />
-            <Text className="text-gray-600 ml-2">
-              Suggested: {formatCurrency(route.suggestedPriceMin)} - {formatCurrency(route.suggestedPriceMax)}
+              {countdown.isExpired ? 'Bidding Ended' : `Ends in: ${countdown.text}`}
             </Text>
           </View>
         )}
         
         {/* Bids Summary */}
-        <View className="flex-row items-center mb-4">
-          <Ionicons name="people-outline" size={18} color="gray" />
-          <Text className="text-gray-600 ml-2">
-            {route.bidCount} Bids
-            {route.highestBidAmount && (
-              <Text className="text-gray-600"> | Highest: </Text>
-            )}
-            {route.highestBidAmount && (
-              <Text className="text-orange-500 font-bold">
+        <View className="flex-row items-center justify-between mb-4 bg-gray-50 p-3 rounded-lg">
+          <View className="flex-row items-center">
+            <Ionicons name="people-outline" size={18} color="#6b7280" />
+            <Text className="text-gray-700 ml-2 font-medium">
+              {(route.bidCount !== undefined && route.bidCount !== null) ? route.bidCount : 0} Bids
+            </Text>
+          </View>
+          {route.highestBidAmount && typeof route.highestBidAmount === 'number' && route.highestBidAmount > 0 ? (
+            <View className="flex-row items-center">
+              <Ionicons name="trophy-outline" size={18} color="#f59e0b" />
+              <Text className="text-amber-600 font-bold ml-2">
                 {formatCurrency(route.highestBidAmount)}
               </Text>
-            )}
-          </Text>
+            </View>
+          ) : (
+            <Text className="text-gray-500 text-sm italic">No bids yet</Text>
+          )}
         </View>
         
         {/* Action Buttons */}

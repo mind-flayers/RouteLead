@@ -128,6 +128,21 @@ export interface AvailableCustomer {
   deliveryLocation: string;
 }
 
+export interface PastCustomer {
+  customerId: string;
+  customerName: string;
+  customerProfileImage?: string;
+  customerPhone?: string;
+  bidId: string;
+  routeDescription: string;
+  amount: number;
+  completedAt: string;
+  deliveryStatus: 'COMPLETED' | 'CANCELLED' | 'DELIVERED';
+  pickupLocation: string;
+  deliveryLocation: string;
+  conversationId?: string;
+}
+
 export interface ChatMessage {
   id: string;
   text: string;
@@ -318,6 +333,81 @@ export interface ViewBidsResponse {
   acceptedBids: DetailedBid[];
 }
 
+// Types for automatic bidding system
+export interface BidSelectionDto {
+  id: string;
+  requestId: string;
+  routeId: string;
+  offeredPrice: number;
+  normalizedPrice: number;
+  normalizedVolume: number;
+  normalizedDistance: number;
+  detourPercentage: number;
+  score: number;
+  startIndex: number;
+  endIndex: number;
+  volume: number;
+  weightKg: number;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  customerFirstName?: string;
+  customerLastName?: string;
+  description?: string;
+  pickupLocation?: string;
+  deliveryLocation?: string;
+}
+
+export interface RankedBidsResponse {
+  timestamp: string;
+  status: number;
+  message: string;
+  routeId: string;
+  totalBids: number;
+  rankingCriteria: {
+    priceWeight: number;
+    volumeWeight: number;
+    distanceWeight: number;
+    detourWeight: number;
+    vehicleCapacity: number;
+  };
+  rankedBids: BidSelectionDto[];
+  path: string;
+}
+
+export interface OptimalBidsResponse {
+  timestamp: string;
+  status: number;
+  message: string;
+  routeId: string;
+  totalBidsConsidered: number;
+  optimalBidsSelected: number;
+  selectionCriteria: {
+    priceWeight: number;
+    volumeWeight: number;
+    distanceWeight: number;
+    detourWeight: number;
+    vehicleCapacity: number;
+  };
+  optimalBids: BidSelectionDto[];
+  path: string;
+}
+
+export interface BiddingStatusResponse {
+  timestamp: string;
+  status: number;
+  message: string;
+  routeId: string;
+  routeStatus: string;
+  biddingStart: string;
+  departureTime: string;
+  biddingEndTime: string;
+  biddingActive: boolean;
+  biddingEnded: boolean;
+  pendingBids: number;
+  acceptedBids: number;
+  timeUntilBiddingEnd: number; // in minutes
+  path: string;
+}
+
 // API Service
 export class ApiService {
   
@@ -421,7 +511,7 @@ export class ApiService {
   }
 
   // Route Creation API
-  static async createRoute(routeData: any): Promise<{ routeId: string; message: string }> {
+  static async createRoute(routeData: any): Promise<{ routeId: string; message: string; priceSuggestion?: any }> {
     console.log('Creating route with data:', routeData);
     
     try {
@@ -461,10 +551,58 @@ export class ApiService {
       
       return {
         routeId: result.routeId,
-        message: result.message || 'Route created successfully'
+        message: result.message || 'Route created successfully',
+        priceSuggestion: result.priceSuggestion
       };
     } catch (error) {
       console.error('Error creating route:', error);
+      throw error;
+    }
+  }
+
+  static async getPriceSuggestion(routeId: string): Promise<any> {
+    console.log('Fetching price suggestion for route:', routeId);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/routes/price-suggestion?routeId=${routeId}`, {
+        method: 'GET',
+        headers: await getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch price suggestion: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Price suggestion response:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('Error fetching price suggestion:', error);
+      throw error;
+    }
+  }
+
+  static async predictPrice(features: { distance: number; weight: number; volume: number }): Promise<any> {
+    console.log('Calling standalone price prediction API with features:', features);
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/routes/predict-price`, {
+        method: 'POST',
+        headers: await getAuthHeaders(),
+        body: JSON.stringify(features),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to predict price: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Price prediction response:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('Error predicting price:', error);
       throw error;
     }
   }
@@ -791,6 +929,155 @@ export class ApiService {
     }
   }
 
+  // Get Ranked Bids API (for automatic bidding)
+  static async getRankedBids(routeId: string, status?: string): Promise<RankedBidsResponse> {
+    try {
+      const params = new URLSearchParams();
+      if (status) params.append('status', status);
+      
+      const queryString = params.toString();
+      const url = `${API_BASE_URL}/routes/${routeId}/ranked-bids${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: await getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        // Handle 500 errors silently for routes without bids
+        if (response.status === 500) {
+          return { 
+            rankedBids: [], 
+            path: '', 
+            timestamp: new Date().toISOString(), 
+            status: 500, 
+            message: 'No bids available',
+            routeId: routeId,
+            totalBids: 0,
+            rankingCriteria: {
+              priceWeight: 0,
+              volumeWeight: 0,
+              distanceWeight: 0,
+              detourWeight: 0,
+              vehicleCapacity: 0
+            }
+          };
+        }
+        throw new Error(`Failed to fetch ranked bids: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      // Suppress logging for expected 500 errors
+      if (error instanceof Error && error.message.includes('500')) {
+        return { 
+          rankedBids: [], 
+          path: '', 
+          timestamp: new Date().toISOString(), 
+          status: 500, 
+          message: 'No bids available',
+          routeId: routeId,
+          totalBids: 0,
+          rankingCriteria: {
+            priceWeight: 0,
+            volumeWeight: 0,
+            distanceWeight: 0,
+            detourWeight: 0,
+            vehicleCapacity: 0
+          }
+        };
+      }
+      console.error('Error fetching ranked bids:', error);
+      throw error;
+    }
+  }
+
+  // Get Optimal Bids API (for automatic bidding)
+  static async getOptimalBids(routeId: string, status?: string): Promise<OptimalBidsResponse> {
+    try {
+      const params = new URLSearchParams();
+      if (status) params.append('status', status);
+      
+      const queryString = params.toString();
+      const url = `${API_BASE_URL}/routes/${routeId}/optimal-bids${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: await getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        // Handle 500 errors silently for routes without bids
+        if (response.status === 500) {
+          return { 
+            optimalBids: [], 
+            path: '', 
+            timestamp: new Date().toISOString(), 
+            status: 500, 
+            message: 'No optimal bids available',
+            routeId: routeId,
+            totalBidsConsidered: 0,
+            optimalBidsSelected: 0,
+            selectionCriteria: {
+              priceWeight: 0,
+              volumeWeight: 0,
+              distanceWeight: 0,
+              detourWeight: 0,
+              vehicleCapacity: 0
+            }
+          };
+        }
+        throw new Error(`Failed to fetch optimal bids: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      // Suppress logging for expected 500 errors
+      if (error instanceof Error && error.message.includes('500')) {
+        return { 
+          optimalBids: [], 
+          path: '', 
+          timestamp: new Date().toISOString(), 
+          status: 500, 
+          message: 'No optimal bids available',
+          routeId: routeId,
+          totalBidsConsidered: 0,
+          optimalBidsSelected: 0,
+          selectionCriteria: {
+            priceWeight: 0,
+            volumeWeight: 0,
+            distanceWeight: 0,
+            detourWeight: 0,
+            vehicleCapacity: 0
+          }
+        };
+      }
+      console.error('Error fetching optimal bids:', error);
+      throw error;
+    }
+  }
+
+  // Get Bidding Status API (for countdown and automation status)
+  static async getBiddingStatus(routeId: string): Promise<BiddingStatusResponse> {
+    try {
+      const url = `${API_BASE_URL}/routes/${routeId}/bidding-status`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: await getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch bidding status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching bidding status:', error);
+      throw error;
+    }
+  }
+
   // ==== DRIVER CHAT API METHODS ====
 
   // Get Driver Conversations API
@@ -931,6 +1218,117 @@ export class ApiService {
       console.error('Error fetching available customers:', error);
       throw error;
     }
+  }
+
+  // Get Past Customers API
+  static async getPastCustomers(driverId: string): Promise<PastCustomer[]> {
+    try {
+      // Use earnings history to derive past customers from completed deliveries
+      console.log('Fetching past customers from earnings history for driver:', driverId);
+      
+      // Get all earnings history for completed deliveries (AVAILABLE or WITHDRAWN status)
+      const earningsHistory = await this.getEarningsHistory(driverId);
+      
+      if (!earningsHistory || earningsHistory.length === 0) {
+        console.log('No earnings history found, returning mock past customers');
+        return this.getMockPastCustomers();
+      }
+
+      // Filter for completed earnings (AVAILABLE or WITHDRAWN) and group by customer
+      const completedEarnings = earningsHistory.filter(earning => 
+        earning.status === 'AVAILABLE' || earning.status === 'WITHDRAWN'
+      );
+
+      // Group by customer name and bidId to avoid duplicates
+      const customerMap = new Map<string, PastCustomer>();
+      
+      completedEarnings.forEach(earning => {
+        const customerId = earning.bidId + '_customer'; // Generate customer ID from bid
+        const customerKey = `${earning.customerName}_${earning.bidId}`;
+        
+        if (!customerMap.has(customerKey) && earning.customerName) {
+          const pastCustomer: PastCustomer = {
+            customerId: customerId,
+            customerName: earning.customerName,
+            customerProfileImage: undefined, // Not available in earnings
+            customerPhone: earning.customerPhone || '',
+            bidId: earning.bidId,
+            routeDescription: earning.routeDescription || earning.parcelDescription || 'Package delivery',
+            amount: earning.netAmount || earning.grossAmount,
+            completedAt: earning.earnedAt,
+            deliveryStatus: earning.status === 'WITHDRAWN' ? 'COMPLETED' : 'DELIVERED',
+            pickupLocation: earning.fromLocation || earning.originLocation || 'Pickup location',
+            deliveryLocation: earning.toLocation || earning.destinationLocation || 'Delivery location',
+            conversationId: undefined // Not available in earnings
+          };
+          
+          customerMap.set(customerKey, pastCustomer);
+        }
+      });
+
+      const pastCustomers = Array.from(customerMap.values());
+      
+      // Sort by completion date (most recent first)
+      pastCustomers.sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+      
+      console.log(`Found ${pastCustomers.length} past customers from earnings history`);
+      return pastCustomers;
+      
+    } catch (error) {
+      console.error('Error fetching past customers from earnings:', error);
+      
+      // Fallback to mock data if earnings API fails
+      console.log('Falling back to mock past customers data');
+      return this.getMockPastCustomers();
+    }
+  }
+
+  // Mock past customers for development/demo purposes
+  private static getMockPastCustomers(): PastCustomer[] {
+    return [
+      {
+        customerId: 'past_customer_1',
+        customerName: 'Sarah Williams',
+        customerProfileImage: undefined,
+        customerPhone: '+94771234567',
+        bidId: 'bid_completed_001',
+        routeDescription: 'Colombo Fort → Mount Lavinia',
+        amount: 850.00,
+        completedAt: '2025-09-15T14:30:00Z',
+        deliveryStatus: 'COMPLETED',
+        pickupLocation: 'Colombo Fort Railway Station',
+        deliveryLocation: 'Mount Lavinia Beach Hotel',
+        conversationId: 'conv_001'
+      },
+      {
+        customerId: 'past_customer_2',
+        customerName: 'Rajesh Kumar',
+        customerProfileImage: undefined,
+        customerPhone: '+94779876543',
+        bidId: 'bid_completed_002',
+        routeDescription: 'Kandy → Nuwara Eliya',
+        amount: 1200.00,
+        completedAt: '2025-09-14T09:15:00Z',
+        deliveryStatus: 'DELIVERED',
+        pickupLocation: 'Kandy Bus Station',
+        deliveryLocation: 'Nuwara Eliya Grand Hotel',
+        conversationId: 'conv_002'
+      },
+      {
+        customerId: 'past_customer_3',
+        customerName: 'Priya Mendis',
+        customerProfileImage: undefined,
+        customerPhone: '+94776543210',
+        bidId: 'bid_completed_003',
+        routeDescription: 'Galle → Mirissa',
+        amount: 650.00,
+        completedAt: '2025-09-13T16:45:00Z',
+        deliveryStatus: 'COMPLETED',
+        pickupLocation: 'Galle Fort',
+        deliveryLocation: 'Mirissa Beach Resort',
+        conversationId: 'conv_003'
+      }
+    ];
   }
 
   // End Chat Session API

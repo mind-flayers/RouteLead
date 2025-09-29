@@ -128,10 +128,26 @@ public interface ReturnRouteRepository extends JpaRepository<ReturnRoute, UUID> 
 
     @Query(value = "SELECT * FROM return_routes WHERE id = :routeId AND driver_id = :driverId", nativeQuery = true)
     java.util.Optional<ReturnRoute> findByIdAndDriverId(@Param("routeId") UUID routeId, @Param("driverId") UUID driverId);
+
+
+    /**
+     * Find routes where bidding should end automatically (departure_time - 2 hours <= cutoff time)
+     * and status is still OPEN (not yet processed)
+     */
+    @Query(value = """
+        SELECT * FROM return_routes 
+        WHERE status = 'OPEN' 
+        AND departure_time <= :biddingCutoffTime 
+        AND bidding_start <= NOW()
+        ORDER BY departure_time ASC
+        """, nativeQuery = true)
+    List<ReturnRoute> findRoutesForAutomaticBidding(@Param("biddingCutoffTime") java.time.LocalDateTime biddingCutoffTime);
+
     
     /**
      * Find routes where bidding should be closed (departure time is within 3 hours)
      */
     @Query(value = "SELECT * FROM return_routes WHERE departure_time <= :closingTime AND status = 'INITIATED'", nativeQuery = true)
     List<ReturnRoute> findRoutesForBidClosing(@Param("closingTime") ZonedDateTime closingTime);
+
 }

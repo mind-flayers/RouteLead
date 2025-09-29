@@ -7,17 +7,17 @@ import { HapticTab } from '@/components/HapticTab';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useVerificationGuard } from '@/hooks/useVerificationGuard';
+import { useVerificationStatusLite } from '@/hooks/useVerificationGuardOptimized';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { canAccessRestrictedFeatures, isDriver } = useVerificationGuard();
+  const { canAccessRestrictedFeatures, isDriver } = useVerificationStatusLite();
 
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
+        headerShown: true,
         tabBarButton: HapticTab,
         tabBarBackground: TabBarBackground,
         tabBarStyle: {

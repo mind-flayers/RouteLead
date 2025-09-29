@@ -25,9 +25,15 @@ import java.util.List;
 import java.util.UUID;
 import java.util.Map;
 import java.util.HashMap;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 import java.util.Optional;
+
 import com.example.be.model.Profile;
 import com.example.be.repository.ProfileRepository;
+import com.example.be.repository.BidRepository;
 import com.example.be.service.BidSelectionService;
 import com.example.be.dto.BidsAndRequestsResponse;
 import com.example.be.dto.BidSelectionDto;
@@ -40,6 +46,7 @@ import com.example.be.dto.BidSelectionDto;
 public class RouteController {
     private final RouteService service;
     private final ReturnRouteRepository routeRepo;
+    private final BidRepository bidRepository; // For bidding status endpoint
     private final PricePredictionService pricePredictionService;
     private final ProfileRepository profileRepository;
     private final com.example.be.service.BidService bidService;
@@ -293,11 +300,38 @@ public class RouteController {
             
             UUID routeId = service.createRoute(createRouteDto);
             
+            // TODO: Generate price prediction automatically after creating route
+            // Temporarily disabled for debugging
+            /*
+            PricePredictionDto pricePrediction = null;
+            try {
+                log.info("Generating price prediction for newly created route: {}", routeId);
+                pricePrediction = pricePredictionService.generatePricePrediction(routeId);
+                log.info("Price prediction generated successfully: {} - {}", 
+                    pricePrediction.getMinPrice(), pricePrediction.getMaxPrice());
+            } catch (Exception e) {
+                log.warn("Failed to generate price prediction for route {}: {}", routeId, e.getMessage());
+                // Don't fail route creation if price prediction fails
+            }
+            */
+            
             Map<String, Object> response = new HashMap<>();
             response.put("routeId", routeId);
             response.put("message", "Route created successfully");
             response.put("status", "SUCCESS");
             response.put("segmentsCount", createRouteDto.getSegments() != null ? createRouteDto.getSegments().size() : 0);
+            
+            // TODO: Include price suggestion in response if available
+            /*
+            if (pricePrediction != null) {
+                Map<String, Object> priceSuggestion = new HashMap<>();
+                priceSuggestion.put("minPrice", pricePrediction.getMinPrice());
+                priceSuggestion.put("maxPrice", pricePrediction.getMaxPrice());
+                priceSuggestion.put("modelVersion", pricePrediction.getModelVersion());
+                priceSuggestion.put("generatedAt", pricePrediction.getGeneratedAt());
+                response.put("priceSuggestion", priceSuggestion);
+            }
+            */
             
             log.info("Route created successfully with ID: {}", routeId);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -518,6 +552,60 @@ public class RouteController {
         }
     }
 
+    @GetMapping("/{routeId}/bidding-status")
+    public ResponseEntity<?> getBiddingStatus(@PathVariable UUID routeId) {
+        log.info("GET /api/routes/{}/bidding-status - Getting bidding status for route", routeId);
+        try {
+            // Get route details
+            ReturnRoute route = routeRepo.findById(routeId)
+                .orElseThrow(() -> new RuntimeException("Route not found: " + routeId));
+            
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime biddingEnd = route.getDepartureTime().minusHours(2).toLocalDateTime();
+            
+            // Handle null bidding_start by using created_at as fallback
+            LocalDateTime biddingStartTime = route.getBiddingStart() != null 
+                ? route.getBiddingStart().toLocalDateTime() 
+                : route.getCreatedAt().toLocalDateTime();
+            
+            boolean biddingActive = now.isBefore(biddingEnd) && now.isAfter(biddingStartTime);
+            boolean biddingEnded = now.isAfter(biddingEnd);
+            
+            // Get bid counts
+            long pendingBids = bidRepository.countByRouteIdAndStatus(routeId, com.example.be.types.BidStatus.PENDING.name());
+            long acceptedBids = bidRepository.countByRouteIdAndStatus(routeId, com.example.be.types.BidStatus.ACCEPTED.name());
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("timestamp", LocalDateTime.now());
+            result.put("status", 200);
+            result.put("message", "Bidding status retrieved successfully");
+            result.put("routeId", routeId);
+            result.put("routeStatus", route.getStatus().name());
+            result.put("biddingStart", route.getBiddingStart() != null ? route.getBiddingStart() : route.getCreatedAt());
+            result.put("departureTime", route.getDepartureTime());
+            result.put("biddingEndTime", biddingEnd);
+            result.put("biddingActive", biddingActive);
+            result.put("biddingEnded", biddingEnded);
+            result.put("pendingBids", pendingBids);
+            result.put("acceptedBids", acceptedBids);
+            result.put("timeUntilBiddingEnd", biddingActive ? 
+                java.time.Duration.between(now, biddingEnd).toMinutes() : 0);
+            result.put("path", "/api/routes/" + routeId + "/bidding-status");
+            
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error getting bidding status for route: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/api/routes/" + routeId + "/bidding-status");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
     @PostMapping
     public ResponseEntity<?> create(@RequestBody CreateRouteDto dto) {
         log.info("POST /api/routes - Creating new route");
@@ -645,8 +733,78 @@ public class RouteController {
     @GetMapping("/price-suggestion")
     public ResponseEntity<PricePredictionDto> getPriceSuggestion(@RequestParam("routeId") UUID routeId) {
         log.info("GET /api/routes/price-suggestion - Fetching price suggestion for route {}", routeId);
-        PricePredictionDto suggestion = pricePredictionService.getLatestPriceSuggestion(routeId);
-        return ResponseEntity.ok(suggestion);
+        
+        try {
+            // Try to get existing prediction first
+            PricePredictionDto suggestion = pricePredictionService.getLatestPriceSuggestion(routeId);
+            return ResponseEntity.ok(suggestion);
+        } catch (RuntimeException e) {
+            // If no prediction exists, generate one
+            if (e.getMessage().contains("No price suggestion found")) {
+                log.info("No existing price prediction found for route {}, generating new one", routeId);
+                try {
+                    PricePredictionDto newSuggestion = pricePredictionService.generatePricePrediction(routeId);
+                    return ResponseEntity.ok(newSuggestion);
+                } catch (Exception generateError) {
+                    log.error("Failed to generate price prediction for route {}: {}", routeId, generateError.getMessage());
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+                }
+            } else {
+                log.error("Error fetching price suggestion for route {}: {}", routeId, e.getMessage());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
+        }
+    }
+
+    @PostMapping("/predict-price")
+    public ResponseEntity<Map<String, Object>> predictPrice(@RequestBody Map<String, Object> features) {
+        log.info("POST /api/routes/predict-price - Generating standalone price prediction with features: {}", features);
+        
+        try {
+            Double distance = Double.valueOf(features.get("distance").toString());
+            Double weight = Double.valueOf(features.get("weight").toString());
+            Double volume = Double.valueOf(features.get("volume").toString());
+            
+            // Validate inputs
+            if (distance <= 0 || weight <= 0 || volume <= 0) {
+                return ResponseEntity.badRequest().body(Map.of("error", "All features must be positive values"));
+            }
+            
+            // Call ML service directly for standalone prediction
+            Map<String, Object> mlFeatures = Map.of(
+                "distance", distance,
+                "weight", weight,
+                "volume", volume
+            );
+            
+            // Use the PricePredictionService's ML calling functionality
+            BigDecimal predictedPrice = pricePredictionService.callMLServiceStandalone(mlFeatures);
+            
+            // Calculate price range (±20% of predicted price)
+            BigDecimal minPrice = predictedPrice.multiply(new BigDecimal("0.8"))
+                .setScale(2, RoundingMode.HALF_UP);
+            BigDecimal maxPrice = predictedPrice.multiply(new BigDecimal("1.2"))
+                .setScale(2, RoundingMode.HALF_UP);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("minPrice", minPrice);
+            response.put("maxPrice", maxPrice);
+            response.put("predictedPrice", predictedPrice);
+            response.put("modelVersion", "1.0");
+            response.put("confidence", 0.90);
+            response.put("features", mlFeatures);
+            response.put("generatedAt", java.time.ZonedDateTime.now());
+            
+            log.info("Standalone price prediction generated: {} - {}", minPrice, maxPrice);
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Error generating standalone price prediction: {}", e.getMessage(), e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to generate price prediction");
+            errorResponse.put("message", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 
     @GetMapping("/directions")

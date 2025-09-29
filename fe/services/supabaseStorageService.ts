@@ -192,43 +192,9 @@ export class SupabaseStorageService {
         // Try the upload with additional debugging
         safeLog('log', '⚡ Attempting Supabase storage upload...');
         
-        const uploadResult = await supabase.storage
-          .from(this.BUCKET_NAME)
-          .upload(filePath, blob, {
-            contentType: file.type,
-            upsert: true // Allow overwriting existing files
-          });
-        
-        const { data, error } = uploadResult;
-        
-        if (error) {
-          safeLog('error', '❌ Supabase upload error', error);
-          safeLog('error', `❌ Error details - message: ${error.message}`);
-          safeLog('error', `❌ Error details - statusCode: ${(error as any)?.statusCode}`);
-          safeLog('error', `❌ Error details - status: ${(error as any)?.status}`);
-          
-          // Check if it's a specific network or permission issue
-          if (error.message.includes('Network request failed')) {
-            safeLog('error', '🌐 Network request failed - trying alternative approach...');
-            
-            // Try alternative upload method using FormData
-            safeLog('log', '🔄 Attempting FormData upload method...');
-            return await this.uploadFileViaFormData(file, userId, documentType, filePath);
-            
-          } else if (error.message.includes('Invalid API key') || error.message.includes('unauthorized')) {
-            throw new Error(`Authentication issue: Invalid Supabase credentials.`);
-          } else if (error.message.includes('bucket')) {
-            throw new Error(`Bucket issue: ${error.message}. Please verify the bucket exists and is properly configured.`);
-          } else {
-            throw new Error(`Upload failed: ${error.message}`);
-          }
-        }
-        
-        if (!data) {
-          throw new Error('Upload failed: No data returned from Supabase');
-        }
-        
-        safeLog('log', `✅ Upload successful! Data path: ${data.path}`);
+        // For React Native, skip the direct blob upload and use FormData approach immediately
+        safeLog('log', '🔄 Using FormData approach for React Native compatibility...');
+        return await this.uploadFileViaFormData(file, userId, documentType, filePath);
         
       } catch (uploadError) {
         safeLog('error', '❌ Upload operation failed', uploadError);
@@ -370,14 +336,16 @@ export class SupabaseStorageService {
       // Create FormData for the upload
       const formData = new FormData();
       
-      // Add the file to FormData
+      // For React Native, use the direct file URI approach
+      // This avoids blob compatibility issues
+      safeLog('log', '� Using React Native file object format for FormData...');
       formData.append('file', {
         uri: file.uri,
         type: file.type,
         name: file.name,
       } as any);
       
-      safeLog('log', '📦 FormData prepared');
+      safeLog('log', '📦 FormData prepared with RN file object');
       
       // Get the Supabase storage URL directly
       const supabaseUrl = 'https://fnsaibersyxpedauhwfw.supabase.co';

@@ -32,4 +32,16 @@ public class BidSelectionDto {
     private String customerLastName;
     private String customerEmail;
     private String customerPhone;
+    
+    // Parcel physical details
+    private BigDecimal weightKg;
+    private BigDecimal volumeM3;
+    
+    // Location details
+    private BigDecimal pickupLat;
+    private BigDecimal pickupLng;
+    private BigDecimal dropoffLat;
+    private BigDecimal dropoffLng;
+    private String pickupLocation;
+    private String deliveryLocation;
 } 

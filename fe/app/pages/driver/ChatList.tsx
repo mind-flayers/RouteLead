@@ -5,18 +5,18 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo
 import { Link, useRouter, useFocusEffect } from 'expo-router';
 import { ProfileAvatar } from '@/components/ui/ProfileImage';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
-import { VerificationGuard } from '@/components/guards/VerificationGuard';
-import { ApiService, DriverConversation, AvailableCustomer } from '@/services/apiService';
+import { VerificationGuard } from '@/components/guards/VerificationGuardOptimized';
+import { ApiService, DriverConversation, PastCustomer } from '@/services/apiService';
 import { useDriverInfo } from '@/hooks/useEarningsData';
 
 const ChatList = () => {
   const router = useRouter();
   const { driverId } = useDriverInfo();
   const [conversations, setConversations] = useState<DriverConversation[]>([]);
-  const [availableCustomers, setAvailableCustomers] = useState<AvailableCustomer[]>([]);
+  const [pastCustomers, setPastCustomers] = useState<PastCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'conversations' | 'available'>('conversations');
+  const [selectedTab, setSelectedTab] = useState<'conversations' | 'past'>('conversations');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Auto-refresh when screen comes into focus
@@ -42,14 +42,14 @@ const ChatList = () => {
         return;
       }
 
-      // Load both conversations and available customers
-      const [conversationsData, availableData] = await Promise.all([
+      // Load both conversations and past customers
+      const [conversationsData, pastData] = await Promise.all([
         ApiService.getDriverConversations(driverId),
-        ApiService.getAvailableCustomers(driverId)
+        ApiService.getPastCustomers(driverId)
       ]);
 
       setConversations(Array.isArray(conversationsData) ? conversationsData : []);
-      setAvailableCustomers(Array.isArray(availableData) ? availableData : []);
+      setPastCustomers(Array.isArray(pastData) ? pastData : []);
     } catch (error) {
       console.error('Error loading driver chat data:', error);
       Alert.alert('Error', 'Failed to load chat data. Please try again.');
@@ -66,14 +66,14 @@ const ChatList = () => {
         return;
       }
 
-      // Load both conversations and available customers
-      const [conversationsData, availableData] = await Promise.all([
+      // Load both conversations and past customers
+      const [conversationsData, pastData] = await Promise.all([
         ApiService.getDriverConversations(driverId),
-        ApiService.getAvailableCustomers(driverId)
+        ApiService.getPastCustomers(driverId)
       ]);
 
       setConversations(Array.isArray(conversationsData) ? conversationsData : []);
-      setAvailableCustomers(Array.isArray(availableData) ? availableData : []);
+      setPastCustomers(Array.isArray(pastData) ? pastData : []);
     } catch (error) {
       console.error('Error refreshing chat data:', error);
       Alert.alert('Error', 'Failed to refresh chat data. Please try again.');
@@ -99,14 +99,14 @@ const ChatList = () => {
     conv.routeDescription.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredAvailableCustomers = (availableCustomers || []).filter(customer =>
+  const filteredPastCustomers = (pastCustomers || []).filter(customer =>
     customer.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     customer.routeDescription.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Calculate total unread messages
   const totalUnreadMessages = conversations.reduce((total, conv) => total + conv.unreadCount, 0);
-  const totalNewCustomers = availableCustomers.length;
+  const totalPastCustomers = pastCustomers.length;
 
   const renderConversationItem = (conversation: DriverConversation) => (
     <View
@@ -171,19 +171,20 @@ const ChatList = () => {
     </View>
   );
 
-  const renderAvailableCustomerItem = (customer: AvailableCustomer) => (
+  const renderPastCustomerItem = (customer: PastCustomer) => (
     <TouchableOpacity
       key={customer.customerId + customer.bidId}
       className="flex-row items-center p-3 bg-white rounded-xl shadow-sm border border-gray-200 mb-3"
       onPress={() => router.push({ 
         pathname: '/pages/driver/ChatScreen', 
         params: { 
+          conversationId: customer.conversationId,
           customerId: customer.customerId,
           customerName: customer.customerName,
           bidId: customer.bidId,
           profileImage: customer.customerProfileImage || 'profile_placeholder',
           customerPhone: customer.customerPhone || '',
-          isNewConversation: 'true'
+          isPastCustomer: 'true'
         } as any 
       })}
     >
@@ -195,7 +196,7 @@ const ChatList = () => {
       <View className="flex-1">
         <Text className="font-bold text-base">{customer.customerName}</Text>
         <Text className="text-gray-600 text-sm" numberOfLines={1}>
-          Start conversation
+          Resume conversation
         </Text>
         <Text className="text-gray-500 text-xs mt-1" numberOfLines={1}>
           {customer.routeDescription}
@@ -203,10 +204,10 @@ const ChatList = () => {
       </View>
       <View className="items-end">
         <Text className="text-gray-500 text-xs mb-1">
-          {formatTimeAgo(customer.createdAt)}
+          {formatTimeAgo(customer.completedAt)}
         </Text>
-        <View className="bg-green-500 rounded-full px-2 py-1">
-          <Text className="text-white text-xs font-bold">New</Text>
+        <View className={`${customer.deliveryStatus === 'COMPLETED' ? 'bg-green-500' : customer.deliveryStatus === 'DELIVERED' ? 'bg-blue-500' : 'bg-gray-500'} rounded-full px-2 py-1`}>
+          <Text className="text-white text-xs font-bold">{customer.deliveryStatus}</Text>
         </View>
         <Text className="text-xs text-orange-600 font-semibold mt-1">
           LKR {customer.amount.toFixed(2)}
@@ -280,16 +281,16 @@ const ChatList = () => {
             </View>
           </TouchableOpacity>
           <TouchableOpacity 
-            className={`flex-1 py-2 rounded-lg ${selectedTab === 'available' ? 'bg-white shadow-sm' : ''} relative`}
-            onPress={() => setSelectedTab('available')}
+            className={`flex-1 py-2 rounded-lg ${selectedTab === 'past' ? 'bg-white shadow-sm' : ''} relative`}
+            onPress={() => setSelectedTab('past')}
           >
             <View className="flex-row items-center justify-center">
-              <Text className={`text-center font-semibold ${selectedTab === 'available' ? 'text-orange-500' : 'text-gray-600'}`}>
-                New Customers
+              <Text className={`text-center font-semibold ${selectedTab === 'past' ? 'text-orange-500' : 'text-gray-600'}`}>
+                Past Customers
               </Text>
-              {totalNewCustomers > 0 && (
-                <View className="bg-green-500 rounded-full w-5 h-5 items-center justify-center ml-2">
-                  <Text className="text-white text-xs font-bold">{totalNewCustomers > 99 ? '99+' : totalNewCustomers}</Text>
+              {totalPastCustomers > 0 && (
+                <View className="bg-blue-500 rounded-full w-5 h-5 items-center justify-center ml-2">
+                  <Text className="text-white text-xs font-bold">{totalPastCustomers > 99 ? '99+' : totalPastCustomers}</Text>
                 </View>
               )}
             </View>
@@ -313,12 +314,12 @@ const ChatList = () => {
                 </View>
               )
             ) : (
-              filteredAvailableCustomers.length > 0 ? (
-                filteredAvailableCustomers.map(renderAvailableCustomerItem)
+              filteredPastCustomers.length > 0 ? (
+                filteredPastCustomers.map(renderPastCustomerItem)
               ) : (
                 <View className="flex-1 justify-center items-center py-10">
                   <Text className="text-gray-500 text-center">
-                    {searchQuery ? 'No customers match your search' : 'No new customers available'}
+                    {searchQuery ? 'No customers match your search' : 'No past customers yet'}
                   </Text>
                 </View>
               )
