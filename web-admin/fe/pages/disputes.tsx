@@ -274,10 +274,12 @@ const DisputePage: React.FC = () => {
 										onClick={() => setSelected(d)}
 									>
 										<td style={{ ...cellStyle, fontWeight: 700, color: NAVY_BLUE }}>
-											{d.claimant_profile?.first_name || d.user_id}
+											{d.claimant_profile ? `${d.claimant_profile.first_name || ''} ${d.claimant_profile.last_name || ''}`.trim() : d.user_id}
+											<div style={{ fontSize: 12, color: '#7B7B93' }}>{d.claimant_profile?.email}</div>
 										</td>
 										<td style={{ ...cellStyle, fontWeight: 600, color: '#444' }}>
-											{d.return_routes?.driver_profile?.first_name || 'No Driver'}
+											{d.return_routes?.driver_profile ? `${d.return_routes.driver_profile.first_name || ''} ${d.return_routes.driver_profile.last_name || ''}`.trim() : 'No Driver'}
+											<div style={{ fontSize: 12, color: '#7B7B93' }}>{d.return_routes?.driver_profile?.email}</div>
 										</td>
 										<td style={cellStyle}>
 									{d.created_at ? new Date(d.created_at).toLocaleDateString('en-US', {
@@ -486,7 +488,11 @@ const DisputePage: React.FC = () => {
 									marginBottom: 8,
 								}}
 							>
-								Dispute #{selected.id} Details
+								{(() => {
+									// Find the index of the selected dispute in the filtered list
+									const idx = filteredDisputes.findIndex(d => d.id === selected.id);
+									return `Dispute ${idx >= 0 ? idx + 1 : ''} Details`;
+								})()}
 							</div>
 							<div
 								style={{
@@ -540,8 +546,9 @@ const DisputePage: React.FC = () => {
 												style={{ width: 38, height: 38, borderRadius: '50%', objectFit: 'cover', border: '2px solid #F3EDE7' }}
 											/>										<div>
 							<div style={{ fontWeight: 600 }}>
-								{selected.claimant_profile?.first_name || selected.user_id}
+								{selected.claimant_profile ? `${selected.claimant_profile.first_name || ''} ${selected.claimant_profile.last_name || ''}`.trim() : selected.user_id}
 							</div>
+							<div style={{ fontSize: 13, color: '#7B7B93' }}>{selected.claimant_profile?.email}</div>
 											<span
 												style={{
 													background: selected.claimantRole === 'Customer' ? ROYAL_ORANGE + '22' : NAVY_BLUE + '22',
@@ -571,8 +578,9 @@ const DisputePage: React.FC = () => {
 						/>
 						<div>
 							<div style={{ fontWeight: 600 }}>
-								{selected.return_routes?.driver_profile?.first_name || 'No Driver'}
+								{selected.return_routes?.driver_profile ? `${selected.return_routes.driver_profile.first_name || ''} ${selected.return_routes.driver_profile.last_name || ''}`.trim() : 'No Driver'}
 							</div>
+							<div style={{ fontSize: 13, color: '#7B7B93' }}>{selected.return_routes?.driver_profile?.email}</div>
 							<span
 								style={{
 									background: NAVY_BLUE + '22',
@@ -635,21 +643,45 @@ const DisputePage: React.FC = () => {
 								<div style={{ fontWeight: 700, color: '#222', fontSize: 15, marginBottom: 4 }}>
 									Current Status
 								</div>
-								<span
+								<select
+									value={selected.status}
 									style={{
-										display: 'inline-block',
-										minWidth: 70,
-										textAlign: 'center',
-										background: statusBgColors[selected.status],
-										color: statusColors[selected.status],
+										minWidth: 120,
+										padding: '6px 16px',
 										borderRadius: 16,
 										fontWeight: 600,
 										fontSize: 14,
-										padding: '2px 16px',
+										background: statusBgColors[selected.status],
+										color: statusColors[selected.status],
+										border: '1px solid #E5E7EB',
+										outline: 'none',
+										marginBottom: 6,
+									}}
+									onChange={async (e) => {
+										const newStatus = e.target.value;
+										try {
+											const headers = await authHeaders();
+											const res = await fetch(`/api/admin/disputes?id=${selected.id}`, {
+												method: 'PATCH',
+												headers: { ...headers, 'Content-Type': 'application/json' },
+												body: JSON.stringify({ status: newStatus }),
+											});
+											if (!res.ok) {
+												alert('Failed to update status');
+												return;
+											}
+											const updated = await res.json();
+											setSelected((s: any) => ({ ...s, status: updated.dispute.status }));
+											setDisputes((ds: any[]) => ds.map(d => d.id === selected.id ? { ...d, status: updated.dispute.status } : d));
+										} catch (err) {
+											alert('Error updating status');
+										}
 									}}
 								>
-									{selected.status}
-								</span>
+									<option value="OPEN">Open</option>
+									<option value="PENDING">Pending</option>
+									<option value="CLOSED">Closed</option>
+								</select>
 							</div>
 						</div>
 					)}
