@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ApiService, MyRoute } from '@/services/apiService';
 
 export const useMyRoutes = (driverId: string, status?: string) => {
@@ -6,8 +6,11 @@ export const useMyRoutes = (driverId: string, status?: string) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Add refs for interval management like useAutomaticBidding
+  const intervalRef = useRef<any>(null);
 
-  const fetchRoutes = async (isRefresh = false) => {
+  const fetchRoutes = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) {
         setRefreshing(true);
@@ -16,9 +19,7 @@ export const useMyRoutes = (driverId: string, status?: string) => {
       }
       setError(null);
 
-      // **PERFORMANCE OPTIMIZATION**: Use caching by default, skip cache only on manual refresh
-      const useCache = !isRefresh;
-      const data = await ApiService.getMyRoutes(driverId, status, useCache);
+      const data = await ApiService.getMyRoutes(driverId, status);
       setRoutes(data);
     } catch (err) {
       console.error('Error fetching routes:', err);
@@ -27,15 +28,44 @@ export const useMyRoutes = (driverId: string, status?: string) => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [driverId, status]);
 
+  // Manual refresh function
+  const refresh = useCallback(() => {
+    fetchRoutes(true);
+  }, [fetchRoutes]);
+
+  // Initial data fetch
   useEffect(() => {
     if (driverId) {
       fetchRoutes();
     }
-  }, [driverId, status]);
+  }, [driverId, fetchRoutes]);
 
-  const refresh = () => fetchRoutes(true);
+  // Set up auto-refresh interval (every 30 seconds) like useAutomaticBidding
+  useEffect(() => {
+    if (driverId) {
+      intervalRef.current = setInterval(() => {
+        fetchRoutes(true);
+      }, 30000); // 30 seconds
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [driverId, fetchRoutes]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
 
   return {
     routes,

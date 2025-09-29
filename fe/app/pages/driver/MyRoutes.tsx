@@ -130,8 +130,8 @@ const MyRoutes = () => {
     );
   };
 
-  // **PERFORMANCE OPTIMIZATION**: Enhanced real-time countdown function with memoization
-  const calculateRealTimeCountdown = useCallback((biddingEndTime: string) => {
+  // Enhanced real-time countdown function
+  const calculateRealTimeCountdown = (biddingEndTime: string) => {
     const endTime = new Date(biddingEndTime);
     const now = currentTime;
     const timeLeft = endTime.getTime() - now.getTime();
@@ -154,7 +154,7 @@ const MyRoutes = () => {
     } else {
       return { text: `${seconds}s`, isExpired: false };
     }
-  }, [currentTime]);
+  };
 
   const renderRouteCard = useCallback((route: any) => {
     // Safety checks for route data

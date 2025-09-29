@@ -11,7 +11,6 @@ import { supabase } from '@/lib/supabase';
 const SelectVehicleType = () => {
   const [selectedVehicleType, setSelectedVehicleType] = useState<string | null>(null);
   const [manufacturer, setManufacturer] = useState('');
-  const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [model, setModel] = useState('');
   const [year, setYear] = useState('');
   const [color, setColor] = useState('');
@@ -42,10 +41,6 @@ const SelectVehicleType = () => {
     // Validation checks
     if (!selectedVehicleType) {
       Alert.alert('Vehicle Type Required', 'Please select your vehicle type.');
-      return;
-    }
-    if (isOwner === null) {
-      Alert.alert('Ownership Required', 'Please specify if you own the vehicle.');
       return;
     }
     if (!manufacturer.trim()) {
@@ -93,7 +88,6 @@ const SelectVehicleType = () => {
         year: vehicleYear.toString(),
         color: color.trim(),
         licensePlate: licensePlate.trim().toUpperCase(),
-        isOwner: isOwner,
         maxWeightKg: getDefaultMaxWeight(selectedVehicleType),
         maxVolumeM3: getDefaultMaxVolume(selectedVehicleType),
       };
@@ -188,45 +182,6 @@ const SelectVehicleType = () => {
                 />
               </TouchableOpacity>
             ))}
-          </View>
-        </View>
-
-        <View className="bg-white rounded-lg p-4 shadow-md mb-4">
-          <Text className="text-xl font-bold mb-4">Vehicle Ownership</Text>
-          <Text className="text-gray-600 mb-4">Do you own this vehicle?</Text>
-          
-          <View className="flex-row gap-4">
-            <TouchableOpacity
-              className={`flex-1 flex-row items-center justify-center py-3 px-4 rounded-lg border ${
-                isOwner === true ? 'bg-green-50 border-green-500' : 'border-gray-300'
-              }`}
-              onPress={() => setIsOwner(true)}
-            >
-              <Ionicons
-                name={isOwner === true ? 'radio-button-on' : 'radio-button-off'}
-                size={20}
-                color={isOwner === true ? '#22C55E' : '#9CA3AF'}
-              />
-              <Text className={`ml-2 font-medium ${
-                isOwner === true ? 'text-green-600' : 'text-gray-600'
-              }`}>Yes, I own it</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              className={`flex-1 flex-row items-center justify-center py-3 px-4 rounded-lg border ${
-                isOwner === false ? 'bg-orange-50 border-orange-500' : 'border-gray-300'
-              }`}
-              onPress={() => setIsOwner(false)}
-            >
-              <Ionicons
-                name={isOwner === false ? 'radio-button-on' : 'radio-button-off'}
-                size={20}
-                color={isOwner === false ? '#F97316' : '#9CA3AF'}
-              />
-              <Text className={`ml-2 font-medium ${
-                isOwner === false ? 'text-orange-600' : 'text-gray-600'
-              }`}>No, it's rented</Text>
-            </TouchableOpacity>
           </View>
         </View>
 

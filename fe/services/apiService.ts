@@ -1,38 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Simple in-memory cache with TTL
-class SimpleCache {
-  private cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
-  
-  set(key: string, data: any, ttlMinutes: number = 5) {
-    const ttl = ttlMinutes * 60 * 1000; // Convert to milliseconds
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl
-    });
-  }
-  
-  get(key: string) {
-    const cached = this.cache.get(key);
-    if (!cached) return null;
-    
-    const now = Date.now();
-    if (now - cached.timestamp > cached.ttl) {
-      this.cache.delete(key);
-      return null;
-    }
-    
-    return cached.data;
-  }
-  
-  clear() {
-    this.cache.clear();
-  }
-}
-
-// Global cache instance
-const apiCache = new SimpleCache();
 import { Platform } from 'react-native';
 import { reverseGeocode } from './geocodingService';
 import { Config } from '@/constants/Config';
@@ -309,7 +275,7 @@ export interface MyRoute {
   originLocationName?: string;
   destinationLocationName?: string;
   createdAt: string;
-  biddingEndTime: string; // Calculated: 2 hours before departure
+  biddingEndTime: string; // Calculated: 3 hours before departure
   bidCount: number;
   highestBidAmount?: number;
   // Additional fields from database
@@ -692,20 +658,8 @@ export class ApiService {
   }
 
   // MyRoutes API
-  static async getMyRoutes(driverId: string, status?: string, useCache: boolean = true): Promise<MyRoute[]> {
+  static async getMyRoutes(driverId: string, status?: string): Promise<MyRoute[]> {
     try {
-      const cacheKey = `routes_${driverId}_${status || 'all'}`;
-      
-      // Check cache first
-      if (useCache) {
-        const cached = apiCache.get(cacheKey);
-        if (cached) {
-          console.log('📦 Using cached routes data');
-          return cached;
-        }
-      }
-      
-      console.log('🌐 Fetching routes from API...');
       const statusParam = status ? `&status=${status}` : '';
       const response = await fetch(
         `${API_BASE_URL}/driver/routes?driverId=${driverId}${statusParam}`,
@@ -723,9 +677,9 @@ export class ApiService {
       
       // Transform the response to match our MyRoute interface - removed slow async geocoding
       const transformedRoutes = routes.map((route: any) => {
-        // Calculate bidding end time (2 hours before departure)
+        // Calculate bidding end time (3 hours before departure)
         const departureDate = new Date(route.departureTime);
-        const biddingEndTime = new Date(departureDate.getTime() - (2 * 60 * 60 * 1000)); // 2 hours before
+        const biddingEndTime = new Date(departureDate.getTime() - (3 * 60 * 60 * 1000)); // 3 hours before
         
         // Use existing location names or show formatted coordinates (no API calls)
         const originLocationName = route.originLocationName || 
@@ -757,12 +711,6 @@ export class ApiService {
           estimatedDurationMinutes: route.estimatedDurationMinutes,
         };
       });
-
-      // Cache the results for 2 minutes (routes don't change frequently)
-      if (useCache) {
-        apiCache.set(cacheKey, transformedRoutes, 2);
-        console.log('💾 Cached routes data for 2 minutes');
-      }
 
       return transformedRoutes;
     } catch (error) {
@@ -873,21 +821,10 @@ export class ApiService {
     }
   }
 
-  // Get Route by ID API (with caching optimization)
-  static async getRouteById(routeId: string, useCache: boolean = true): Promise<MyRoute | null> {
+  // Get Route by ID API
+  static async getRouteById(routeId: string): Promise<MyRoute> {
     try {
-      const cacheKey = `route_${routeId}`;
-      
-      // Check cache first
-      if (useCache) {
-        const cached = apiCache.get(cacheKey);
-        if (cached) {
-          console.log('📦 Using cached route data');
-          return cached;
-        }
-      }
-      
-      console.log(`🌐 Fetching route ${routeId} from API...`);
+      console.log(`Fetching route ${routeId}`);
       const response = await fetch(
         `${API_BASE_URL}/routes/${routeId}`,
         {
@@ -897,67 +834,14 @@ export class ApiService {
       );
 
       if (!response.ok) {
-        if (response.status === 404) {
-          return null; // Route not found
-        }
         throw new Error(`Failed to fetch route: ${response.status}`);
       }
 
-      // **CRITICAL FIX**: Safe JSON parsing to handle circular references
-      let route;
-      try {
-        const responseText = await response.text();
-        console.log(`📄 Raw response length: ${responseText.length} characters`);
-        
-        // Try standard JSON parsing first
-        route = JSON.parse(responseText);
-      } catch (jsonError) {
-        console.error('⚠️ JSON parsing failed, attempting recovery:', jsonError);
-        
-        // If JSON parsing fails, try to extract essential data manually
-        try {
-          const responseText = await response.clone().text();
-          // Use regex to extract essential route data
-          const idMatch = responseText.match(/"id"\s*:\s*"([^"]+)"/);
-          const originLatMatch = responseText.match(/"originLat"\s*:\s*([0-9.-]+)/);
-          const originLngMatch = responseText.match(/"originLng"\s*:\s*([0-9.-]+)/);
-          const destinationLatMatch = responseText.match(/"destinationLat"\s*:\s*([0-9.-]+)/);
-          const destinationLngMatch = responseText.match(/"destinationLng"\s*:\s*([0-9.-]+)/);
-          const departureTimeMatch = responseText.match(/"departureTime"\s*:\s*"([^"]+)"/);
-          const statusMatch = responseText.match(/"status"\s*:\s*"([^"]+)"/);
-          const originNameMatch = responseText.match(/"originLocationName"\s*:\s*"([^"]*)"/) || responseText.match(/"originLocationName"\s*:\s*null/);
-          const destNameMatch = responseText.match(/"destinationLocationName"\s*:\s*"([^"]*)"/) || responseText.match(/"destinationLocationName"\s*:\s*null/);
-          const priceMinMatch = responseText.match(/"suggestedPriceMin"\s*:\s*([0-9.]+)/);
-          const priceMaxMatch = responseText.match(/"suggestedPriceMax"\s*:\s*([0-9.]+)/);
-          
-          if (idMatch && originLatMatch && originLngMatch && destinationLatMatch && destinationLngMatch && departureTimeMatch) {
-            route = {
-              id: idMatch[1],
-              originLat: parseFloat(originLatMatch[1]),
-              originLng: parseFloat(originLngMatch[1]),
-              destinationLat: parseFloat(destinationLatMatch[1]),
-              destinationLng: parseFloat(destinationLngMatch[1]),
-              departureTime: departureTimeMatch[1],
-              status: statusMatch ? statusMatch[1] : 'PUBLISHED',
-              originLocationName: originNameMatch && originNameMatch[1] ? originNameMatch[1] : null,
-              destinationLocationName: destNameMatch && destNameMatch[1] ? destNameMatch[1] : null,
-              suggestedPriceMin: priceMinMatch ? parseFloat(priceMinMatch[1]) : 0,
-              suggestedPriceMax: priceMaxMatch ? parseFloat(priceMaxMatch[1]) : 0,
-              createdAt: new Date().toISOString(), // Fallback
-            };
-            console.log('✅ Successfully recovered route data from regex parsing');
-          } else {
-            throw new Error('Failed to extract essential route data from response');
-          }
-        } catch (recoveryError) {
-          console.error('❌ Route data recovery failed:', recoveryError);
-          throw new Error(`JSON parsing failed and recovery failed: ${jsonError instanceof Error ? jsonError.message : 'Unknown JSON error'}`);
-        }
-      }
+      const route = await response.json();
       
-      // Calculate bidding end time (2 hours before departure)
+      // Calculate bidding end time (3 hours before departure)
       const departureDate = new Date(route.departureTime);
-      const biddingEndTime = new Date(departureDate.getTime() - (2 * 60 * 60 * 1000)); // 2 hours before
+      const biddingEndTime = new Date(departureDate.getTime() - (3 * 60 * 60 * 1000)); // 3 hours before
       
       // Use existing location names or show formatted coordinates (no API calls for speed)
       const originLocationName = route.originLocationName || 
@@ -965,7 +849,7 @@ export class ApiService {
       const destinationLocationName = route.destinationLocationName || 
         formatLocationSync(`${route.destinationLat}, ${route.destinationLng}`);
 
-      const transformedRoute: MyRoute = {
+      return {
         id: route.id,
         originLat: route.originLat,
         originLng: route.originLng,
@@ -988,14 +872,6 @@ export class ApiService {
         totalDistanceKm: route.totalDistanceKm,
         estimatedDurationMinutes: route.estimatedDurationMinutes,
       };
-      
-      // Cache for 5 minutes (single route data is more stable)
-      if (useCache) {
-        apiCache.set(cacheKey, transformedRoute, 5);
-        console.log('💾 Cached single route data for 5 minutes');
-      }
-      
-      return transformedRoute;
     } catch (error) {
       console.error('Error fetching route by ID:', error);
       throw error;
@@ -1182,20 +1058,8 @@ export class ApiService {
   }
 
   // Get Bidding Status API (for countdown and automation status)
-  static async getBiddingStatus(routeId: string, useCache: boolean = true): Promise<BiddingStatusResponse> {
+  static async getBiddingStatus(routeId: string): Promise<BiddingStatusResponse> {
     try {
-      const cacheKey = `bidding_status_${routeId}`;
-      
-      // Check cache first (2 minute TTL for bidding status)
-      if (useCache) {
-        const cached = apiCache.get(cacheKey);
-        if (cached) {
-          console.log('📦 Using cached bidding status data');
-          return cached;
-        }
-      }
-      
-      console.log('🌐 Fetching bidding status from API...');
       const url = `${API_BASE_URL}/routes/${routeId}/bidding-status`;
       
       const response = await fetch(url, {
@@ -1207,14 +1071,7 @@ export class ApiService {
         throw new Error(`Failed to fetch bidding status: ${response.status}`);
       }
 
-      const biddingStatus = await response.json();
-      
-      // Cache for 2 minutes (shorter TTL since bidding status changes frequently)
-      if (useCache) {
-        apiCache.set(cacheKey, biddingStatus, 2);
-      }
-      
-      return biddingStatus;
+      return await response.json();
     } catch (error) {
       console.error('Error fetching bidding status:', error);
       throw error;

@@ -8,7 +8,7 @@ export const Config = {
 
   // API_BASE: 'http://routelead.bigpythondaddy.com/api',
 
-  API_BASE: 'https://ecd7abdf1b37.ngrok-free.app/api',
+  API_BASE: 'https://eee063dbf7e9.ngrok-free.app/api',
 
   // API_BASE: 'http://localhost:8080/api',
 
