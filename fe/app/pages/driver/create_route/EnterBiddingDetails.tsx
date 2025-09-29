@@ -293,7 +293,7 @@ const EnterBiddingDetails = () => {
     const biddingEndTime = new Date(combinedDepartureTime.getTime() - (2 * 60 * 60 * 1000));
     
     if (combinedBiddingStartTime >= biddingEndTime) {
-      Alert.alert('Validation Error', 'Bidding must start more than 2 hours before departure time.');
+      Alert.alert('Validation Error', 'Bidding must start more than 3 hours before departure time.');
       return false;
     }
 

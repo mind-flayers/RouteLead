@@ -275,7 +275,7 @@ export interface MyRoute {
   originLocationName?: string;
   destinationLocationName?: string;
   createdAt: string;
-  biddingEndTime: string; // Calculated: 2 hours before departure
+  biddingEndTime: string; // Calculated: 3 hours before departure
   bidCount: number;
   highestBidAmount?: number;
   // Additional fields from database
@@ -677,9 +677,9 @@ export class ApiService {
       
       // Transform the response to match our MyRoute interface - removed slow async geocoding
       const transformedRoutes = routes.map((route: any) => {
-        // Calculate bidding end time (2 hours before departure)
+        // Calculate bidding end time (3 hours before departure)
         const departureDate = new Date(route.departureTime);
-        const biddingEndTime = new Date(departureDate.getTime() - (2 * 60 * 60 * 1000)); // 2 hours before
+        const biddingEndTime = new Date(departureDate.getTime() - (3 * 60 * 60 * 1000)); // 3 hours before
         
         // Use existing location names or show formatted coordinates (no API calls)
         const originLocationName = route.originLocationName || 
@@ -839,9 +839,9 @@ export class ApiService {
 
       const route = await response.json();
       
-      // Calculate bidding end time (2 hours before departure)
+      // Calculate bidding end time (3 hours before departure)
       const departureDate = new Date(route.departureTime);
-      const biddingEndTime = new Date(departureDate.getTime() - (2 * 60 * 60 * 1000)); // 2 hours before
+      const biddingEndTime = new Date(departureDate.getTime() - (3 * 60 * 60 * 1000)); // 3 hours before
       
       // Use existing location names or show formatted coordinates (no API calls for speed)
       const originLocationName = route.originLocationName || 

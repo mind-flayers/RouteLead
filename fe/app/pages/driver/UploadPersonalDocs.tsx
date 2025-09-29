@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Alert, Animated, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Alert, Animated, Platform, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -29,6 +29,141 @@ const UploadPersonalDocs = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [verificationFlow] = useState(() => VerificationFlowService.getInstance());
+  
+  // Validation states
+  const [licenseNumberError, setLicenseNumberError] = useState('');
+  const [expiryDateError, setExpiryDateError] = useState('');
+  const [isValidating, setIsValidating] = useState(false);
+
+  // Validation Functions
+  const validateImageFile = async (imageUri: string): Promise<string | null> => {
+    try {
+      // Get image dimensions
+      return new Promise((resolve) => {
+        Image.getSize(
+          imageUri,
+          (width, height) => {
+            // Check minimum dimensions (should be at least 300x300 for readability)
+            if (width < 300 || height < 300) {
+              resolve('Image resolution too low. Minimum 300x300 pixels required.');
+              return;
+            }
+
+            // Check maximum dimensions (prevent extremely large files)
+            if (width > 4000 || height > 4000) {
+              resolve('Image resolution too high. Maximum 4000x4000 pixels allowed.');
+              return;
+            }
+
+            // Check aspect ratio (should be somewhat rectangular, not too extreme)
+            const aspectRatio = width / height;
+            if (aspectRatio < 0.5 || aspectRatio > 3.0) {
+              resolve('Invalid image aspect ratio. Please use a more standard photo format.');
+              return;
+            }
+
+            resolve(null); // No errors
+          },
+          (error) => {
+            console.error('Error getting image size:', error);
+            resolve('Unable to validate image. Please try a different photo.');
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Image validation error:', error);
+      return 'Error validating image. Please try again.';
+    }
+  };
+
+  const validateLicenseNumber = (licenseNum: string): string | null => {
+    if (!licenseNum || licenseNum.trim().length === 0) {
+      return 'License number is required';
+    }
+
+    const trimmed = licenseNum.trim().toUpperCase();
+
+    // Check minimum length
+    if (trimmed.length < 5) {
+      return 'License number must be at least 5 characters';
+    }
+
+    // Check maximum length
+    if (trimmed.length > 20) {
+      return 'License number cannot exceed 20 characters';
+    }
+
+    // Check for valid characters (alphanumeric, hyphens, spaces)
+    const validPattern = /^[A-Z0-9\s\-]+$/;
+    if (!validPattern.test(trimmed)) {
+      return 'License number can only contain letters, numbers, spaces, and hyphens';
+    }
+
+    // Check for at least one number (most license formats include numbers)
+    if (!/\d/.test(trimmed)) {
+      return 'License number must contain at least one number';
+    }
+
+    // Check for at least one letter (most license formats include letters)
+    if (!/[A-Z]/.test(trimmed)) {
+      return 'License number must contain at least one letter';
+    }
+
+    // Common suspicious patterns
+    const suspiciousPatterns = [
+      /^(.)\1{4,}$/, // Repeated characters (AAAAA)
+      /^(123|ABC|000|111|AAA)/i, // Common test patterns
+      /^(TEST|SAMPLE|DEMO|FAKE)/i, // Test keywords
+    ];
+
+    for (const pattern of suspiciousPatterns) {
+      if (pattern.test(trimmed)) {
+        return 'Please enter a valid license number';
+      }
+    }
+
+    return null; // Valid
+  };
+
+  const validateExpiryDate = (date: Date): string | null => {
+    const today = new Date();
+    const oneYearFromNow = new Date();
+    oneYearFromNow.setFullYear(today.getFullYear() + 1);
+    
+    const tenYearsFromNow = new Date();
+    tenYearsFromNow.setFullYear(today.getFullYear() + 10);
+
+    // Reset time components for accurate date comparison
+    today.setHours(0, 0, 0, 0);
+    const expiryDateOnly = new Date(date);
+    expiryDateOnly.setHours(0, 0, 0, 0);
+
+    // Check if date is in the past
+    if (expiryDateOnly < today) {
+      return 'License has already expired. Please renew your license first.';
+    }
+
+    // Check if date is too close (less than 30 days)
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(today.getDate() + 30);
+    thirtyDaysFromNow.setHours(0, 0, 0, 0);
+
+    if (expiryDateOnly < thirtyDaysFromNow) {
+      return 'License expires within 30 days. Please renew your license first.';
+    }
+
+    // Check if date is reasonable (not more than 10 years in future)
+    if (expiryDateOnly > tenYearsFromNow) {
+      return 'Expiry date seems too far in the future. Please check the date.';
+    }
+
+    // Additional validation for minimum validity period
+    if (expiryDateOnly < oneYearFromNow) {
+      return 'License should be valid for at least one year from today.';
+    }
+
+    return null; // Valid
+  };
 
   // Helper functions for date formatting
   const formatDateForDisplay = (date: Date): string => {
@@ -50,6 +185,10 @@ const UploadPersonalDocs = () => {
     setShowDatePicker(Platform.OS === 'ios');
     setExpiryDate(currentDate);
     setLicenseExpiry(formatDateForDisplay(currentDate));
+    
+    // Validate the selected date
+    const error = validateExpiryDate(currentDate);
+    setExpiryDateError(error || '');
   };
 
   useEffect(() => {
@@ -96,6 +235,8 @@ const UploadPersonalDocs = () => {
       return;
     }
 
+    setIsValidating(true);
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -106,6 +247,31 @@ const UploadPersonalDocs = () => {
     if (!result.canceled && result.assets[0]) {
       const imageUri = result.assets[0].uri;
       
+      // Validate the selected image
+      const validationError = await validateImageFile(imageUri);
+      
+      if (validationError) {
+        setIsValidating(false);
+        Alert.alert('Invalid Image', validationError);
+        return;
+      }
+
+      // Check file size (approximate check based on quality and dimensions)
+      try {
+        const response = await fetch(imageUri);
+        const blob = await response.blob();
+        const fileSizeInMB = blob.size / (1024 * 1024);
+        
+        if (fileSizeInMB > 10) {
+          setIsValidating(false);
+          Alert.alert('File Too Large', 'Image file size must be less than 10MB. Please select a smaller image or reduce quality.');
+          return;
+        }
+      } catch (error) {
+        console.warn('Could not check file size:', error);
+        // Continue without file size check if it fails
+      }
+      
       if (docType === 'driverLicense') {
         setDriverLicense(prev => ({ ...prev, [side!]: imageUri }));
       } else if (docType === 'nationalId') {
@@ -114,6 +280,8 @@ const UploadPersonalDocs = () => {
         setBillingProof(prev => ({ ...prev, [side!]: imageUri }));
       }
     }
+    
+    setIsValidating(false);
   };
 
   const uploadDocument = async (userId: string, imageUri: string, documentType: string, expiryDate?: string) => {
@@ -131,7 +299,7 @@ const UploadPersonalDocs = () => {
   };
 
   const validateAndContinue = async () => {
-    // Validation checks
+    // Document validation checks
     if (!driverLicense.frontSide) {
       Alert.alert('Missing Documents', 'Please upload your driving license.');
       return;
@@ -140,12 +308,31 @@ const UploadPersonalDocs = () => {
       Alert.alert('Missing Documents', 'Please upload your national ID card.');
       return;
     }
-    if (!licenseNumber.trim()) {
-      Alert.alert('Missing Information', 'Please enter your driving license number.');
+
+    // License number validation
+    const licenseError = validateLicenseNumber(licenseNumber);
+    if (licenseError) {
+      setLicenseNumberError(licenseError);
+      Alert.alert('Invalid License Number', licenseError);
       return;
     }
+
+    // Expiry date validation
     if (!licenseExpiry.trim()) {
       Alert.alert('Missing Information', 'Please enter your license expiry date.');
+      return;
+    }
+
+    const dateError = validateExpiryDate(expiryDate);
+    if (dateError) {
+      setExpiryDateError(dateError);
+      Alert.alert('Invalid Expiry Date', dateError);
+      return;
+    }
+
+    // Check if there are any existing validation errors
+    if (licenseNumberError || expiryDateError) {
+      Alert.alert('Validation Errors', 'Please fix the validation errors before continuing.');
       return;
     }
 
@@ -215,7 +402,7 @@ const UploadPersonalDocs = () => {
             <View className="flex-row items-center mb-2">
               <Ionicons name="checkmark-circle" size={20} color="#22C55E" />
               <Text className="ml-2 text-gray-700">
-                <Text className="font-bold">High-resolution</Text> scans or photos are preferred for clarity.
+                <Text className="font-bold">Minimum 300x300 pixels</Text> resolution required for clarity.
               </Text>
             </View>
             <View className="flex-row items-center mb-2">
@@ -224,13 +411,25 @@ const UploadPersonalDocs = () => {
                 Ensure <Text className="font-bold">all text is readable</Text> and no glare obscures information.
               </Text>
             </View>
-            <View className="flex-row items-center">
+            <View className="flex-row items-center mb-2">
               <Ionicons name="information-circle" size={20} color="#3B82F6" />
               <Text className="ml-2 text-gray-700">
                 Maximum <Text className="font-bold">file size</Text> per document is 10 MB.
               </Text>
             </View>
-            <Text className="ml-7 text-gray-500 text-sm">Supported formats: PDF, JPG, PNG.</Text>
+            <View className="flex-row items-center mb-2">
+              <Ionicons name="shield-checkmark" size={20} color="#8B5CF6" />
+              <Text className="ml-2 text-gray-700">
+                <Text className="font-bold">License number</Text> must contain both letters and numbers.
+              </Text>
+            </View>
+            <View className="flex-row items-center">
+              <Ionicons name="time" size={20} color="#F59E0B" />
+              <Text className="ml-2 text-gray-700">
+                License must be <Text className="font-bold">valid for at least 1 year</Text> from today.
+              </Text>
+            </View>
+            <Text className="ml-7 text-gray-500 text-sm">Supported formats: JPG, PNG. Auto-validation included.</Text>
           </View>
         </View>
 
@@ -283,14 +482,29 @@ const UploadPersonalDocs = () => {
             </Text>
           </TouchableOpacity>
           <TextInput
-            className="border border-gray-300 rounded-lg p-3 mb-2 text-gray-700"
+            className={`border rounded-lg p-3 mb-1 text-gray-700 ${
+              licenseNumberError ? 'border-red-500' : 'border-gray-300'
+            }`}
             placeholder="Enter Driving Licence Number"
             placeholderTextColor="#9CA3AF"
             value={licenseNumber}
-            onChangeText={setLicenseNumber}
+            onChangeText={(text) => {
+              setLicenseNumber(text);
+              // Real-time validation
+              const error = validateLicenseNumber(text);
+              setLicenseNumberError(error || '');
+            }}
+            maxLength={20}
           />
+          {licenseNumberError ? (
+            <Text className="text-red-500 text-sm mb-2 ml-1">
+              {licenseNumberError}
+            </Text>
+          ) : null}
           <TouchableOpacity
-            className="border border-gray-300 rounded-lg p-3 flex-row items-center justify-between"
+            className={`border rounded-lg p-3 flex-row items-center justify-between ${
+              expiryDateError ? 'border-red-500' : 'border-gray-300'
+            }`}
             onPress={() => setShowDatePicker(true)}
           >
             <Text className={`text-gray-700 ${!licenseExpiry ? 'text-gray-400' : ''}`}>
@@ -298,6 +512,11 @@ const UploadPersonalDocs = () => {
             </Text>
             <Ionicons name="calendar-outline" size={20} color="#9CA3AF" />
           </TouchableOpacity>
+          {expiryDateError ? (
+            <Text className="text-red-500 text-sm mb-2 ml-1">
+              {expiryDateError}
+            </Text>
+          ) : null}
           {showDatePicker && (
             <DateTimePicker
               value={expiryDate}
@@ -401,12 +620,12 @@ const UploadPersonalDocs = () => {
         <TouchableOpacity
           onPress={validateAndContinue}
           className={`flex-1 ml-2 py-3 rounded-lg items-center ${
-            isUploading ? 'bg-gray-400' : 'bg-orange-500'
+            isUploading || isValidating ? 'bg-gray-400' : 'bg-orange-500'
           }`}
-          disabled={isUploading}
+          disabled={isUploading || isValidating}
         >
           <Text className="text-white text-lg font-bold">
-            {isUploading ? 'Uploading...' : 'Next'}
+            {isUploading ? 'Uploading...' : isValidating ? 'Validating...' : 'Next'}
           </Text>
         </TouchableOpacity>
       </View>

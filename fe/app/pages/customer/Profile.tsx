@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Image, Alert, ActivityIndicator, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import PrimaryCard from '../../../components/ui/PrimaryCard';
 import PrimaryButton from '../../../components/ui/PrimaryButton';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
 import CustomerFooter from '../../../components/navigation/CustomerFooter';
+import { CustomerVerificationApiService, CustomerVerificationStatus } from '../../../services/customerVerificationApiService';
 
 // Define the profile data structure based on database schema
 interface ProfileData {
@@ -31,13 +32,48 @@ interface ProfileData {
 
 const Profile = () => {
   const navigation = useNavigation();
+  const params = useLocalSearchParams();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<CustomerVerificationStatus | null>(null);
+  
+  // Success alert state
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const slideAnim = useState(new Animated.Value(-100))[0]; // Initial position off-screen
 
   useEffect(() => {
     fetchUserProfile();
   }, []);
+
+  // Check for success parameter and show alert
+  useEffect(() => {
+    if (params.verificationSubmitted === 'true') {
+      setShowSuccessAlert(true);
+      
+      // Animate slide down
+      Animated.sequence([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.delay(3000), // Show for 3 seconds
+        Animated.timing(slideAnim, {
+          toValue: -100,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setShowSuccessAlert(false);
+      });
+      
+      // Refresh verification status after a brief delay
+      setTimeout(() => {
+        fetchVerificationStatus();
+      }, 1000);
+    }
+  }, [params.verificationSubmitted]);
 
   const fetchUserProfile = async () => {
     try {
@@ -65,6 +101,8 @@ const Profile = () => {
 
       if (data) {
         setProfileData(data);
+        // Also fetch verification status
+        await fetchVerificationStatus(user.id);
       } else {
         throw new Error('Profile not found');
       }
@@ -74,6 +112,21 @@ const Profile = () => {
       setError(err instanceof Error ? err.message : 'Unknown error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchVerificationStatus = async (userId?: string) => {
+    try {
+      const customerId = userId || profileData?.id;
+      if (!customerId) return;
+
+      const response = await CustomerVerificationApiService.getVerificationStatus(customerId);
+      if (response.status === 'success') {
+        setVerificationStatus(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching verification status:', error);
+      // Don't show error alert for verification status, just log it
     }
   };
 
@@ -97,6 +150,53 @@ const Profile = () => {
       'This feature will be implemented soon. You can edit your profile information through the app settings.',
       [{ text: 'OK' }]
     );
+  };
+
+  const getVerificationStatusDisplay = () => {
+    if (!verificationStatus) {
+      return { text: 'Loading...', color: 'text-gray-500', bgColor: 'bg-gray-100' };
+    }
+
+    return CustomerVerificationApiService.getVerificationStatusDisplay(verificationStatus.verificationStatus);
+  };
+
+  const handleGetVerified = () => {
+    if (!profileData?.id) {
+      Alert.alert('Error', 'User not found. Please log in again.');
+      return;
+    }
+
+    // Check if already verified
+    if (verificationStatus?.verificationStatus === 'APPROVED') {
+      Alert.alert('Already Verified', 'Your account is already verified!');
+      return;
+    }
+
+    // Check if verification is pending
+    if (verificationStatus?.verificationStatus === 'PENDING') {
+      Alert.alert(
+        'Verification Pending',
+        'Your verification is currently being reviewed. We will notify you once the review is complete.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    // Check if verification was rejected
+    if (verificationStatus?.verificationStatus === 'REJECTED') {
+      Alert.alert(
+        'Verification Rejected',
+        'Your previous verification was rejected. Please submit new documents for review.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Try Again', onPress: () => router.push('/pages/customer/CustomerVerification') }
+        ]
+      );
+      return;
+    }
+
+    // Start verification process
+    router.push('/pages/customer/CustomerVerification');
   };
 
   const handleLogout = async () => {
@@ -220,6 +320,26 @@ const Profile = () => {
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100" edges={['bottom', 'left', 'right']}>
+      {/* Success Alert */}
+      {showSuccessAlert && (
+        <Animated.View 
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            transform: [{ translateY: slideAnim }],
+          }}
+          className="bg-green-500 mx-4 mt-2 p-4 rounded-lg shadow-lg flex-row items-center"
+        >
+          <Ionicons name="checkmark-circle" size={24} color="white" />
+          <Text className="text-white font-semibold ml-2 flex-1">
+            Verification submitted successfully! 🎉
+          </Text>
+        </Animated.View>
+      )}
+
       {/* Top Bar */}
       <View className="flex-row items-center p-4 bg-white border-b border-gray-200">
         <TouchableOpacity onPress={handleBackPress} className="p-2">
@@ -319,19 +439,34 @@ const Profile = () => {
                 <Ionicons name="shield-checkmark" size={20} color="#f97316" />
                 <Text className="ml-3 text-base text-gray-700">Verification Status</Text>
               </View>
-              <View className="flex-row items-center">
-                <View className="w-2 h-2 rounded-full mr-2 bg-red-500" />
-                <Text className="text-sm font-medium text-red-600">
-                  Not Verified
+              <View className={`px-3 py-1 rounded-full ${getVerificationStatusDisplay().bgColor}`}>
+                <Text className={`text-sm font-medium ${getVerificationStatusDisplay().color}`}>
+                  {getVerificationStatusDisplay().text}
                 </Text>
               </View>
             </View>
-            <TouchableOpacity 
-              onPress={() => router.push('/pages/customer/CustomerVerification')} 
-              className="bg-orange-500 py-2 rounded-lg mt-2 w-full"
-            >
-              <Text className="text-white text-sm font-medium text-center">Get Verified</Text>
-            </TouchableOpacity>
+            {verificationStatus && !verificationStatus.isVerified && (
+              <TouchableOpacity 
+                onPress={handleGetVerified}
+                className="bg-orange-500 py-2 rounded-lg mt-2 w-full"
+              >
+                <Text className="text-white text-sm font-medium text-center">
+                  {verificationStatus.verificationStatus === 'PENDING' ? 'View Status' : 
+                   verificationStatus.verificationStatus === 'REJECTED' ? 'Resubmit Documents' : 
+                   'Get Verified'}
+                </Text>
+              </TouchableOpacity>
+            )}
+            {verificationStatus?.verificationStatus === 'PENDING' && (
+              <Text className="text-gray-500 text-xs text-center mt-2">
+                Your verification is under review. We'll notify you once it's complete.
+              </Text>
+            )}
+            {!verificationStatus?.verificationStatus && verificationStatus && !verificationStatus.isVerified && (
+              <Text className="text-gray-500 text-xs text-center mt-2">
+                Verify your account to access all features and build trust with other users.
+              </Text>
+            )}
           </View>
           <View className="flex-row items-center justify-between p-4">
             <View className="flex-row items-center">

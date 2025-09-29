@@ -45,6 +45,23 @@ const ViewBids = () => {
     
     return () => clearInterval(timer);
   }, []);
+
+  // Add additional 30-second auto-refresh for bidding data (similar to useMyRoutes pattern)
+  useEffect(() => {
+    let refreshTimer: NodeJS.Timeout | null = null;
+    
+    if (actualRouteId && refresh) {
+      refreshTimer = setInterval(() => {
+        refresh();
+      }, 30000); // 30 seconds
+    }
+
+    return () => {
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+      }
+    };
+  }, [actualRouteId, refresh]);
   
   // Enhanced real-time countdown function (copied from MyRoutes)
   const calculateRealTimeCountdown = (biddingEndTime: string) => {
@@ -72,10 +89,10 @@ const ViewBids = () => {
     }
   };
   
-  // Calculate bidding end time (2 hours before departure)
+  // Calculate bidding end time (3 hours before departure)
   const getBiddingEndTime = (departureTime: string) => {
     const departure = new Date(departureTime);
-    const biddingEnd = new Date(departure.getTime() - (2 * 60 * 60 * 1000)); // 2 hours before
+    const biddingEnd = new Date(departure.getTime() - (3 * 60 * 60 * 1000)); // 3 hours before
     return biddingEnd.toISOString();
   };
   
@@ -337,4 +354,3 @@ const ViewBids = () => {
 };
 
 export default ViewBids;
-
