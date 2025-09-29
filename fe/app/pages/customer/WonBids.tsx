@@ -83,15 +83,43 @@ export default function WonBids() {
         const acceptedBids = allBids.filter(bid => bid.status === 'ACCEPTED');
         console.log('Accepted bids:', acceptedBids);
         
-        // Add mock payment status for now (you can integrate with real payment API later)
-        const wonBidsWithPaymentStatus: BidDto[] = acceptedBids.map(bid => ({
-          ...bid,
-          isPaid: Math.random() > 0.5, // Random payment status for demo
-          fromLocation: 'Route Origin', // You can get this from route data
-          toLocation: 'Route Destination',
-          estimatedTime: '2h 30m',
-          estimatedPrice: bid.offeredPrice * 1.1 // 10% higher than bid
-        }));
+        // Check real payment status for each bid
+        const wonBidsWithPaymentStatus: BidDto[] = await Promise.all(
+          acceptedBids.map(async (bid) => {
+            try {
+              // Check payment status from backend
+              const paymentResponse = await fetch(`${Config.API_BASE}/payments/bid/${bid.id}/status`);
+              let isPaid = false;
+              
+              if (paymentResponse.ok) {
+                const paymentData = await paymentResponse.json();
+                isPaid = paymentData.data?.isPaid || false;
+                console.log(`Payment status for bid ${bid.id}:`, paymentData.data);
+              } else {
+                console.log(`No payment found for bid ${bid.id}`);
+              }
+              
+              return {
+                ...bid,
+                isPaid,
+                fromLocation: 'Route Origin', // You can get this from route data
+                toLocation: 'Route Destination',
+                estimatedTime: '2h 30m',
+                estimatedPrice: bid.offeredPrice * 1.1 // 10% higher than bid
+              };
+            } catch (paymentError) {
+              console.error(`Error checking payment status for bid ${bid.id}:`, paymentError);
+              return {
+                ...bid,
+                isPaid: false, // Default to unpaid if check fails
+                fromLocation: 'Route Origin',
+                toLocation: 'Route Destination',
+                estimatedTime: '2h 30m',
+                estimatedPrice: bid.offeredPrice * 1.1
+              };
+            }
+          })
+        );
         
         setWonBids(wonBidsWithPaymentStatus);
       } catch (apiError) {
@@ -112,6 +140,10 @@ export default function WonBids() {
 
   const formatPrice = (price: number) => {
     return `LKR ${price.toLocaleString()}`;
+  };
+
+  const handleRefresh = () => {
+    fetchWonBids();
   };
 
   const formatDate = (dateString: string) => {
@@ -202,6 +234,9 @@ export default function WonBids() {
       <View className="flex-row items-center justify-between px-4 pt-10 pb-4 bg-white shadow">
         <Text className="text-lg font-bold">Won Bids</Text>
         <View className="flex-row items-center space-x-4">
+          <TouchableOpacity onPress={handleRefresh} className="p-2">
+            <Ionicons name="refresh-outline" size={22} color="#222" />
+          </TouchableOpacity>
           <Ionicons name="notifications-outline" size={22} color="#222" />
           <View className="w-8 h-8 rounded-full bg-gray-200 items-center justify-center">
             <Ionicons name="person" size={20} color="#222" />

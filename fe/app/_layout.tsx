@@ -76,7 +76,7 @@ function RootLayoutNav() {
         translucent={false}
       />
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack screenOptions={{ headerShown:true }}>
         <Stack.Screen name="pages/login" />
         <Stack.Screen name="pages/signup" />
         <Stack.Screen name="(tabs)" />

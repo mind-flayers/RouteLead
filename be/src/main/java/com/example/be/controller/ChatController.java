@@ -478,31 +478,29 @@ public class ChatController {
             // Find paid and matched requests with driver information
             List<Map<String, Object>> driverList = new ArrayList<>();
             
-            // Query to get all paid and matched requests with driver info
+            // Query to get unique drivers with their latest bid info
             String sql = """
-                SELECT DISTINCT 
-                    b.id as bid_id,
-                    pr.id as request_id,
-                    pr.description as request_description,
-                    pr.weight_kg,
-                    pr.volume_m3,
+                SELECT 
                     d.id as driver_id,
                     d.first_name as driver_first_name,
                     d.last_name as driver_last_name,
                     d.profile_photo_url as driver_photo,
                     d.phone_number as driver_phone,
-                    vd.make as vehicle_make,
-                    vd.model as vehicle_model,
-                    vd.plate_number as vehicle_plate,
-                    b.offered_price,
-                    b.created_at as bid_created_at,
-                    c.id as conversation_id
+                    COUNT(b.id) as total_parcels,
+                    MAX(b.created_at) as latest_bid_created_at,
+                    (SELECT b2.id FROM bids b2 
+                     JOIN parcel_requests pr2 ON b2.request_id = pr2.id 
+                     JOIN return_routes rr2 ON b2.route_id = rr2.id 
+                     WHERE rr2.driver_id = d.id 
+                     AND pr2.customer_id = :customerId
+                     AND pr2.status = 'MATCHED'
+                     AND b2.status = 'ACCEPTED'
+                     AND EXISTS (SELECT 1 FROM payments p WHERE p.bid_id = b2.id AND p.payment_status = 'completed')
+                     ORDER BY b2.created_at DESC LIMIT 1) as sample_bid_id
                 FROM bids b
                 JOIN parcel_requests pr ON b.request_id = pr.id
                 JOIN return_routes rr ON b.route_id = rr.id
                 JOIN profiles d ON rr.driver_id = d.id
-                LEFT JOIN vehicle_details vd ON vd.driver_id = d.id
-                LEFT JOIN conversations c ON c.bid_id = b.id
                 WHERE pr.customer_id = :customerId
                 AND pr.status = 'MATCHED'
                 AND b.status = 'ACCEPTED'
@@ -511,7 +509,8 @@ public class ChatController {
                     WHERE p.bid_id = b.id 
                     AND p.payment_status = 'completed'
                 )
-                ORDER BY b.created_at DESC
+                GROUP BY d.id, d.first_name, d.last_name, d.profile_photo_url, d.phone_number
+                ORDER BY MAX(b.created_at) DESC
                 """;
             
             @SuppressWarnings("unchecked")
@@ -520,33 +519,63 @@ public class ChatController {
                 .getResultList();
             
             for (Object[] row : results) {
+                UUID driverId = (UUID) row[0];
+                
                 Map<String, Object> driverData = new HashMap<>();
-                driverData.put("bidId", row[0] != null ? row[0].toString() : null);
-                driverData.put("requestId", row[1] != null ? row[1].toString() : null);
-                driverData.put("requestDescription", row[2]);
-                driverData.put("weightKg", row[3]);
-                driverData.put("volumeM3", row[4]);
-                driverData.put("driverId", row[5] != null ? row[5].toString() : null);
-                driverData.put("driverName", (row[6] != null ? row[6] : "") + " " + (row[7] != null ? row[7] : ""));
-                driverData.put("driverPhoto", row[8]);
-                driverData.put("driverPhone", row[9]); // Added phone number
-                driverData.put("vehicleMake", row[10]); // Shifted indices
-                driverData.put("vehicleModel", row[11]);
-                driverData.put("vehiclePlate", row[12]);
-                driverData.put("offeredPrice", row[13]);
-                driverData.put("bidCreatedAt", row[14]);
-                driverData.put("conversationId", row[15] != null ? row[15].toString() : null);
+                driverData.put("driverId", driverId.toString());
+                driverData.put("driverName", (row[1] != null ? row[1] : "") + " " + (row[2] != null ? row[2] : ""));
+                driverData.put("driverPhoto", row[3]);
+                driverData.put("driverPhone", row[4]);
+                driverData.put("totalParcels", row[5]); // Number of parcels this driver is handling
+                driverData.put("latestBidCreatedAt", row[6]);
+                driverData.put("sampleBidId", row[7] != null ? row[7].toString() : null); // Sample bid ID for conversation creation
                 
-                // Check if conversation exists
-                boolean hasConversation = row[15] != null;
-                driverData.put("hasConversation", hasConversation);
+                // Get vehicle details for this driver
+                String vehicleSql = """
+                    SELECT make, model, plate_number
+                    FROM vehicle_details
+                    WHERE driver_id = :driverId
+                    LIMIT 1
+                    """;
                 
-                // Initialize unread count to 0
-                long unreadCount = 0;
+                @SuppressWarnings("unchecked")
+                List<Object[]> vehicleResults = entityManager.createNativeQuery(vehicleSql)
+                    .setParameter("driverId", driverId)
+                    .getResultList();
                 
-                // If conversation exists, get last message and unread count
-                if (hasConversation) {
-                    UUID conversationId = UUID.fromString(row[15].toString());
+                if (!vehicleResults.isEmpty()) {
+                    Object[] vehicleRow = vehicleResults.get(0);
+                    driverData.put("vehicleMake", vehicleRow[0]);
+                    driverData.put("vehicleModel", vehicleRow[1]);
+                    driverData.put("vehiclePlate", vehicleRow[2]);
+                } else {
+                    driverData.put("vehicleMake", null);
+                    driverData.put("vehicleModel", null);
+                    driverData.put("vehiclePlate", null);
+                }
+                
+                // Find conversation for this driver and customer
+                String findConversationSql = """
+                    SELECT c.id, c.last_message_at
+                    FROM conversations c
+                    JOIN bids b ON c.bid_id = b.id
+                    JOIN return_routes rr ON b.route_id = rr.id
+                    WHERE rr.driver_id = :driverId
+                    AND c.customer_id = :customerId
+                    LIMIT 1
+                    """;
+                
+                @SuppressWarnings("unchecked")
+                List<Object[]> conversationResults = entityManager.createNativeQuery(findConversationSql)
+                    .setParameter("driverId", driverId)
+                    .setParameter("customerId", customerIdUuid)
+                    .getResultList();
+                
+                if (!conversationResults.isEmpty()) {
+                    Object[] convRow = conversationResults.get(0);
+                    UUID conversationId = (UUID) convRow[0];
+                    driverData.put("conversationId", conversationId.toString());
+                    driverData.put("hasConversation", true);
                     
                     // Get last message
                     Message lastMessage = messageRepository.findLastMessageByConversationId(conversationId);
@@ -556,12 +585,14 @@ public class ChatController {
                     }
                     
                     // Count unread messages for this customer
-                    unreadCount = messageRepository.countByConversationIdAndSenderIdNotAndIsReadFalse(
+                    long unreadCount = messageRepository.countByConversationIdAndSenderIdNotAndIsReadFalse(
                         conversationId, customerIdUuid);
+                    driverData.put("unreadCount", unreadCount);
+                } else {
+                    driverData.put("conversationId", null);
+                    driverData.put("hasConversation", false);
+                    driverData.put("unreadCount", 0);
                 }
-                
-                // Always include unreadCount (0 if no conversation)
-                driverData.put("unreadCount", unreadCount);
                 
                 driverList.add(driverData);
             }
@@ -620,8 +651,9 @@ public class ChatController {
             UUID driverIdUuid = UUID.fromString(driverId);
             
             // Check if conversation already exists
-            Conversation existingConversation = conversationRepository.findByBidId(bidIdUuid);
-            if (existingConversation != null) {
+            List<Conversation> existingConversations = conversationRepository.findByBidId(bidIdUuid);
+            if (!existingConversations.isEmpty()) {
+                Conversation existingConversation = existingConversations.get(0); // Get the latest
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", true);
                 response.put("conversationId", existingConversation.getId().toString());

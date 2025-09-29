@@ -54,23 +54,43 @@ export default function MyBids() {
     try {
       setPaymentLoading(prev => ({ ...prev, [requestId]: true }));
       
+      console.log(`Fetching payment status for request: ${requestId}`);
       const response = await fetch(`${Config.API_BASE}/payments/request/${requestId}/status`);
       
       if (!response.ok) {
         console.warn(`Failed to fetch payment status for request ${requestId}: ${response.status}`);
+        // Set empty array to indicate no payment data found
+        setPaymentStatuses(prev => ({
+          ...prev,
+          [requestId]: []
+        }));
         return;
       }
       
       const data = await response.json();
+      console.log(`Payment status response for request ${requestId}:`, data);
       
       if (data.success && data.paymentStatuses) {
         setPaymentStatuses(prev => ({
           ...prev,
           [requestId]: data.paymentStatuses
         }));
+        console.log(`Set payment statuses for request ${requestId}:`, data.paymentStatuses);
+      } else {
+        // Set empty array if no payment statuses found
+        setPaymentStatuses(prev => ({
+          ...prev,
+          [requestId]: []
+        }));
+        console.log(`No payment statuses found for request ${requestId}`);
       }
     } catch (error) {
       console.error(`Error fetching payment status for request ${requestId}:`, error);
+      // Set empty array on error
+      setPaymentStatuses(prev => ({
+        ...prev,
+        [requestId]: []
+      }));
     } finally {
       setPaymentLoading(prev => ({ ...prev, [requestId]: false }));
     }
@@ -80,11 +100,21 @@ export default function MyBids() {
   const getPaymentStatusForRequest = (requestId: string) => {
     const statuses = paymentStatuses[requestId] || [];
     const paidStatuses = statuses.filter(s => s.paid);
+    const isLoading = paymentLoading[requestId] || false;
     
-    if (statuses.length === 0) {
-      return { status: 'unknown', text: 'Unknown', color: '#6B7280', amount: null };
+    // If still loading, show loading state
+    if (isLoading) {
+      return { status: 'loading', text: 'Loading...', color: '#6B7280', amount: null };
     }
     
+    // If no payment statuses found, it means either no bids or API failed
+    if (statuses.length === 0) {
+      // Since the API returns empty array when no bids found, we can't distinguish
+      // between "no bids" and "API failed". For now, show "No Bids"
+      return { status: 'unknown', text: 'No Bids', color: '#6B7280', amount: null };
+    }
+    
+    // We have payment status data, which means there are bids
     if (paidStatuses.length > 0) {
       const totalPaid = paidStatuses.reduce((sum, s) => sum + s.amount, 0);
       return { 
@@ -95,6 +125,7 @@ export default function MyBids() {
       };
     }
     
+    // We have bids but no payments - show unpaid
     const totalUnpaid = statuses.reduce((sum, s) => sum + s.amount, 0);
     return { 
       status: 'unpaid', 

@@ -191,7 +191,7 @@ const Chat = () => {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-white">
+      <SafeAreaView className="flex-1 bg-white" edges={['bottom', 'left', 'right']}>
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#0D47A1" />
           <Text className="mt-2 text-gray-600">Loading messages...</Text>
@@ -201,7 +201,7 @@ const Chat = () => {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-white">
+    <SafeAreaView className="flex-1 bg-white" edges={['bottom', 'left', 'right']}>
       {/* Top Bar */}
       <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
         <TouchableOpacity onPress={() => router.back()} className="p-2">

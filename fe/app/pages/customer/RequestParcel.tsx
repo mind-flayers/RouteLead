@@ -31,6 +31,12 @@ export default function RequestParcel() {
   const [loading, setLoading] = useState(true);
   const [calculatedVolume, setCalculatedVolume] = useState<number | null>(null);
   const [maxBudget, setMaxBudget] = useState('1000.00'); // Add max budget state with default value
+  const [routeDetails, setRouteDetails] = useState<{
+    suggestedPriceMin: number;
+    suggestedPriceMax: number;
+    driverName: string;
+  } | null>(null);
+  const [priceValidationError, setPriceValidationError] = useState<string | null>(null);
 
   // Calculate volume when dimensions change
   useEffect(() => {
@@ -46,6 +52,44 @@ export default function RequestParcel() {
       setCalculatedVolume(null);
     }
   }, [length, width, height]);
+
+  // Fetch route details to get price range
+  useEffect(() => {
+    const fetchRouteDetails = async () => {
+      if (!routeId || routeId === 'custom' || routeId === '') {
+        console.log('No valid route ID provided, skipping route details fetch');
+        return;
+      }
+
+      try {
+        console.log('Fetching route details for routeId:', routeId);
+        const response = await fetch(`${Config.API_BASE}/routes/${routeId}`);
+        
+        if (!response.ok) {
+          console.error('Failed to fetch route details:', response.status);
+          return;
+        }
+        
+        const routeData = await response.json();
+        console.log('Route details received:', routeData);
+        
+        setRouteDetails({
+          suggestedPriceMin: routeData.suggestedPriceMin || 0,
+          suggestedPriceMax: routeData.suggestedPriceMax || 0,
+          driverName: routeData.driverName || 'Unknown Driver'
+        });
+        
+        // Set default max budget to the minimum suggested price
+        if (routeData.suggestedPriceMin) {
+          setMaxBudget(routeData.suggestedPriceMin.toString());
+        }
+      } catch (error) {
+        console.error('Error fetching route details:', error);
+      }
+    };
+
+    fetchRouteDetails();
+  }, [routeId]);
 
   // Get authenticated user ID
   useEffect(() => {
@@ -85,7 +129,41 @@ export default function RequestParcel() {
     };
 
     getCurrentUser();
-  }, []);
+  }, [router]);
+
+  // Validate max budget against route's suggested price range
+  const validateMaxBudget = (value: string) => {
+    setMaxBudget(value);
+    setPriceValidationError(null);
+    
+    if (!value || value.trim() === '') {
+      setPriceValidationError('Maximum budget is required');
+      return;
+    }
+    
+    const budgetValue = parseFloat(value);
+    if (isNaN(budgetValue)) {
+      setPriceValidationError('Please enter a valid number');
+      return;
+    }
+    
+    if (budgetValue <= 0) {
+      setPriceValidationError('Maximum budget must be greater than 0');
+      return;
+    }
+    
+    if (routeDetails) {
+      if (budgetValue < routeDetails.suggestedPriceMin) {
+        setPriceValidationError(`Minimum allowed budget is LKR ${routeDetails.suggestedPriceMin.toFixed(2)}`);
+        return;
+      }
+      
+      if (budgetValue > routeDetails.suggestedPriceMax) {
+        setPriceValidationError(`Maximum allowed budget is LKR ${routeDetails.suggestedPriceMax.toFixed(2)}`);
+        return;
+      }
+    }
+  };
 
   const handleRequestParcel = async () => {
     // Check if user is authenticated
@@ -98,6 +176,12 @@ export default function RequestParcel() {
     if (!weight || !length || !width || !height || !description || 
         !pickupContactName || !pickupContactPhone || !deliveryContactName || !deliveryContactPhone || !maxBudget) {
       Alert.alert('Validation Error', 'Please fill in all fields including contact information and max budget.');
+      return;
+    }
+    
+    // Validate price range if route details are available
+    if (priceValidationError) {
+      Alert.alert('Price Validation Error', priceValidationError);
       return;
     }
     
@@ -251,143 +335,163 @@ export default function RequestParcel() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Route Information */}
-      <View style={styles.routeInfo}>
-        <Text style={styles.routeTitle}>Route Details</Text>
-        <Text style={styles.routeText}>{origin} → {destination}</Text>
-        <Text style={styles.coordinatesText}>
-          Pickup: {pickupLat}, {pickupLng}
-        </Text>
-        <Text style={styles.coordinatesText}>
-          Dropoff: {dropoffLat}, {dropoffLng}
-        </Text>
-      </View>
-      
-      {/* Parcel Request Details */}
-      <Text style={styles.title}>Parcel Request</Text>
-
-      {/* Parcel Details */}
-      <View style={styles.section}>
-        <Text style={styles.label}>Weight (kg)</Text>
-        <TextInput
-          value={weight}
-          onChangeText={setWeight}
-          keyboardType="numeric"
-          placeholder="Enter weight in kg (e.g., 5)"
-          placeholderTextColor="#555"
-          style={styles.input}
-        />
-        <Text style={styles.label}>Dimensions (cm)</Text>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <TextInput
-            value={length}
-            onChangeText={setLength}
-            keyboardType="numeric"
-            placeholder="Length (cm)"
-            placeholderTextColor="#555"
-            style={[styles.input, { flex: 1, marginRight: 4 }]}
-          />
-          <TextInput
-            value={width}
-            onChangeText={setWidth}
-            keyboardType="numeric"
-            placeholder="Width (cm)"
-            placeholderTextColor="#555"
-            style={[styles.input, { flex: 1, marginHorizontal: 2 }]}
-          />
-          <TextInput
-            value={height}
-            onChangeText={setHeight}
-            keyboardType="numeric"
-            placeholder="Height (cm)"
-            placeholderTextColor="#555"
-            style={[styles.input, { flex: 1, marginLeft: 4 }]}
-                     />
-         </View>
-         
-         {/* Volume Display */}
-         {calculatedVolume !== null && (
-           <View style={styles.volumeInfo}>
-             <Text style={styles.volumeLabel}>Calculated Volume:</Text>
-             <Text style={styles.volumeValue}>{calculatedVolume.toFixed(4)} m³</Text>
-           </View>
-         )}
-         
-         <Text style={styles.label}>Description</Text>
-        <TextInput
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Describe your parcel (e.g., Fragile electronics, books, etc.)"
-          placeholderTextColor="#555"
-          style={styles.input}
-        />
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Route Information */}
+        <View style={styles.routeInfo}>
+          <Text style={styles.routeTitle}>Route Details</Text>
+          <Text style={styles.routeText}>{origin} → {destination}</Text>
+          {routeDetails && (
+            <Text style={styles.driverText}>
+              Driver: {routeDetails.driverName}
+            </Text>
+          )}
+          <Text style={styles.coordinatesText}>
+            Pickup: {pickupLat}, {pickupLng}
+          </Text>
+          <Text style={styles.coordinatesText}>
+            Dropoff: {dropoffLat}, {dropoffLng}
+          </Text>
+        </View>
         
-        <Text style={styles.label}>Maximum Budget (LKR)</Text>
-        <TextInput
-          value={maxBudget}
-          onChangeText={setMaxBudget}
-          keyboardType="numeric"
-          placeholder="Enter your maximum budget (e.g., 1000.00)"
-          placeholderTextColor="#555"
-          style={styles.input}
-        />
-      </View>
+        {/* Parcel Request Details */}
+        <Text style={styles.title}>Parcel Request</Text>
 
-      {/* Contact Information */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Pickup Contact Information</Text>
-        <Text style={styles.label}>Contact Name</Text>
-        <TextInput
-          value={pickupContactName}
-          onChangeText={setPickupContactName}
-          placeholder="Enter pickup contact name"
-          placeholderTextColor="#555"
-          style={styles.input}
-        />
-        <Text style={styles.label}>Contact Phone</Text>
-        <TextInput
-          value={pickupContactPhone}
-          onChangeText={setPickupContactPhone}
-          placeholder="Enter pickup contact phone"
-          placeholderTextColor="#555"
-          style={styles.input}
-          keyboardType="phone-pad"
-        />
-      </View>
+        {/* Parcel Details */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Weight (kg)</Text>
+          <TextInput
+            value={weight}
+            onChangeText={setWeight}
+            keyboardType="numeric"
+            placeholder="Enter weight in kg (e.g., 5)"
+            placeholderTextColor="#555"
+            style={styles.input}
+          />
+          <Text style={styles.label}>Dimensions (cm)</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <TextInput
+              value={length}
+              onChangeText={setLength}
+              keyboardType="numeric"
+              placeholder="Length (cm)"
+              placeholderTextColor="#555"
+              style={[styles.input, { flex: 1, marginRight: 4 }]}
+            />
+            <TextInput
+              value={width}
+              onChangeText={setWidth}
+              keyboardType="numeric"
+              placeholder="Width (cm)"
+              placeholderTextColor="#555"
+              style={[styles.input, { flex: 1, marginHorizontal: 2 }]}
+            />
+            <TextInput
+              value={height}
+              onChangeText={setHeight}
+              keyboardType="numeric"
+              placeholder="Height (cm)"
+              placeholderTextColor="#555"
+              style={[styles.input, { flex: 1, marginLeft: 4 }]}
+                       />
+           </View>
+           
+           {/* Volume Display */}
+           {calculatedVolume !== null && (
+             <View style={styles.volumeInfo}>
+               <Text style={styles.volumeLabel}>Calculated Volume:</Text>
+               <Text style={styles.volumeValue}>{calculatedVolume.toFixed(4)} m³</Text>
+             </View>
+           )}
+           
+           <Text style={styles.label}>Description</Text>
+          <TextInput
+            value={description}
+            onChangeText={setDescription}
+            placeholder="Describe your parcel (e.g., Fragile electronics, books, etc.)"
+            placeholderTextColor="#555"
+            style={styles.input}
+          />
+          
+          <Text style={styles.label}>Maximum Budget (LKR)</Text>
+          {routeDetails && (
+            <Text style={styles.priceRangeText}>
+              Allowed range: LKR {routeDetails.suggestedPriceMin.toFixed(2)} - LKR {routeDetails.suggestedPriceMax.toFixed(2)}
+            </Text>
+          )}
+          <TextInput
+            value={maxBudget}
+            onChangeText={validateMaxBudget}
+            keyboardType="numeric"
+            placeholder="Enter your maximum budget"
+            placeholderTextColor="#555"
+            style={[
+              styles.input,
+              priceValidationError && styles.inputError
+            ]}
+          />
+          {priceValidationError && (
+            <Text style={styles.errorText}>{priceValidationError}</Text>
+          )}
+        </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Delivery Contact Information</Text>
-        <Text style={styles.label}>Contact Name</Text>
-        <TextInput
-          value={deliveryContactName}
-          onChangeText={setDeliveryContactName}
-          placeholder="Enter delivery contact name"
-          placeholderTextColor="#555"
-          style={styles.input}
-        />
-        <Text style={styles.label}>Contact Phone</Text>
-        <TextInput
-          value={deliveryContactPhone}
-          onChangeText={setDeliveryContactPhone}
-          placeholder="Enter delivery contact phone"
-          placeholderTextColor="#555"
-          style={styles.input}
-          keyboardType="phone-pad"
-        />
-      </View>
+        {/* Contact Information */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Pickup Contact Information</Text>
+          <Text style={styles.label}>Contact Name</Text>
+          <TextInput
+            value={pickupContactName}
+            onChangeText={setPickupContactName}
+            placeholder="Enter pickup contact name"
+            placeholderTextColor="#555"
+            style={styles.input}
+          />
+          <Text style={styles.label}>Contact Phone</Text>
+          <TextInput
+            value={pickupContactPhone}
+            onChangeText={setPickupContactPhone}
+            placeholder="Enter pickup contact phone"
+            placeholderTextColor="#555"
+            style={styles.input}
+            keyboardType="phone-pad"
+          />
+        </View>
 
-      {/* Submit Button */}
-      <TouchableOpacity 
-        style={[styles.button, requestingParcel && styles.buttonDisabled]} 
-        onPress={handleRequestParcel}
-        disabled={requestingParcel}
-      >
-        <Text style={styles.buttonText}>
-          {requestingParcel ? 'Requesting...' : 'Request'}
-        </Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Delivery Contact Information</Text>
+          <Text style={styles.label}>Contact Name</Text>
+          <TextInput
+            value={deliveryContactName}
+            onChangeText={setDeliveryContactName}
+            placeholder="Enter delivery contact name"
+            placeholderTextColor="#555"
+            style={styles.input}
+          />
+          <Text style={styles.label}>Contact Phone</Text>
+          <TextInput
+            value={deliveryContactPhone}
+            onChangeText={setDeliveryContactPhone}
+            placeholder="Enter delivery contact phone"
+            placeholderTextColor="#555"
+            style={styles.input}
+            keyboardType="phone-pad"
+          />
+        </View>
+      </ScrollView>
+
+      {/* Fixed Submit Button */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity 
+          style={[styles.button, requestingParcel && styles.buttonDisabled]} 
+          onPress={handleRequestParcel}
+          disabled={requestingParcel}
+        >
+          <Text style={styles.buttonText}>
+            {requestingParcel ? 'Requesting...' : 'Request'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
 
@@ -395,8 +499,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
     paddingHorizontal: 24,
     paddingVertical: 24,
+    paddingBottom: 100, // Add padding to prevent content from being hidden behind the fixed button
+  },
+  buttonContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    paddingBottom: 34, // Account for safe area
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 5,
   },
   title: {
     fontSize: 18,
@@ -424,6 +554,12 @@ const styles = StyleSheet.create({
   routeText: {
     fontSize: 14,
     color: '#424242',
+  },
+  driverText: {
+    fontSize: 13,
+    color: '#1976D2',
+    fontWeight: '500',
+    marginTop: 4,
   },
   coordinatesText: {
     fontSize: 12,
@@ -483,5 +619,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#1B5E20',
+  },
+  priceRangeText: {
+    fontSize: 12,
+    color: '#1976D2',
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    borderWidth: 2,
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: -12,
+    marginBottom: 16,
   },
 });

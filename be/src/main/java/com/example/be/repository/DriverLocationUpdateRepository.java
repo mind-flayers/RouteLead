@@ -25,7 +25,7 @@ public interface DriverLocationUpdateRepository extends JpaRepository<DriverLoca
     );
     
     // Find the latest location update for a specific delivery tracking
-    @Query("SELECT dlu FROM DriverLocationUpdate dlu WHERE dlu.deliveryTracking.id = :deliveryTrackingId ORDER BY dlu.recordedAt DESC")
+    @Query("SELECT dlu FROM DriverLocationUpdate dlu WHERE dlu.deliveryTracking.id = :deliveryTrackingId ORDER BY dlu.recordedAt DESC LIMIT 1")
     java.util.Optional<DriverLocationUpdate> findLatestByDeliveryTrackingId(@Param("deliveryTrackingId") UUID deliveryTrackingId);
     
     // Find all location updates recorded after a specific time

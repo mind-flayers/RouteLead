@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Config } from '../../../constants/Config';
-import CryptoJS from 'crypto-js';
 import PayHereCheckout from '../../../components/PayHereCheckout';
 import PayHereAuthorizeForm from '../../../components/PayHereAuthorizeForm';
 
@@ -13,9 +13,6 @@ interface PayHereConfig {
   currency: string;
   sandboxUrl: string;
   liveUrl: string;
-  testCardNumber: string;
-  testCardExpiry: string;
-  testCardCvv: string;
   returnUrl: string;
   cancelUrl: string;
   notifyUrl: string;
@@ -400,9 +397,9 @@ export default function Payment() {
   }
 
   return (
-    <View className="flex-1 bg-[#F6F6FA]">
+    <SafeAreaView className="flex-1 bg-[#F6F6FA]" edges={['bottom', 'left', 'right']}>
       {/* Header */}
-      <View className="flex-row items-center px-4 pt-10 pb-4 bg-white shadow">
+      <View className="flex-row items-center px-4 py-4 bg-white shadow">
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#222" />
         </TouchableOpacity>
@@ -413,7 +410,7 @@ export default function Payment() {
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
         <View className="items-center mt-8">
           <Text style={styles.totalLabel}>TOTAL</Text>
-          <Text style={styles.totalAmount}>LKR {amount.toLocaleString()}</Text>
+          <Text style={styles.totalAmount}>LKR {amount ? amount.toLocaleString() : '0'}</Text>
           {bidId && (
             <Text style={styles.bidInfo}>Winning Bid Amount</Text>
           )}
@@ -470,207 +467,11 @@ export default function Payment() {
               onPress={fetchPayHereConfig}
             >
               <Text className="text-white text-sm font-medium text-center">Retry</Text>
-        </TouchableOpacity>
-          </View>
-        )}
-
-
-
-                    {/* Test Card Information */}
-            {payHereConfig && (
-              <View className="mx-6 mt-4 p-4 bg-gray-100 rounded-lg">
-                <Text className="text-sm font-medium text-gray-700 mb-2">Test Card Details:</Text>
-                <Text className="text-xs text-gray-600">Card: {payHereConfig.testCardNumber}</Text>
-                <Text className="text-xs text-gray-600">Expiry: {payHereConfig.testCardExpiry}</Text>
-                <Text className="text-xs text-gray-600">CVV: {payHereConfig.testCardCvv}</Text>
-                
-                {/* Test Authorize API Button */}
-                <TouchableOpacity
-                  className="mt-3 py-2 px-4 bg-blue-600 rounded-md"
-                  onPress={async () => {
-                    try {
-                      console.log('🧪 Testing PayHere Authorize API...');
-                      const response = await fetch(`${Config.API_BASE}/payments/payhere/test-authorize`);
-                      const data = await response.json();
-                      console.log('📋 Authorize API test response:', data);
-                      
-                      if (data.success) {
-                        Alert.alert('Success', 'Authorize API test successful! OAuth token obtained.');
-                      } else {
-                        Alert.alert('Error', `Authorize API test failed: ${data.message}`);
-                      }
-                    } catch (error) {
-                      console.error('❌ Authorize API test error:', error);
-                      Alert.alert('Error', 'Failed to test Authorize API');
-                    }
-                  }}
-                >
-                  <Text className="text-white text-sm font-medium text-center">Test Authorize API</Text>
-                </TouchableOpacity>
-            
-            {/* Manual Test Button for Debugging */}
-            <TouchableOpacity
-              className="mt-3 py-2 px-4 bg-blue-500 rounded-md"
-              onPress={async () => {
-                const testData = {
-                  merchant_id: payHereConfig.merchantId,
-                  return_url: payHereConfig.returnUrl,
-                  cancel_url: payHereConfig.cancelUrl,
-                  notify_url: payHereConfig.notifyUrl,
-                  first_name: "Test",
-                  last_name: "User",
-                  email: "test@example.com",
-                  phone: "+94123456789",
-                  address: "Test Address",
-                  city: "Colombo",
-                  country: "Sri Lanka",
-                  order_id: "TEST_" + Date.now(),
-                  items: "Test Payment",
-                  currency: "LKR",
-                  amount: "100.00",
-                  custom_1: "test_bid",
-                  custom_2: "test_request",
-                  custom_3: "test_user",
-                  custom_4: "CREDIT_CARD",
-                  hash: "test_hash"
-                };
-                
-                // Generate proper hash
-                const hash = await generatePayHereHash(testData);
-                testData.hash = hash;
-                
-                setPaymentData(testData);
-                setShowPayHereCheckout(true);
-              }}
-            >
-              <Text className="text-white text-sm font-medium text-center">Test PayHere Directly</Text>
-            </TouchableOpacity>
-            
-            {/* Direct Browser Test Button */}
-            <TouchableOpacity
-              className="mt-2 py-2 px-4 bg-green-500 rounded-md"
-              onPress={async () => {
-                const testData: PayHerePaymentData = {
-                  merchant_id: payHereConfig.merchantId,
-                  return_url: payHereConfig.returnUrl,
-                  cancel_url: payHereConfig.cancelUrl,
-                  notify_url: payHereConfig.notifyUrl,
-                  first_name: "Test",
-                  last_name: "User",
-                  email: "test@example.com",
-                  phone: "+94123456789",
-                  address: "Test Address",
-                  city: "Colombo",
-                  country: "Sri Lanka",
-                  order_id: "TEST_" + Date.now(),
-                  items: "Test Payment",
-                  currency: "LKR",
-                  amount: "100.00",
-                  custom_1: "test_bid",
-                  custom_2: "test_request",
-                  custom_3: "test_user",
-                  custom_4: "CREDIT_CARD",
-                  hash: "" // Will be set below
-                };
-                
-                // Generate proper hash
-                const hash = await generatePayHereHash(testData);
-                testData.hash = hash;
-                
-                // Create URL with parameters
-                const params = new URLSearchParams();
-                Object.entries(testData).forEach(([key, value]) => {
-                  params.append(key, value);
-                });
-                const queryString = params.toString();
-                const payHereUrl = `${payHereConfig.sandboxUrl}?${queryString}`;
-                
-                console.log('🔗 Direct PayHere URL:', payHereUrl);
-                
-                // Open in browser
-                const canOpen = await Linking.canOpenURL(payHereUrl);
-                if (canOpen) {
-                  await Linking.openURL(payHereUrl);
-                } else {
-                  Alert.alert('Error', 'Cannot open PayHere URL in browser');
-                }
-              }}
-            >
-              <Text className="text-white text-sm font-medium text-center">Open in Browser (Simple Hash)</Text>
-            </TouchableOpacity>
-            
-            {/* Alternative Hash Test Button */}
-            <TouchableOpacity
-              className="mt-2 py-2 px-4 bg-purple-500 rounded-md"
-              onPress={async () => {
-                const testData: PayHerePaymentData = {
-                  merchant_id: payHereConfig.merchantId,
-                  return_url: payHereConfig.returnUrl,
-                  cancel_url: payHereConfig.cancelUrl,
-                  notify_url: payHereConfig.notifyUrl,
-                  first_name: "Test",
-                  last_name: "User",
-                  email: "test@example.com",
-                  phone: "+94123456789",
-                  address: "Test Address",
-                  city: "Colombo",
-                  country: "Sri Lanka",
-                  order_id: "TEST_" + Date.now(),
-                  items: "Test Payment",
-                  currency: "LKR",
-                  amount: "1000.00",
-                  custom_1: "test_bid",
-                  custom_2: "test_request",
-                  custom_3: "test_user",
-                  custom_4: "CREDIT_CARD",
-                  hash: "" // Will be set below
-                };
-                
-                // Generate hash using full formula (alternative)
-                const hashString = payHereConfig.merchantId + 
-                  testData.order_id + 
-                  testData.amount + 
-                  testData.currency + 
-                  testData.first_name + 
-                  testData.last_name + 
-                  testData.email + 
-                  testData.phone + 
-                  testData.address + 
-                  testData.city + 
-                  testData.country + 
-                  testData.items + 
-                  payHereConfig.merchantSecret;
-                
-                const hash = CryptoJS.MD5(hashString).toString().toUpperCase();
-                testData.hash = hash;
-                
-                console.log('🔐 Alternative hash formula used:', hash);
-                
-                // Create URL with parameters
-                const params = new URLSearchParams();
-                Object.entries(testData).forEach(([key, value]) => {
-                  params.append(key, value);
-                });
-                const queryString = params.toString();
-                const payHereUrl = `${payHereConfig.sandboxUrl}?${queryString}`;
-                
-                console.log('🔗 Alternative PayHere URL:', payHereUrl);
-                
-                // Open in browser
-                const canOpen = await Linking.canOpenURL(payHereUrl);
-                if (canOpen) {
-                  await Linking.openURL(payHereUrl);
-                } else {
-                  Alert.alert('Error', 'Cannot open PayHere URL in browser');
-                }
-              }}
-            >
-              <Text className="text-white text-sm font-medium text-center">Open in Browser (Full Hash)</Text>
             </TouchableOpacity>
           </View>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

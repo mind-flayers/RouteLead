@@ -255,11 +255,11 @@ export const getAllBids = async (): Promise<BidDto[]> => {
   }
 };
 
-// Get bids by customer ID (if your backend supports this)
+// Get bids by customer ID using the correct backend endpoint
 export const getBidsByCustomerId = async (customerId: string): Promise<BidDto[]> => {
   try {
     console.log('Fetching bids for customer:', customerId);
-    const response = await fetch(`${API_BASE_URL}/bids/customer/${customerId}`, {
+    const response = await fetch(`${API_BASE_URL}/customer/bids?customerId=${customerId}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
