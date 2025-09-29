@@ -25,6 +25,7 @@ import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -155,6 +156,35 @@ public class PayHereService {
             
             Bid bid = bidRepository.findById(bidId)
                 .orElseThrow(() -> new RuntimeException("Bid not found"));
+            
+            // Check if payment already exists for this bid
+            Optional<Payment> existingPayment = paymentRepository.findByBidId(bidId);
+            if (existingPayment.isPresent()) {
+                Payment payment = existingPayment.get();
+                log.info("Payment already exists for bid {} with status: {}", bidId, payment.getPaymentStatus());
+                
+                // Return existing payment data instead of creating a new one
+                String orderId = "RL_" + System.currentTimeMillis() + "_" + bidId.toString().substring(0, 8);
+                
+                PayHereRequestDto response = new PayHereRequestDto();
+                response.setOrderId(orderId);
+                response.setFirstName(user.getFirstName());
+                response.setLastName(user.getLastName());
+                response.setEmail(user.getEmail());
+                response.setPhone(user.getPhoneNumber());
+                response.setAddress(user.getAddressLine1() != null ? user.getAddressLine1() : "Address not provided");
+                response.setCity(user.getCity());
+                response.setCountry("Sri Lanka");
+                response.setItems("RouteLead Service");
+                response.setCurrency(payHereConfig.getCurrency());
+                response.setAmount(amount);
+                response.setCustom1(bidId.toString());
+                response.setCustom2(requestId.toString());
+                response.setCustom3(userId.toString());
+                response.setCustom4(paymentMethod);
+                
+                return response;
+            }
             
             String orderId = "RL_" + System.currentTimeMillis() + "_" + bidId.toString().substring(0, 8);
             
@@ -409,9 +439,9 @@ public class PayHereService {
     private void createConversationAfterPayment(Bid bid, UUID customerId, UUID driverId) {
         try {
             // Check if conversation already exists
-            Conversation existingConversation = conversationRepository.findByBidId(bid.getId());
+            List<Conversation> existingConversations = conversationRepository.findByBidId(bid.getId());
             
-            if (existingConversation == null) {
+            if (existingConversations.isEmpty()) {
                 // Create new conversation
                 Conversation conversation = new Conversation();
                 conversation.setBid(bid);

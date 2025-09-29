@@ -44,6 +44,14 @@ public class PaymentService {
             Bid bid = bidRepository.findById(bidId)
                 .orElseThrow(() -> new RuntimeException("Bid not found"));
             
+            // Check if payment already exists for this bid
+            Optional<Payment> existingPayment = paymentRepository.findByBidId(bidId);
+            if (existingPayment.isPresent()) {
+                Payment existing = existingPayment.get();
+                log.info("Payment already exists for bid {} with status: {}", bidId, existing.getPaymentStatus());
+                return existing; // Return existing payment instead of creating a new one
+            }
+            
             Payment payment = new Payment();
             payment.setUser(user);
             payment.setBid(bid);

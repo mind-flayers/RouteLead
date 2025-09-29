@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -18,8 +19,13 @@ public interface ConversationRepository extends JpaRepository<Conversation, UUID
     // Find conversations by driver ID
     List<Conversation> findByDriverIdOrderByLastMessageAtDesc(UUID driverId);
     
-    // Find conversation by bid ID
-    Conversation findByBidId(UUID bidId);
+    // Find conversation by bid ID - returns latest if multiple exist
+    @Query("SELECT c FROM Conversation c WHERE c.bid.id = :bidId ORDER BY c.createdAt DESC")
+    List<Conversation> findByBidId(@Param("bidId") UUID bidId);
+    
+    // Find latest conversation by bid ID
+    @Query("SELECT c FROM Conversation c WHERE c.bid.id = :bidId ORDER BY c.createdAt DESC LIMIT 1")
+    Optional<Conversation> findLatestByBidId(@Param("bidId") UUID bidId);
     
     // Find conversations by customer and driver
     List<Conversation> findByCustomerIdAndDriverIdOrderByLastMessageAtDesc(UUID customerId, UUID driverId);
