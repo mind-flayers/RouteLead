@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
@@ -7,9 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import useAutomaticBidding from '../../../hooks/useAutomaticBidding';
 import { AutomaticBidsView } from '../../../components/automatic-bidding/AutomaticBidsView';
-import { formatCurrency, formatDate } from '@/services/apiService';
-import { useMyRoutes } from '@/hooks/useMyRoutes';
-import { useDriverInfo } from '@/hooks/useEarningsData';
+import { formatCurrency, formatDate, ApiService, MyRoute } from '@/services/apiService';
 
 const ViewBids = () => {
   const navigation = useNavigation();
@@ -19,38 +17,104 @@ const ViewBids = () => {
   
   // Component-level error state
   const [componentError, setComponentError] = useState<string | null>(null);
-  // Current time for real-time countdown
+  // Current time for real-time countdown (optimized: updates every 5 seconds)
   const [currentTime, setCurrentTime] = useState(new Date());
+  // Route data (fetched separately when needed)
+  const [routeData, setRouteData] = useState<MyRoute | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
   
-  // Get authenticated driver ID
-  const { driverId } = useDriverInfo();
+  // **PERFORMANCE OPTIMIZATION**: Use only the automatic bidding hook, remove useMyRoutes
+  const hookResult = useAutomaticBidding(actualRouteId);
+  const {
+    biddingStatus = null,
+    rankedBids = [],
+    optimalBids = [],
+    isLoading = false,
+    error = null,
+    refreshing = false,
+    biddingActive = false,
+    biddingEnded = false,
+    refresh = () => {}
+  } = hookResult || {};
   
-  // Fetch all routes using the same safe method as MyRoutes
-  const { routes: allRoutes, loading: routesLoading, error: routesError } = useMyRoutes(driverId);
+  // **PERFORMANCE OPTIMIZATION**: Fetch route data only when needed using cached API
+  const fetchRouteData = useCallback(async () => {
+    if (routeData) return; // Already have data
+    
+    setRouteLoading(true);
+    try {
+      const route = await ApiService.getRouteById(actualRouteId, true); // Use cache
+      setRouteData(route);
+      setComponentError(null); // Clear any previous errors
+    } catch (error) {
+      console.error('Error fetching route data:', error);
+      // Don't set component error if we have bidding data - route info is optional
+      if (!biddingStatus) {
+        setComponentError(`Route data unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      // Set fallback route data from bidding status if available
+      if (biddingStatus && !routeData) {
+        console.log('🔧 Using fallback route data from bidding status');
+        setRouteData({
+          id: actualRouteId,
+          originLat: 0,
+          originLng: 0,
+          destinationLat: 0,
+          destinationLng: 0,
+          departureTime: biddingStatus.departureTime || new Date().toISOString(),
+          status: 'OPEN',
+          originLocationName: 'Origin',
+          destinationLocationName: 'Destination',
+          createdAt: new Date().toISOString(),
+          biddingEndTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+          bidCount: 0,
+          suggestedPriceMin: 0,
+          suggestedPriceMax: 0,
+          routePolyline: undefined
+        });
+      }
+    } finally {
+      setRouteLoading(false);
+    }
+  }, [actualRouteId, routeData]);
   
-  // Find the specific route by ID
-  const currentRoute = allRoutes.find(route => route.id === actualRouteId) || null;
+  // Fetch route data on mount
+  useEffect(() => {
+    fetchRouteData();
+  }, [fetchRouteData]);
   
-  // Extract location names using the same logic as MyRoutes
-  const originDisplay = currentRoute?.originLocationName || 
-    (currentRoute?.originLat && currentRoute?.originLng ? `${currentRoute.originLat}, ${currentRoute.originLng}` : 'Unknown origin');
-  const destinationDisplay = currentRoute?.destinationLocationName || 
-    (currentRoute?.destinationLat && currentRoute?.destinationLng ? `${currentRoute.destinationLat}, ${currentRoute.destinationLng}` : 'Unknown destination');
-  
-  // Update current time every second for real-time countdown
+  // **PERFORMANCE OPTIMIZATION**: Update time every 5 seconds instead of 1 second for countdown
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-    }, 1000);
+    }, 5000); // Reduced frequency from 1s to 5s
     
     return () => clearInterval(timer);
   }, []);
   
-  // Enhanced real-time countdown function (copied from MyRoutes)
-  const calculateRealTimeCountdown = (biddingEndTime: string) => {
-    const endTime = new Date(biddingEndTime);
+  // **PERFORMANCE OPTIMIZATION**: Memoize expensive calculations
+  const routeInfo = useMemo(() => {
+    const route = routeData;
+    if (!route) return null;
+    
+    return {
+      originDisplay: route.originLocationName || 
+        (route.originLat && route.originLng ? `${route.originLat}, ${route.originLng}` : 'Unknown origin'),
+      destinationDisplay: route.destinationLocationName || 
+        (route.destinationLat && route.destinationLng ? `${route.destinationLat}, ${route.destinationLng}` : 'Unknown destination')
+    };
+  }, [routeData]);
+  
+  // **PERFORMANCE OPTIMIZATION**: Memoized real-time countdown calculation
+  const realTimeCountdown = useMemo(() => {
+    if (!biddingStatus?.departureTime) {
+      return { text: 'No data', isExpired: true };
+    }
+    
+    const endTime = new Date(biddingStatus.departureTime);
+    const biddingEndTime = new Date(endTime.getTime() - (2 * 60 * 60 * 1000)); // 2 hours before
     const now = currentTime;
-    const timeLeft = endTime.getTime() - now.getTime();
+    const timeLeft = biddingEndTime.getTime() - now.getTime();
     
     if (timeLeft <= 0) {
       return { text: 'Ended', isExpired: true };
@@ -64,45 +128,20 @@ const ViewBids = () => {
     if (days > 0) {
       return { text: `${days}d ${hours}h ${minutes}m`, isExpired: false };
     } else if (hours > 0) {
-      return { text: `${hours}h ${minutes}m ${seconds}s`, isExpired: false };
+      return { text: `${hours}h ${minutes}m`, isExpired: false }; // Remove seconds for less frequent updates
     } else if (minutes > 0) {
-      return { text: `${minutes}m ${seconds}s`, isExpired: false };
+      return { text: `${minutes}m`, isExpired: false };
     } else {
-      return { text: `${seconds}s`, isExpired: false };
+      return { text: `${Math.max(1, Math.ceil(seconds/5)*5)}s`, isExpired: false }; // Round to 5s increments
     }
-  };
-  
-  // Calculate bidding end time (2 hours before departure)
-  const getBiddingEndTime = (departureTime: string) => {
-    const departure = new Date(departureTime);
-    const biddingEnd = new Date(departure.getTime() - (2 * 60 * 60 * 1000)); // 2 hours before
-    return biddingEnd.toISOString();
-  };
-  
-  // Use the new automatic bidding hook instead of manual bidding with safe fallbacks
-  const hookResult = useAutomaticBidding(actualRouteId);
-  const {
-    biddingStatus = null,
-    rankedBids = [],
-    // We no longer use optimalBids, but keep it for compatibility
-    optimalBids = [],
-    isLoading = false,
-    error = null,
-    refreshing = false,
-    biddingActive = false,
-    biddingEnded = false,
-    refresh = () => {}
-  } = hookResult || {};
-  
-  // Get real-time countdown using our improved function
-  const realTimeCountdown = biddingStatus?.departureTime 
-    ? calculateRealTimeCountdown(getBiddingEndTime(biddingStatus.departureTime))
-    : { text: 'No data', isExpired: true };
+  }, [biddingStatus?.departureTime, currentTime]);
 
-  // Filter bids by status (status-based logic instead of optimalBids)
-  const acceptedBids = rankedBids.filter(bid => bid.status === 'ACCEPTED');
-  const pendingBids = rankedBids.filter(bid => bid.status === 'PENDING');
-  const rejectedBids = rankedBids.filter(bid => bid.status === 'REJECTED');
+  // **PERFORMANCE OPTIMIZATION**: Memoize bid filtering
+  const { acceptedBids, pendingBids, rejectedBids } = useMemo(() => ({
+    acceptedBids: rankedBids.filter(bid => bid.status === 'ACCEPTED'),
+    pendingBids: rankedBids.filter(bid => bid.status === 'PENDING'),
+    rejectedBids: rankedBids.filter(bid => bid.status === 'REJECTED')
+  }), [rankedBids]);
 
   const handleBackPress = () => {
     navigation.goBack();
@@ -121,7 +160,7 @@ const ViewBids = () => {
     }
   };
 
-  if ((isLoading && !refreshing) || (routesLoading && !currentRoute)) {
+  if ((isLoading && !refreshing) || routeLoading) {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-row items-center p-4 bg-white border-b border-gray-200">
@@ -139,7 +178,7 @@ const ViewBids = () => {
     );
   }
 
-  if (error || componentError || routesError) {
+  if (error || componentError) {
     return (
       <SafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
         <View className="flex-row items-center p-4 bg-white border-b border-gray-200">
@@ -152,7 +191,7 @@ const ViewBids = () => {
         <View className="flex-1 justify-center items-center px-4">
           <Ionicons name="alert-circle-outline" size={64} color="#F44336" />
           <Text className="text-lg font-semibold text-gray-800 mt-4 text-center">Error Loading Data</Text>
-          <Text className="text-gray-600 mt-2 text-center">{error || componentError || routesError}</Text>
+          <Text className="text-gray-600 mt-2 text-center">{error || componentError}</Text>
           <TouchableOpacity 
             onPress={() => {
               setComponentError(null);
@@ -188,9 +227,9 @@ const ViewBids = () => {
       >
         {biddingStatus ? (
           <>
-            {/* Route Information Card */}
+            {/* Route Information Card - Simplified for Performance */}
             <PrimaryCard style={{ marginBottom: 16 }}>
-              <Text className="text-lg font-bold mb-2">Route Information</Text>
+              <Text className="text-lg font-bold mb-2">Bidding Information</Text>
               <View className="flex-row justify-between items-center mb-2">
                 <Text className="text-sm text-gray-600">Route ID</Text>
                 <Text className="text-sm font-medium">{actualRouteId.slice(0, 8)}...</Text>
@@ -200,7 +239,7 @@ const ViewBids = () => {
               <View className="flex-row justify-between items-center mb-2">
                 <Text className="text-sm text-gray-600">Origin</Text>
                 <Text className="text-sm font-medium" numberOfLines={1} style={{ flex: 1, textAlign: 'right' }}>
-                  {originDisplay}
+                  {routeInfo?.originDisplay || 'Loading...'}
                 </Text>
               </View>
               
@@ -208,7 +247,7 @@ const ViewBids = () => {
               <View className="flex-row justify-between items-center mb-2">
                 <Text className="text-sm text-gray-600">Destination</Text>
                 <Text className="text-sm font-medium" numberOfLines={1} style={{ flex: 1, textAlign: 'right' }}>
-                  {destinationDisplay}
+                  {routeInfo?.destinationDisplay || 'Loading...'}
                 </Text>
               </View>
               
@@ -229,25 +268,25 @@ const ViewBids = () => {
               </View>
               
               {/* Total Bids */}
-              <View className="flex-row justify-between items-center mb-2">
+              <View className="flex-row justify-between items-center">
                 <Text className="text-sm text-gray-600">Total Bids</Text>
                 <Text className="text-sm font-medium">{rankedBids?.length || 0}</Text>
               </View>
               
               {/* Price Range from route data */}
-              {currentRoute?.suggestedPriceMin && (
+              {routeData?.suggestedPriceMin && (
                 <View className="flex-row justify-between items-center mb-2">
                   <Text className="text-sm text-gray-600">Price Range (Min)</Text>
                   <Text className="text-sm font-medium">
-                    {formatCurrency(currentRoute.suggestedPriceMin)}
+                    {formatCurrency(routeData.suggestedPriceMin)}
                   </Text>
                 </View>
               )}
-              {currentRoute?.suggestedPriceMax && (
+              {routeData?.suggestedPriceMax && (
                 <View className="flex-row justify-between items-center">
                   <Text className="text-sm text-gray-600">Price Range (Max)</Text>
                   <Text className="text-sm font-medium">
-                    {formatCurrency(currentRoute.suggestedPriceMax)}
+                    {formatCurrency(routeData.suggestedPriceMax)}
                   </Text>
                 </View>
               )}

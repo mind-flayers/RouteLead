@@ -16,7 +16,9 @@ export const useMyRoutes = (driverId: string, status?: string) => {
       }
       setError(null);
 
-      const data = await ApiService.getMyRoutes(driverId, status);
+      // **PERFORMANCE OPTIMIZATION**: Use caching by default, skip cache only on manual refresh
+      const useCache = !isRefresh;
+      const data = await ApiService.getMyRoutes(driverId, status, useCache);
       setRoutes(data);
     } catch (err) {
       console.error('Error fetching routes:', err);

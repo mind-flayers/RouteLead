@@ -47,9 +47,9 @@ export const useAutomaticBidding = (routeId: string) => {
   }, []);
 
   // Fetch bidding status
-  const fetchBiddingStatus = useCallback(async () => {
+  const fetchBiddingStatus = useCallback(async (useCache: boolean = true) => {
     try {
-      const status = await ApiService.getBiddingStatus(routeId);
+      const status = await ApiService.getBiddingStatus(routeId, useCache);
       
       setData(prev => ({
         ...prev,
@@ -119,7 +119,7 @@ export const useAutomaticBidding = (routeId: string) => {
     }
   }, [routeId]);
 
-  // Fetch all data
+  // Fetch all data with parallel API calls for better performance
   const fetchAllData = useCallback(async (isRefreshing = false) => {
     if (isRefreshing) {
       setData(prev => ({ ...prev, refreshing: true }));
@@ -128,8 +128,11 @@ export const useAutomaticBidding = (routeId: string) => {
     }
 
     try {
-      // First get bidding status
-      const status = await fetchBiddingStatus();
+      // **PERFORMANCE OPTIMIZATION**: Use cache on initial load, skip cache on refresh
+      const useCache = !isRefreshing;
+      
+      // First get bidding status with appropriate caching
+      const status = await fetchBiddingStatus(useCache);
       
       if (status) {
         // Check if there are any bids before making API calls
@@ -137,25 +140,27 @@ export const useAutomaticBidding = (routeId: string) => {
         
         if (totalBids > 0) {
           // Only fetch bids if there are actually bids available
-          console.log(`Found ${totalBids} bids, fetching bid data...`);
+          console.log(`Found ${totalBids} bids, fetching bid data in parallel...`);
           
-          // Fetch ranked bids
-          try {
-            await fetchRankedBids();
-          } catch (rankedBidsError) {
-            console.log('Expected: No ranked bids available for this route');
-            // Silently handle - this is expected for routes without bids
-          }
+          // **PERFORMANCE OPTIMIZATION**: Make API calls in parallel instead of sequential
+          const promises: Promise<any>[] = [];
           
-          // Fetch bids based on status - only fetch optimal if bidding ended
+          // Always fetch ranked bids
+          promises.push(
+            fetchRankedBids().catch(error => {
+              console.log('Expected: No ranked bids available for this route');
+              return [];
+            })
+          );
+          
+          // Only fetch optimal bids if bidding ended
           if (status.biddingEnded) {
-            // If bidding ended, fetch optimal (winning) bids
-            try {
-              await fetchOptimalBids();
-            } catch (optimalBidsError) {
-              console.log('Expected: No optimal bids available for this route');
-              // Silently handle - this is expected for routes without winners
-            }
+            promises.push(
+              fetchOptimalBids().catch(error => {
+                console.log('Expected: No optimal bids available for this route');
+                return [];
+              })
+            );
           } else {
             // Clear optimal bids if bidding is still active
             setData(prev => ({
@@ -163,6 +168,10 @@ export const useAutomaticBidding = (routeId: string) => {
               optimalBids: []
             }));
           }
+          
+          // Wait for all parallel requests to complete
+          await Promise.all(promises);
+          
         } else {
           // No bids available - set empty arrays without making API calls
           console.log('No bids available for this route, skipping API calls');
@@ -200,11 +209,11 @@ export const useAutomaticBidding = (routeId: string) => {
     fetchAllData(true);
   }, [fetchAllData]);
 
-  // Update countdown every second
+  // Update countdown every 5 seconds (optimized)
   const updateCountdown = useCallback(() => {
     setData(prev => {
       if (prev.timeUntilEnd > 0) {
-        const newTimeUntilEnd = prev.timeUntilEnd - (1/60); // Subtract 1 second in minutes
+        const newTimeUntilEnd = prev.timeUntilEnd - (5/60); // Subtract 5 seconds in minutes
         const newCountdown = formatCountdown(newTimeUntilEnd);
         
         // If countdown reaches zero, fetch latest data
@@ -231,12 +240,13 @@ export const useAutomaticBidding = (routeId: string) => {
     }
   }, [routeId, fetchAllData]);
 
-  // Set up auto-refresh interval (every 30 seconds)
+  // Set up auto-refresh interval (optimized frequency for better performance)
   useEffect(() => {
     if (data.biddingActive) {
+      // **PERFORMANCE OPTIMIZATION**: Increased from 60s to 120s for better performance
       intervalRef.current = setInterval(() => {
         fetchAllData(true);
-      }, 30000); // 30 seconds
+      }, 120000); // 120 seconds (2 minutes)
     } else if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -249,10 +259,11 @@ export const useAutomaticBidding = (routeId: string) => {
     };
   }, [data.biddingActive, fetchAllData]);
 
-  // Set up countdown timer (every second)
+  // Set up countdown timer (reduced frequency)
   useEffect(() => {
     if (data.biddingActive && data.timeUntilEnd > 0) {
-      countdownIntervalRef.current = setInterval(updateCountdown, 1000);
+      // **PERFORMANCE OPTIMIZATION**: Reduced from 1s to 5s for countdown updates
+      countdownIntervalRef.current = setInterval(updateCountdown, 5000); // 5 seconds
     } else if (countdownIntervalRef.current) {
       clearInterval(countdownIntervalRef.current);
       countdownIntervalRef.current = null;
