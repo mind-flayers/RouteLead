@@ -134,7 +134,7 @@ const Profile = () => {
   // Loading state
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-100">
+      <SafeAreaView className="flex-1 bg-gray-100" edges={['bottom', 'left', 'right']}>
         <View className="flex-row items-center p-4 bg-white border-b border-gray-200">
           <TouchableOpacity onPress={handleBackPress} className="p-2">
             <Ionicons name="arrow-back" size={24} color="black" />
@@ -153,7 +153,7 @@ const Profile = () => {
   // Error state
   if (error) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-100">
+      <SafeAreaView className="flex-1 bg-gray-100" edges={['bottom', 'left', 'right']}>
         <View className="flex-row items-center p-4 bg-white border-b border-gray-200">
           <TouchableOpacity onPress={handleBackPress} className="p-2">
             <Ionicons name="arrow-back" size={24} color="black" />
@@ -179,7 +179,7 @@ const Profile = () => {
   // Profile data not found
   if (!profileData) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-100">
+      <SafeAreaView className="flex-1 bg-gray-100" edges={['bottom', 'left', 'right']}>
         <View className="flex-row items-center p-4 bg-white border-b border-gray-200">
           <TouchableOpacity onPress={handleBackPress} className="p-2">
             <Ionicons name="arrow-back" size={24} color="black" />
@@ -219,7 +219,7 @@ const Profile = () => {
   ].filter(Boolean).join(', ') || 'No address provided';
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
+    <SafeAreaView className="flex-1 bg-gray-100" edges={['bottom', 'left', 'right']}>
       {/* Top Bar */}
       <View className="flex-row items-center p-4 bg-white border-b border-gray-200">
         <TouchableOpacity onPress={handleBackPress} className="p-2">

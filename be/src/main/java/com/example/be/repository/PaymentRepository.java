@@ -17,8 +17,8 @@ import java.util.UUID;
 @Repository
 public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     
-    // Find payment by bid ID - using relationship navigation
-    @Query("SELECT p FROM Payment p WHERE p.bid.id = :bidId")
+    // Find payment by bid ID - using relationship navigation (gets latest if multiple exist)
+    @Query("SELECT p FROM Payment p WHERE p.bid.id = :bidId ORDER BY p.createdAt DESC LIMIT 1")
     Optional<Payment> findByBidId(@Param("bidId") UUID bidId);
     
     // Find latest payment by bid ID - handles multiple payments per bid

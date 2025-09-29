@@ -400,7 +400,7 @@ const Profile = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-100">
+    <SafeAreaView className="flex-1 bg-gray-100" edges={['bottom', 'left', 'right']}>
       {/* Success Alert */}
       {showSuccessAlert && (
         <Animated.View 

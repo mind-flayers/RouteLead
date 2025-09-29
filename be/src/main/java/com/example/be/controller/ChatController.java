@@ -651,8 +651,9 @@ public class ChatController {
             UUID driverIdUuid = UUID.fromString(driverId);
             
             // Check if conversation already exists
-            Conversation existingConversation = conversationRepository.findByBidId(bidIdUuid);
-            if (existingConversation != null) {
+            List<Conversation> existingConversations = conversationRepository.findByBidId(bidIdUuid);
+            if (!existingConversations.isEmpty()) {
+                Conversation existingConversation = existingConversations.get(0); // Get the latest
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", true);
                 response.put("conversationId", existingConversation.getId().toString());

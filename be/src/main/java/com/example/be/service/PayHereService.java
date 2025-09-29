@@ -25,6 +25,7 @@ import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -438,9 +439,9 @@ public class PayHereService {
     private void createConversationAfterPayment(Bid bid, UUID customerId, UUID driverId) {
         try {
             // Check if conversation already exists
-            Conversation existingConversation = conversationRepository.findByBidId(bid.getId());
+            List<Conversation> existingConversations = conversationRepository.findByBidId(bid.getId());
             
-            if (existingConversation == null) {
+            if (existingConversations.isEmpty()) {
                 // Create new conversation
                 Conversation conversation = new Conversation();
                 conversation.setBid(bid);
