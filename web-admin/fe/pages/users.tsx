@@ -471,24 +471,33 @@ const UserManagement: React.FC = () => {
 													}}
 													onClick={async () => {
 														if (window.confirm('Are you sure you want to unblock this user?')) {
-															await fetch(`/api/admin/users/${u.id}`, {
-																method: 'PUT',
-																headers: { 'Content-Type': 'application/json' },
-																body: JSON.stringify({ verification_status: 'APPROVED' }),
-															});
 															setLoading(true);
-															const res = await fetch('/api/admin/users');
-															const data = await res.json();
-															setUserList(
-																data.map((u: any) => ({
-																	...u,
-																	firstName: u.firstName || u.first_name,
-																	lastName: u.lastName || u.last_name,
-																	phoneNumber: u.phoneNumber || u.phone_number,
-																	isVerified: u.isVerified ?? u.is_verified,
-																	createdAt: u.createdAt || u.created_at,
-																}))
-															);
+															try {
+																const headers = await authHeaders();
+																const putRes = await fetch(`/api/admin/users/${u.id}`, {
+																	method: 'PUT',
+																	headers: { ...headers, 'Content-Type': 'application/json' },
+																	body: JSON.stringify({ verification_status: 'APPROVED' }),
+																});
+																if (!putRes.ok) {
+																	const err = await putRes.json();
+																	alert('Failed to unblock user: ' + (err.error || putRes.statusText));
+																}
+																const res = await fetch('/api/admin/users', { headers });
+																const data = await res.json();
+																setUserList(
+																	data.map((u: any) => ({
+																		...u,
+																		firstName: u.firstName || u.first_name,
+																		lastName: u.lastName || u.last_name,
+																		phoneNumber: u.phoneNumber || u.phone_number,
+																		isVerified: u.isVerified ?? u.is_verified,
+																		createdAt: u.createdAt || u.created_at,
+																	}))
+																);
+															} catch (e) {
+																alert('Error unblocking user.');
+															}
 															setLoading(false);
 														}
 													}}
@@ -509,24 +518,33 @@ const UserManagement: React.FC = () => {
 													}}
 													onClick={async () => {
 														if (window.confirm('Are you sure you want to block this user as fraud?')) {
-															await fetch(`/api/admin/users/${u.id}`, {
-																method: 'PUT',
-																headers: { 'Content-Type': 'application/json' },
-																body: JSON.stringify({ verification_status: 'REJECTED' }),
-															});
 															setLoading(true);
-															const res = await fetch('/api/admin/users');
-															const data = await res.json();
-															setUserList(
-																data.map((u: any) => ({
-																	...u,
-																	firstName: u.firstName || u.first_name,
-																	lastName: u.lastName || u.last_name,
-																	phoneNumber: u.phoneNumber || u.phone_number,
-																	isVerified: u.isVerified ?? u.is_verified,
-																	createdAt: u.createdAt || u.created_at,
-																}))
-															);
+															try {
+																const headers = await authHeaders();
+																const putRes = await fetch(`/api/admin/users/${u.id}`, {
+																	method: 'PUT',
+																	headers: { ...headers, 'Content-Type': 'application/json' },
+																	body: JSON.stringify({ verification_status: 'REJECTED' }),
+																});
+																if (!putRes.ok) {
+																	const err = await putRes.json();
+																	alert('Failed to block user: ' + (err.error || putRes.statusText));
+																}
+																const res = await fetch('/api/admin/users', { headers });
+																const data = await res.json();
+																setUserList(
+																	data.map((u: any) => ({
+																		...u,
+																		firstName: u.firstName || u.first_name,
+																		lastName: u.lastName || u.last_name,
+																		phoneNumber: u.phoneNumber || u.phone_number,
+																		isVerified: u.isVerified ?? u.is_verified,
+																		createdAt: u.createdAt || u.created_at,
+																	}))
+																);
+															} catch (e) {
+																alert('Error blocking user.');
+															}
 															setLoading(false);
 														}
 													}}

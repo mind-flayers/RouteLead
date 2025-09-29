@@ -18,10 +18,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .from('disputes')
       .select(`
         *, 
-        claimant_profile:profiles!user_id(first_name),
+        claimant_profile:profiles!user_id(id, first_name, last_name, email, phone_number, avatar_url),
         return_routes!related_route_id(
           driver_id,
-          driver_profile:profiles!driver_id(first_name)
+          driver_profile:profiles!driver_id(id, first_name, last_name, email, phone_number, avatar_url)
         )
       `)
       .eq('id', id)
