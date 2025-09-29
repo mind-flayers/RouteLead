@@ -97,4 +97,9 @@ public interface BidRepository extends JpaRepository<Bid, UUID> {
             "DELETE FROM disputes WHERE related_bid_id = :bidId; " +
             "DELETE FROM bids WHERE id = :bidId;", nativeQuery = true)
     void deleteBidWithCascade(@Param("bidId") UUID bidId);
+
+    // Count bids by route ID and status
+    @Query(value = "SELECT COUNT(*) FROM bids WHERE route_id = :routeId " +
+            "AND status = CAST(:status AS bid_status)", nativeQuery = true)
+    long countByRouteIdAndStatus(@Param("routeId") UUID routeId, @Param("status") String status);
 }

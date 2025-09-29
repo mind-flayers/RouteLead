@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { Link, useRouter } from 'expo-router';
 import PrimaryButton from '@/components/ui/PrimaryButton';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
@@ -97,7 +97,7 @@ const Dashboard = () => {
         },
         {
           title: "Available\nBalance",
-          icon: <AntDesign name="checkcircle" size={20} color="#f97316" />,
+          icon: <FontAwesome5 name="money-bill-wave" size={20} color="#f97316" />,
           value: "Loading...",
           subtext: "Calculating balance..."
         }
@@ -129,7 +129,7 @@ const Dashboard = () => {
       },
       {
         title: "Available\nBalance",
-        icon: <AntDesign name="checkcircle" size={20} color="#f97316" />,
+        icon: <FontAwesome5 name="money-bill-wave" size={20} color="#f97316" />,
         value: balanceLoading ? "Loading..." : formatCurrency(availableBalance),
         subtext: "Ready for withdrawal"
       }

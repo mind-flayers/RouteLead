@@ -333,6 +333,81 @@ export interface ViewBidsResponse {
   acceptedBids: DetailedBid[];
 }
 
+// Types for automatic bidding system
+export interface BidSelectionDto {
+  id: string;
+  requestId: string;
+  routeId: string;
+  offeredPrice: number;
+  normalizedPrice: number;
+  normalizedVolume: number;
+  normalizedDistance: number;
+  detourPercentage: number;
+  score: number;
+  startIndex: number;
+  endIndex: number;
+  volume: number;
+  weightKg: number;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  customerFirstName?: string;
+  customerLastName?: string;
+  description?: string;
+  pickupLocation?: string;
+  deliveryLocation?: string;
+}
+
+export interface RankedBidsResponse {
+  timestamp: string;
+  status: number;
+  message: string;
+  routeId: string;
+  totalBids: number;
+  rankingCriteria: {
+    priceWeight: number;
+    volumeWeight: number;
+    distanceWeight: number;
+    detourWeight: number;
+    vehicleCapacity: number;
+  };
+  rankedBids: BidSelectionDto[];
+  path: string;
+}
+
+export interface OptimalBidsResponse {
+  timestamp: string;
+  status: number;
+  message: string;
+  routeId: string;
+  totalBidsConsidered: number;
+  optimalBidsSelected: number;
+  selectionCriteria: {
+    priceWeight: number;
+    volumeWeight: number;
+    distanceWeight: number;
+    detourWeight: number;
+    vehicleCapacity: number;
+  };
+  optimalBids: BidSelectionDto[];
+  path: string;
+}
+
+export interface BiddingStatusResponse {
+  timestamp: string;
+  status: number;
+  message: string;
+  routeId: string;
+  routeStatus: string;
+  biddingStart: string;
+  departureTime: string;
+  biddingEndTime: string;
+  biddingActive: boolean;
+  biddingEnded: boolean;
+  pendingBids: number;
+  acceptedBids: number;
+  timeUntilBiddingEnd: number; // in minutes
+  path: string;
+}
+
 // API Service
 export class ApiService {
   
@@ -850,6 +925,155 @@ export class ApiService {
       return await response.json();
     } catch (error) {
       console.error('Error updating bid status:', error);
+      throw error;
+    }
+  }
+
+  // Get Ranked Bids API (for automatic bidding)
+  static async getRankedBids(routeId: string, status?: string): Promise<RankedBidsResponse> {
+    try {
+      const params = new URLSearchParams();
+      if (status) params.append('status', status);
+      
+      const queryString = params.toString();
+      const url = `${API_BASE_URL}/routes/${routeId}/ranked-bids${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: await getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        // Handle 500 errors silently for routes without bids
+        if (response.status === 500) {
+          return { 
+            rankedBids: [], 
+            path: '', 
+            timestamp: new Date().toISOString(), 
+            status: 500, 
+            message: 'No bids available',
+            routeId: routeId,
+            totalBids: 0,
+            rankingCriteria: {
+              priceWeight: 0,
+              volumeWeight: 0,
+              distanceWeight: 0,
+              detourWeight: 0,
+              vehicleCapacity: 0
+            }
+          };
+        }
+        throw new Error(`Failed to fetch ranked bids: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      // Suppress logging for expected 500 errors
+      if (error instanceof Error && error.message.includes('500')) {
+        return { 
+          rankedBids: [], 
+          path: '', 
+          timestamp: new Date().toISOString(), 
+          status: 500, 
+          message: 'No bids available',
+          routeId: routeId,
+          totalBids: 0,
+          rankingCriteria: {
+            priceWeight: 0,
+            volumeWeight: 0,
+            distanceWeight: 0,
+            detourWeight: 0,
+            vehicleCapacity: 0
+          }
+        };
+      }
+      console.error('Error fetching ranked bids:', error);
+      throw error;
+    }
+  }
+
+  // Get Optimal Bids API (for automatic bidding)
+  static async getOptimalBids(routeId: string, status?: string): Promise<OptimalBidsResponse> {
+    try {
+      const params = new URLSearchParams();
+      if (status) params.append('status', status);
+      
+      const queryString = params.toString();
+      const url = `${API_BASE_URL}/routes/${routeId}/optimal-bids${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: await getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        // Handle 500 errors silently for routes without bids
+        if (response.status === 500) {
+          return { 
+            optimalBids: [], 
+            path: '', 
+            timestamp: new Date().toISOString(), 
+            status: 500, 
+            message: 'No optimal bids available',
+            routeId: routeId,
+            totalBidsConsidered: 0,
+            optimalBidsSelected: 0,
+            selectionCriteria: {
+              priceWeight: 0,
+              volumeWeight: 0,
+              distanceWeight: 0,
+              detourWeight: 0,
+              vehicleCapacity: 0
+            }
+          };
+        }
+        throw new Error(`Failed to fetch optimal bids: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      // Suppress logging for expected 500 errors
+      if (error instanceof Error && error.message.includes('500')) {
+        return { 
+          optimalBids: [], 
+          path: '', 
+          timestamp: new Date().toISOString(), 
+          status: 500, 
+          message: 'No optimal bids available',
+          routeId: routeId,
+          totalBidsConsidered: 0,
+          optimalBidsSelected: 0,
+          selectionCriteria: {
+            priceWeight: 0,
+            volumeWeight: 0,
+            distanceWeight: 0,
+            detourWeight: 0,
+            vehicleCapacity: 0
+          }
+        };
+      }
+      console.error('Error fetching optimal bids:', error);
+      throw error;
+    }
+  }
+
+  // Get Bidding Status API (for countdown and automation status)
+  static async getBiddingStatus(routeId: string): Promise<BiddingStatusResponse> {
+    try {
+      const url = `${API_BASE_URL}/routes/${routeId}/bidding-status`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: await getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch bidding status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching bidding status:', error);
       throw error;
     }
   }

@@ -28,6 +28,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import com.example.be.model.Profile;
 import com.example.be.repository.ProfileRepository;
+import com.example.be.repository.BidRepository;
 import com.example.be.service.BidSelectionService;
 import com.example.be.dto.BidsAndRequestsResponse;
 import com.example.be.dto.BidSelectionDto;
@@ -40,6 +41,7 @@ import com.example.be.dto.BidSelectionDto;
 public class RouteController {
     private final RouteService service;
     private final ReturnRouteRepository routeRepo;
+    private final BidRepository bidRepository; // For bidding status endpoint
     private final PricePredictionService pricePredictionService;
     private final ProfileRepository profileRepository;
     private final com.example.be.service.BidService bidService;
@@ -456,6 +458,60 @@ public class RouteController {
             errorResponse.put("message", e.getMessage());
             errorResponse.put("details", e.getClass().getSimpleName());
             errorResponse.put("path", "/api/routes/" + routeId + "/ranked-bids");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
+
+    @GetMapping("/{routeId}/bidding-status")
+    public ResponseEntity<?> getBiddingStatus(@PathVariable UUID routeId) {
+        log.info("GET /api/routes/{}/bidding-status - Getting bidding status for route", routeId);
+        try {
+            // Get route details
+            ReturnRoute route = routeRepo.findById(routeId)
+                .orElseThrow(() -> new RuntimeException("Route not found: " + routeId));
+            
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime biddingEnd = route.getDepartureTime().minusHours(2).toLocalDateTime();
+            
+            // Handle null bidding_start by using created_at as fallback
+            LocalDateTime biddingStartTime = route.getBiddingStart() != null 
+                ? route.getBiddingStart().toLocalDateTime() 
+                : route.getCreatedAt().toLocalDateTime();
+            
+            boolean biddingActive = now.isBefore(biddingEnd) && now.isAfter(biddingStartTime);
+            boolean biddingEnded = now.isAfter(biddingEnd);
+            
+            // Get bid counts
+            long pendingBids = bidRepository.countByRouteIdAndStatus(routeId, com.example.be.types.BidStatus.PENDING.name());
+            long acceptedBids = bidRepository.countByRouteIdAndStatus(routeId, com.example.be.types.BidStatus.ACCEPTED.name());
+            
+            Map<String, Object> result = new HashMap<>();
+            result.put("timestamp", LocalDateTime.now());
+            result.put("status", 200);
+            result.put("message", "Bidding status retrieved successfully");
+            result.put("routeId", routeId);
+            result.put("routeStatus", route.getStatus().name());
+            result.put("biddingStart", route.getBiddingStart() != null ? route.getBiddingStart() : route.getCreatedAt());
+            result.put("departureTime", route.getDepartureTime());
+            result.put("biddingEndTime", biddingEnd);
+            result.put("biddingActive", biddingActive);
+            result.put("biddingEnded", biddingEnded);
+            result.put("pendingBids", pendingBids);
+            result.put("acceptedBids", acceptedBids);
+            result.put("timeUntilBiddingEnd", biddingActive ? 
+                java.time.Duration.between(now, biddingEnd).toMinutes() : 0);
+            result.put("path", "/api/routes/" + routeId + "/bidding-status");
+            
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            log.error("Error getting bidding status for route: ", e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("timestamp", LocalDateTime.now());
+            errorResponse.put("status", 500);
+            errorResponse.put("error", "Internal Server Error");
+            errorResponse.put("message", e.getMessage());
+            errorResponse.put("details", e.getClass().getSimpleName());
+            errorResponse.put("path", "/api/routes/" + routeId + "/bidding-status");
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }

@@ -9,7 +9,7 @@ import WithdrawalHistoryCard from '@/components/ui/WithdrawalHistoryCard';
 import PaymentPreferencesModal from '@/components/ui/PaymentPreferencesModal';
 import { ProfileAvatar } from '@/components/ui/ProfileImage';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
-import { VerificationGuard } from '@/components/guards/VerificationGuard';
+import { VerificationGuard } from '@/components/guards/VerificationGuardOptimized';
 import { useEarningsData, useDriverInfo } from '@/hooks/useEarningsData';
 import { useMultipleLocationDescriptions } from '@/hooks/useLocationDescription';
 import { formatCurrency, formatDateTime, getRouteDescription, EarningsHistory } from '@/services/apiService';

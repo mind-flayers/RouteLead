@@ -38,6 +38,8 @@ public class BidSelectionService {
     @Value("${vehicle.capacity:100.0}")
     private double capacityC;
     
+    private final GeocodingService geocodingService;
+    
     private final ReturnRouteRepository routeRepository;
 
     /**
@@ -195,6 +197,40 @@ public class BidSelectionService {
         bid.setCustomerLastName(request.getCustomerLastName());
         bid.setCustomerEmail(request.getCustomerEmail());
         bid.setCustomerPhone(request.getCustomerPhone());
+        
+        // Set parcel physical details
+        bid.setWeightKg(request.getWeightKg());
+        bid.setVolumeM3(request.getVolumeM3());
+        
+        // Set location coordinates
+        bid.setPickupLat(request.getPickupLat());
+        bid.setPickupLng(request.getPickupLng());
+        bid.setDropoffLat(request.getDropoffLat());
+        bid.setDropoffLng(request.getDropoffLng());
+        
+        // Convert coordinates to location names
+        try {
+            if (request.getPickupLat() != null && request.getPickupLng() != null) {
+                String pickupLocation = geocodingService.getLocationName(request.getPickupLat(), request.getPickupLng());
+                bid.setPickupLocation(pickupLocation);
+            }
+            
+            if (request.getDropoffLat() != null && request.getDropoffLng() != null) {
+                String deliveryLocation = geocodingService.getLocationName(request.getDropoffLat(), request.getDropoffLng());
+                bid.setDeliveryLocation(deliveryLocation);
+            }
+        } catch (Exception e) {
+            log.warn("Error geocoding locations for bid {}: {}", bidDto.getId(), e.getMessage());
+            // Set fallback coordinate strings if geocoding fails
+            if (request.getPickupLat() != null && request.getPickupLng() != null) {
+                bid.setPickupLocation(String.format("%.4f, %.4f", 
+                    request.getPickupLat().doubleValue(), request.getPickupLng().doubleValue()));
+            }
+            if (request.getDropoffLat() != null && request.getDropoffLng() != null) {
+                bid.setDeliveryLocation(String.format("%.4f, %.4f", 
+                    request.getDropoffLat().doubleValue(), request.getDropoffLng().doubleValue()));
+            }
+        }
         
         return bid;
     }

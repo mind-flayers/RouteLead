@@ -5,7 +5,7 @@ import { Ionicons, MaterialCommunityIcons, FontAwesome5, AntDesign } from '@expo
 import { Link, useRouter, useFocusEffect } from 'expo-router';
 import { ProfileAvatar } from '@/components/ui/ProfileImage';
 import DriverBottomNavigation from '@/components/navigation/DriverBottomNavigation';
-import { VerificationGuard } from '@/components/guards/VerificationGuard';
+import { VerificationGuard } from '@/components/guards/VerificationGuardOptimized';
 import { ApiService, DriverConversation, PastCustomer } from '@/services/apiService';
 import { useDriverInfo } from '@/hooks/useEarningsData';
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -15,7 +15,11 @@ interface VerificationGuardProps {
   description?: string;
 }
 
-export function VerificationGuard({ children, featureName, description }: VerificationGuardProps) {
+/**
+ * @deprecated Use VerificationGuardOptimized instead for better performance
+ * This component will be removed in a future version
+ */
+const VerificationGuardComponent = memo<VerificationGuardProps>(({ children, featureName, description }) => {
   const { canAccessRestrictedFeatures, verificationStatus, verificationMessage, isDriver } = useVerificationGuard();
   const { refreshUserProfile } = useAuth();
 
@@ -108,7 +112,7 @@ export function VerificationGuard({ children, featureName, description }: Verifi
             {/* Debug refresh button */}
             <TouchableOpacity
               onPress={async () => {
-                console.log('🔄 Manual refresh triggered');
+                console.log('🔄 Manual refresh triggered (legacy component)');
                 await refreshUserProfile();
               }}
               className="mt-4 p-2 bg-gray-200 rounded-lg"
@@ -170,4 +174,14 @@ export function VerificationGuard({ children, featureName, description }: Verifi
       </ScrollView>
     </SafeAreaView>
   );
+});
+
+VerificationGuardComponent.displayName = 'VerificationGuard';
+
+export function VerificationGuard(props: VerificationGuardProps) {
+  // Add deprecation warning in development
+  if (__DEV__) {
+    console.warn('⚠️ VerificationGuard is deprecated. Use VerificationGuardOptimized for better performance.');
+  }
+  return <VerificationGuardComponent {...props} />;
 }
