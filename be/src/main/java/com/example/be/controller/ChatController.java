@@ -340,27 +340,7 @@ public class ChatController {
             log.info("Access validation for bid {}: bidStatus={}, parcelStatus={}, paymentStatus={}", 
                      bidId, bidStatus, parcelStatus, paymentStatus);
             
-            // Validate access conditions
-            if (!"ACCEPTED".equals(bidStatus)) {
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", false);
-                response.put("message", "Chat access denied: Bid must be accepted. Current status: " + bidStatus);
-                response.put("accessDenied", true);
-                response.put("reason", "BID_NOT_ACCEPTED");
-                response.put("bidStatus", bidStatus);
-                return ResponseEntity.ok(response);
-            }
-            
-            if (!"MATCHED".equals(parcelStatus)) {
-                Map<String, Object> response = new HashMap<>();
-                response.put("success", false);
-                response.put("message", "Chat access denied: Parcel request must be matched. Current status: " + parcelStatus);
-                response.put("accessDenied", true);
-                response.put("reason", "PARCEL_NOT_MATCHED");
-                response.put("parcelStatus", parcelStatus);
-                return ResponseEntity.ok(response);
-            }
-            
+            // Validate access conditions - Only require completed payment
             if (!"completed".equals(paymentStatus)) {
                 Map<String, Object> response = new HashMap<>();
                 response.put("success", false);
@@ -732,8 +712,6 @@ public class ChatController {
                 JOIN return_routes rr ON b.route_id = rr.id
                 JOIN profiles cu ON c.customer_id = cu.id
                 WHERE rr.driver_id = :driverId
-                AND pr.status = 'MATCHED'
-                AND b.status = 'ACCEPTED'
                 AND EXISTS (
                     SELECT 1 FROM payments p 
                     WHERE p.bid_id = b.id 
