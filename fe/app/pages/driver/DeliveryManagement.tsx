@@ -226,6 +226,24 @@ const DeliveryManagement = () => {
     }
   };
 
+  const handleCallPickupContact = () => {
+    if (deliveryDetails?.pickupContactPhone) {
+      const phoneNumber = deliveryDetails.pickupContactPhone.replace(/[^0-9+]/g, '');
+      Linking.openURL(`tel:${phoneNumber}`);
+    } else {
+      Alert.alert('Error', 'Pickup contact phone number not available');
+    }
+  };
+
+  const handleCallDeliveryContact = () => {
+    if (deliveryDetails?.deliveryContactPhone) {
+      const phoneNumber = deliveryDetails.deliveryContactPhone.replace(/[^0-9+]/g, '');
+      Linking.openURL(`tel:${phoneNumber}`);
+    } else {
+      Alert.alert('Error', 'Delivery contact phone number not available');
+    }
+  };
+
   const handleChatCustomer = async () => {
     // Navigate to chat screen with customer details
     if (!deliveryDetails?.bidId) {
@@ -751,23 +769,33 @@ const DeliveryManagement = () => {
           </View>
 
           <View className="space-y-3">
-            <View className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+            <TouchableOpacity 
+              className="bg-blue-50 p-3 rounded-lg border border-blue-200"
+              onPress={handleCallPickupContact}
+            >
               <View className="flex-row items-center mb-2">
                 <Ionicons name="arrow-up-circle" size={18} color="#3B82F6" />
                 <Text className="ml-2 text-blue-800 font-semibold">Pickup Contact</Text>
+                <View className="flex-1" />
+                <Ionicons name="call" size={18} color="#3B82F6" />
               </View>
               <Text className="text-blue-700 font-medium">{deliveryDetails.pickupContactName}</Text>
               <Text className="text-blue-600">{deliveryDetails.pickupContactPhone}</Text>
-            </View>
+            </TouchableOpacity>
             
-            <View className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+            <TouchableOpacity 
+              className="bg-purple-50 p-3 rounded-lg border border-purple-200"
+              onPress={handleCallDeliveryContact}
+            >
               <View className="flex-row items-center mb-2">
                 <Ionicons name="arrow-down-circle" size={18} color="#8B5CF6" />
                 <Text className="ml-2 text-purple-800 font-semibold">Delivery Contact</Text>
+                <View className="flex-1" />
+                <Ionicons name="call" size={18} color="#8B5CF6" />
               </View>
               <Text className="text-purple-700 font-medium">{deliveryDetails.deliveryContactName}</Text>
               <Text className="text-purple-600">{deliveryDetails.deliveryContactPhone}</Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </PrimaryCard>
 

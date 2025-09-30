@@ -84,10 +84,10 @@ const Dashboard = () => {
           subtext: "Fetching data..."
         },
         {
-          title: "Pending Bids",
-          icon: <FontAwesome5 name="list-alt" size={20} color="#f97316" />,
+          title: "Active Routes",
+          icon: <FontAwesome5 name="route" size={20} color="#f97316" />,
           value: "...",
-          subtext: "Loading bids..."
+          subtext: "Loading routes..."
         },
         {
           title: "Weekly Total\nEarnings",
@@ -116,10 +116,10 @@ const Dashboard = () => {
         subtext: `${todayChange >= 0 ? '+' : ''}${(todayChange || 0).toFixed(1)}% from yesterday`
       },
       {
-        title: "Pending Bids",
-        icon: <FontAwesome5 name="list-alt" size={20} color="#f97316" />,
-        value: summary.pendingBidsCount.toString(),
-        subtext: "Bids awaiting acceptance"
+        title: "Active Routes",
+        icon: <FontAwesome5 name="route" size={20} color="#f97316" />,
+        value: (completedRoutes || 0).toString(),
+        subtext: "Routes currently active"
       },
       {
         title: "Weekly Total\nEarnings",
