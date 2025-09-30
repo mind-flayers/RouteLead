@@ -303,27 +303,6 @@ const Analytics = () => {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          <select
-            onChange={(e) => {
-              const value = e.target.value;
-              // In a real implementation, this would trigger a re-fetch with the new date range
-              // For now, just show a notification
-              alert(`Filter changed to: ${value}. In a production environment, this would refresh the dashboard data.`);
-            }}
-            style={{
-              border: '1px solid #E5E7EB',
-              borderRadius: 8,
-              padding: '8px 14px',
-              fontSize: 15,
-              background: '#fff',
-            }}
-          >
-            <option value="30d">Last 30 Days</option>
-            <option value="90d">Last 90 Days</option>
-            <option value="180d">Last 180 Days</option>
-            <option value="1y">Last 12 Months</option>
-            <option value="all">All Time</option>
-          </select>
           <button
             onClick={async () => {
               try {
