@@ -56,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         id: `bid-${b.id}`,
         type: 'BID_PLACED',
         icon: '💰',
-        text: `New bid placed: Rs.${b.bid_amount || 'N/A'}`,
+        text: `New bid placed: Rs.${typeof b.bid_amount === 'number' && !isNaN(b.bid_amount) ? b.bid_amount : 0}`,
         time: getTimeElapsed(new Date(b.created_at)),
         created_at: b.created_at
       })),
@@ -213,36 +213,35 @@ async function getRecentBids() {
     
     // Try to fetch with appropriate columns
     try {
+      // Try to fetch both 'amount' and 'bid_amount' columns if available
       const { data, error } = await adminSupabase
         .from('bids')
-        .select('id, amount, created_at')
+        .select('id, amount, bid_amount, created_at')
         .order('created_at', { ascending: false })
         .limit(5);
-      
       if (error) {
         throw error;
       }
-      
       return data.map((bid: any) => ({
         ...bid,
-        bid_amount: bid.amount
+        bid_amount: (typeof bid.amount === 'number' && !isNaN(bid.amount)) ? bid.amount
+                    : (typeof bid.bid_amount === 'number' && !isNaN(bid.bid_amount)) ? bid.bid_amount
+                    : 0
       })) || [];
     } catch (columnError) {
-      // Try again with bid_amount column
+      // Fallback: fetch at least the id and created_at, but set bid_amount to 0 if missing
       const { data, error } = await adminSupabase
         .from('bids')
         .select('id, created_at')
         .order('created_at', { ascending: false })
         .limit(5);
-      
       if (error) {
         console.error('Error getting recent bids:', error);
         return [];
       }
-      
       return data.map((bid: any) => ({
         ...bid,
-        bid_amount: 'N/A'
+        bid_amount: 0
       })) || [];
     }
   } catch (err) {

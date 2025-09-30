@@ -856,10 +856,50 @@ select option:checked, select option:focus {
 									transition: 'background 0.2s, box-shadow 0.2s',
 								}}
 								onClick={async () => {
-									// Simulate fetching documents for the user
-									// Replace this with your real API call if needed
-									setDocs(editUser?.documents || null);
+									if (!editUser?.id) return;
+									setDocs(null);
 									setShowDocsModal(true);
+									try {
+										const res = await fetch(`/api/admin/users/${editUser.id}/documents`);
+										if (!res.ok) throw new Error('Failed to fetch documents');
+										const data = await res.json();
+										// Map vehicle and other docs for modal display
+										setDocs({
+											...data,
+											vehicleDocs: Array.isArray(data.documents)
+												? data.documents.filter((d: any) => [
+													'VEHICLE_LICENSE',
+													'VEHICLE_REGISTRATION',
+													'VEHICLE_FRONT_VIEW',
+													'VEHICLE_BACK_VIEW',
+													'VEHICLE_INSIDE_VIEW',
+													'INSURANCE',
+													'OWNER_NIC_FRONT',
+													'OWNER_NIC_BACK',
+												].includes(d.documentType)).map((d: any) => ({
+													url: d.documentUrl,
+													name: d.name,
+													type: d.documentType,
+												})) : [],
+											otherDocs: Array.isArray(data.documents)
+												? data.documents.filter((d: any) => ![
+													'VEHICLE_LICENSE',
+													'VEHICLE_REGISTRATION',
+													'VEHICLE_FRONT_VIEW',
+													'VEHICLE_BACK_VIEW',
+													'VEHICLE_INSIDE_VIEW',
+													'INSURANCE',
+													'OWNER_NIC_FRONT',
+													'OWNER_NIC_BACK',
+												].includes(d.documentType)).map((d: any) => ({
+													url: d.documentUrl,
+													name: d.name,
+													type: d.documentType,
+												})) : [],
+										});
+									} catch (err) {
+										setDocs({ error: 'Failed to fetch documents.' });
+									}
 								}}
 							>
 								Check Documents
@@ -964,50 +1004,80 @@ select option:checked, select option:focus {
 						{editUser.role === 'DRIVER' ? (
 							<div>
 								<div style={{
-									display: 'grid',
-									gridTemplateColumns: '1fr 1fr',
-									gap: '18px 32px',
+									display: 'flex',
+									flexWrap: 'wrap',
+									gap: '24px 40px',
 									marginBottom: 18,
 									alignItems: 'center',
 									background: '#f8f8fa',
 									borderRadius: 10,
 									padding: 18,
 								}}>
-									<div style={{ fontSize: 17 }}><b>NIC Number:</b> <span style={{ color: '#222' }}>{docs?.nicNumber || editUser.nicNumber || 'Not provided'}</span></div>
-									<div style={{ fontSize: 17 }}><b>Face Photo:</b><br />{(editUser.profile_photo_url || docs?.facePhoto) ? (
-										<img src={editUser.profile_photo_url || docs?.facePhoto} alt="Face" style={{ maxWidth: 140, maxHeight: 140, borderRadius: '50%', border: '2px solid #eee', marginTop: 6 }} />
-									) : <span style={{ color: '#888' }}>Not uploaded</span>}</div>
-									<div style={{ fontSize: 17 }}><b>Driver Licence Number:</b> <span style={{ color: '#222' }}>{docs?.licenceNumber || 'Not uploaded'}</span></div>
-									<div style={{ fontSize: 17 }}><b>Licence Expiry Date:</b> <span style={{ color: '#222' }}>{docs?.licenceExpiry || 'Not uploaded'}</span></div>
-									<div style={{ fontSize: 17, gridColumn: '1/3' }}><b>Vehicle Documents:</b><br />{docs?.vehicleDocs ? docs.vehicleDocs.map((v: any, i: number) => <div key={i}><a href={v.url} target="_blank" rel="noopener noreferrer">{v.name || `Document ${i+1}`}</a></div>) : <span style={{ color: '#888' }}>Not uploaded</span>}</div>
-									<div style={{ fontSize: 17, gridColumn: '1/3' }}><b>Other Documents:</b><br />{docs?.otherDocs ? docs.otherDocs.map((d: any, i: number) => <div key={i}><a href={d.url} target="_blank" rel="noopener noreferrer">{d.name || `Document ${i+1}`}</a></div>) : <span style={{ color: '#888' }}>None</span>}</div>
-								</div>
-								{/* Vehicle Details Section */}
-								<div style={{ marginTop: 32, paddingTop: 18, borderTop: '2px solid #e3e3e3', background: '#f8f8fa', borderRadius: 10, padding: 18 }}>
-									<div style={{ fontWeight: 800, fontSize: 22, color: '#1A237E', marginBottom: 18 }}>Vehicle Details</div>
-									<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 32px', alignItems: 'center' }}>
-										<div style={{ fontSize: 17 }}><b>Make:</b> <span style={{ color: '#222' }}>{editUser.vehicle_make || docs?.vehicleMake || 'Not provided'}</span></div>
-										<div style={{ fontSize: 17 }}><b>Model:</b> <span style={{ color: '#222' }}>{editUser.vehicle_model || docs?.vehicleModel || 'Not provided'}</span></div>
-										<div style={{ fontSize: 17 }}><b>Plate Number:</b> <span style={{ color: '#222' }}>{editUser.vehicle_plate_number || docs?.vehiclePlateNumber || 'Not provided'}</span></div>
-										<div style={{ fontSize: 17, gridColumn: '1/3' }}><b>Vehicle Photos:</b><br />{
-											(editUser.vehicle_photos || docs?.vehiclePhotos) ?
-												((editUser.vehicle_photos || docs?.vehiclePhotos).map ?
-													(editUser.vehicle_photos || docs?.vehiclePhotos).map((url: string, i: number) => (
-														<img key={i} src={url} alt={`Vehicle ${i+1}`} style={{ maxWidth: 200, maxHeight: 140, marginRight: 12, marginBottom: 12, borderRadius: 10, border: '2px solid #eee' }} />
-													))
-													: <span style={{ color: '#888' }}>Not uploaded</span>)
-												: <span style={{ color: '#888' }}>Not uploaded</span>
-										}</div>
+									<div style={{ minWidth: 220, fontSize: 17, marginBottom: 8 }}>
+										<b>Name:</b><br />
+										<span style={{ color: '#222', fontWeight: 500, fontSize: 18 }}>{`${editUser.firstName || editUser.first_name || ''} ${editUser.lastName || editUser.last_name || ''}`.trim() || 'Not provided'}</span>
+									</div>
+									<div style={{ minWidth: 220, fontSize: 17, marginBottom: 8 }}>
+										<b>NIC Number:</b><br />
+										<span style={{ color: '#222', fontWeight: 500, fontSize: 18 }}>{docs?.nicNumber || editUser.nicNumber || 'Not provided'}</span>
+									</div>
+									<div style={{ minWidth: 220, fontSize: 17, marginBottom: 8 }}>
+										<b>Driver Licence Number:</b><br />
+										<span style={{ color: '#222', fontWeight: 500, fontSize: 18 }}>{docs?.licenceNumber || 'Not uploaded'}</span>
+									</div>
+									<div style={{ minWidth: 220, fontSize: 17, marginBottom: 8 }}>
+										<b>Licence Expiry Date:</b><br />
+										<span style={{ color: '#222', fontWeight: 500, fontSize: 18 }}>{docs?.licenceExpiry || 'Not uploaded'}</span>
+									</div>
+									<div style={{ minWidth: 220, fontSize: 17, marginBottom: 8 }}>
+										<b>Face Photo:</b><br />
+										{(docs?.facePhoto || editUser.profile_photo_url) ? (
+											<img src={docs?.facePhoto || editUser.profile_photo_url} alt="Face" style={{ maxWidth: 140, maxHeight: 140, borderRadius: '50%', border: '2px solid #eee', marginTop: 6 }} />
+										) : <span style={{ color: '#888' }}>Not uploaded</span>}
+									</div>
+									<div style={{ fontSize: 17, gridColumn: '1/3' }}><b>Vehicle Documents:</b><br />
+										{docs?.vehicleDocs && docs.vehicleDocs.length > 0 ? (
+											<div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginTop: 8 }}>
+												{docs.vehicleDocs.map((v: any, i: number) => (
+													<img key={i} src={v.url} alt={`Vehicle Document ${i+1}`} style={{ maxWidth: 180, maxHeight: 120, borderRadius: 8, border: '1.5px solid #eee', background: '#fafbfc' }} />
+												))}
+											</div>
+										) : <span style={{ color: '#888' }}>Not uploaded</span>}
+									</div>
+									{/* NIC Photos */}
+									<div style={{ fontSize: 17, gridColumn: '1/3', marginBottom: 10 }}><b>NIC Photos:</b><br />
+										{docs?.otherDocs && docs.otherDocs.filter((d: any) => d.type === 'NATIONAL_ID' || d.type === 'OWNER_NIC_FRONT' || d.type === 'OWNER_NIC_BACK').length > 0 ? (
+											<div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginTop: 8 }}>
+												{docs.otherDocs.filter((d: any) => d.type === 'NATIONAL_ID' || d.type === 'OWNER_NIC_FRONT' || d.type === 'OWNER_NIC_BACK').map((d: any, i: number) => (
+													<img key={i} src={d.url} alt={`NIC Photo ${i+1}`} style={{ maxWidth: 180, maxHeight: 120, borderRadius: 8, border: '1.5px solid #eee', background: '#fafbfc' }} />
+												))}
+											</div>
+										) : <span style={{ color: '#888' }}>None</span>}
+									</div>
+									{/* Licence Photos */}
+									<div style={{ fontSize: 17, gridColumn: '1/3', marginBottom: 10 }}><b>Licence Photos:</b><br />
+										{docs?.otherDocs && docs.otherDocs.filter((d: any) => d.type === 'DRIVERS_LICENSE').length > 0 ? (
+											<div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, marginTop: 8 }}>
+												{docs.otherDocs.filter((d: any) => d.type === 'DRIVERS_LICENSE').map((d: any, i: number) => (
+													<img key={i} src={d.url} alt={`Licence Photo ${i+1}`} style={{ maxWidth: 180, maxHeight: 120, borderRadius: 8, border: '1.5px solid #eee', background: '#fafbfc' }} />
+												))}
+											</div>
+										) : <span style={{ color: '#888' }}>None</span>}
 									</div>
 								</div>
 							</div>
 						) : (
 							<div style={{ display: 'flex', flexDirection: 'column', gap: 16, background: '#f8f8fa', borderRadius: 10, padding: 18 }}>
 								<div><b>NIC Number:</b> {docs?.nicNumber || editUser.nicNumber || 'Not provided'}</div>
-								<div><b>Face Photo:</b> {(editUser.profile_photo_url || docs?.facePhoto) ? (
-									<img src={editUser.profile_photo_url || docs?.facePhoto} alt="Face" style={{ maxWidth: 120, maxHeight: 120, borderRadius: '50%' }} />
+								<div><b>Face Photo:</b> {(docs?.facePhoto || editUser.profile_photo_url) ? (
+									<img src={docs?.facePhoto || editUser.profile_photo_url} alt="Face" style={{ maxWidth: 120, maxHeight: 120, borderRadius: '50%' }} />
 								) : 'Not uploaded'}</div>
-								<div><b>Other Documents:</b> {docs?.otherDocs ? docs.otherDocs.map((d: any, i: number) => <div key={i}><a href={d.url} target="_blank" rel="noopener noreferrer">{d.name || `Document ${i+1}`}</a></div>) : 'None'}</div>
+								<div><b>Other Documents:</b> {docs?.otherDocs && docs.otherDocs.length > 0 ? docs.otherDocs.map((d: any, i: number) => (
+									<div key={i} style={{ marginBottom: 10 }}>
+										<div style={{ fontWeight: 500 }}>{d.name || `Document ${i+1}`}</div>
+										<img src={d.url} alt={d.name || `Other Document ${i+1}`} style={{ maxWidth: 220, maxHeight: 140, borderRadius: 8, border: '1.5px solid #eee', marginTop: 4 }} />
+									</div>
+								)) : 'None'}</div>
 							</div>
 						)}
 						</div>
